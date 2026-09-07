@@ -1,0 +1,26 @@
+apiVersion: operator.openshift.io/v1alpha1
+kind: ImageContentSourcePolicy
+metadata:
+  name: ocp-mirror
+spec:
+  repositoryDigestMirrors:
+    - source: quay.io/openshift-release-dev/ocp-release
+      mirrors:
+        - registry.ocp-v.local:5000/openshift/release
+    - source: quay.io/openshift-release-dev/ocp-v4.0-art-dev
+      mirrors:
+        - registry.ocp-v.local:5000/openshift/release
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: cs-redhat-operator-index
+  namespace: openshift-marketplace
+spec:
+  image: registry.ocp-v.local:5000/redhat/redhat-operator-index:v4.14
+  sourceType: grpc
+  displayName: Red Hat Operator Index (Mirrored)
+  publisher: Red Hat
+  updateStrategy:
+    registryPoll:
+      interval: 30m

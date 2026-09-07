@@ -1,0 +1,29 @@
+apiVersion: v1
+baseDomain: ocp-v.local
+compute:
+  - name: worker
+    replicas: 2
+controlPlane:
+  name: master
+  replicas: 3
+metadata:
+  name: ocpv-lab
+networking:
+  networkType: OVNKubernetes
+  clusterNetwork:
+    - cidr: 10.128.0.0/14
+      hostPrefix: 23
+  serviceNetwork:
+    - 172.30.0.0/16
+  machineNetwork:
+    - cidr: 10.10.0.0/16
+platform:
+  baremetal:
+    apiVIPs:
+      - 10.10.0.100
+    ingressVIPs:
+      - 10.10.0.101
+pullSecret: '<PULL_SECRET>'
+sshKey: '<SSH_PUBLIC_KEY>'
+additionalTrustBundle: |
+  <REGISTRY_CA_CERT>

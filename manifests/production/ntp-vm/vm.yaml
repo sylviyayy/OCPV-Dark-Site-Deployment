@@ -1,0 +1,67 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ntp-server
+  namespace: infrastructure
+  labels:
+    app: ntp-server
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: ntp-server
+    spec:
+      priorityClassName: system-node-critical
+      domain:
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: flat-l2
+              bridge: {}
+        resources:
+          requests:
+            memory: 2Gi
+            cpu: 1
+      networks:
+        - name: flat-l2
+          multus:
+            networkName: infrastructure/flat-l2-network
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: ntp-server-dv
+        - name: cloudinitdisk
+          cloudInitConfigDrive:
+            sources:
+              - secret:
+                  secretName: ntp-cloud-init
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/worker
+                    operator: Exists
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: ntp-server-dv
+  namespace: infrastructure
+spec:
+  source:
+    registry:
+      url: docker://MIRROR_REGISTRY/rhel9/rhel-guest-image:latest
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 10Gi

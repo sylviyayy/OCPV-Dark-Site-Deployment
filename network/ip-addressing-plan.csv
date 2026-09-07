@@ -1,0 +1,14 @@
+role,ip,hostname,notes
+gateway,10.10.0.1,gw.ocp-v.local,Router/L3 switch default gateway
+switch-mgmt,10.10.0.2,sw01.ocp-v.local,Optional switch management IP
+bastion,10.10.0.5,bastion.ocp-v.local,MVP DNS/NTP + installer workstation
+registry,10.10.0.10,registry.ocp-v.local,Mirror container registry
+dns-vm,10.10.0.50,dns.ocp-v.local,Production DNS VM on OCP-V
+ntp-vm,10.10.0.51,ntp.ocp-v.local,Production NTP VM on OCP-V
+api-vip,10.10.0.100,api.ocpv-lab.ocp-v.local,OpenShift API VIP
+ingress-vip,10.10.0.101,*.apps.ocpv-lab.ocp-v.local,OpenShift Ingress VIP
+cp01,10.10.1.11,cp01.ocp-v.local,Control plane node 1
+cp02,10.10.1.12,cp02.ocp-v.local,Control plane node 2
+cp03,10.10.1.13,cp03.ocp-v.local,Control plane node 3
+wk01,10.10.2.21,wk01.ocp-v.local,Worker node 1
+wk02,10.10.2.22,wk02.ocp-v.local,Worker node 2

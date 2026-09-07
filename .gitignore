@@ -1,0 +1,11 @@
+.env
+*.pem
+*.key
+*.crt
+auth/
+pull-secret.json
+/opt/ocp-mirror/
+mirror/
+*.iso
+*.qcow2
+.DS_Store

@@ -1,0 +1,88 @@
+# Flat L2 Switch Configuration Example
+# Platform: Cisco IOS / IOS-XE style
+# Scenario: Single network, no VLAN tagging
+
+! ============================================================
+! Global settings
+! ============================================================
+hostname OCPV-SW01
+!
+no ip domain-lookup
+spanning-tree mode rapid-pvst
+spanning-tree portfast default
+
+! ============================================================
+! Management interface (optional — if switch has mgmt IP)
+! ============================================================
+interface Vlan1
+  description Management - flat L2
+  ip address 10.10.0.2 255.255.0.0
+  no shutdown
+!
+ip default-gateway 10.10.0.1
+
+! ============================================================
+! All access ports — flat L2, no VLAN tagging
+! ============================================================
+! Uplink to gateway/router
+interface GigabitEthernet1/0/1
+  description Uplink to Gateway 10.10.0.1
+  switchport mode access
+  switchport access vlan 1
+  spanning-tree portfast
+  no shutdown
+
+! Bastion host
+interface GigabitEthernet1/0/2
+  description Bastion 10.10.0.5
+  switchport mode access
+  switchport access vlan 1
+  spanning-tree portfast
+  no shutdown
+
+! Mirror registry
+interface GigabitEthernet1/0/3
+  description Registry 10.10.0.10
+  switchport mode access
+  switchport access vlan 1
+  spanning-tree portfast
+  no shutdown
+
+! Control plane nodes
+interface range GigabitEthernet1/0/10-12
+  description Control Plane cp01-cp03
+  switchport mode access
+  switchport access vlan 1
+  spanning-tree portfast
+  no shutdown
+
+! Worker nodes
+interface range GigabitEthernet1/0/20-21
+  description Workers wk01-wk02
+  switchport mode access
+  switchport access vlan 1
+  spanning-tree portfast
+  no shutdown
+
+! ============================================================
+! Future VLAN expansion (commented out — enable when ready)
+! ============================================================
+! vlan 10
+!  name management
+! vlan 20
+!  name control-plane
+! vlan 30
+!  name workers
+! vlan 40
+!  name vm-workloads
+!
+! interface GigabitEthernet1/0/10
+!   switchport mode access
+!   switchport access vlan 20
+!   description cp01 - Control Plane VLAN
+
+! ============================================================
+! Save configuration
+! ============================================================
+! end
+! write memory

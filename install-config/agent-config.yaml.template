@@ -1,0 +1,141 @@
+apiVersion: v1alpha1
+kind: AgentConfig
+metadata:
+  name: ocpv-lab
+rendezvousIP: 10.10.1.11
+hosts:
+  - hostname: cp01
+    role: master
+    rootDeviceHints:
+      deviceName: /dev/sda
+    interfaces:
+      - name: ens192
+        macAddress: "<CP01_MAC>"
+    networkConfig:
+      interfaces:
+        - name: ens192
+          type: ethernet
+          state: up
+          ipv4:
+            enabled: true
+            address:
+              - ip: 10.10.1.11
+                prefix-length: 16
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - 10.10.0.5
+      routes:
+        config:
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.10.0.1
+            next-hop-interface: ens192
+  - hostname: cp02
+    role: master
+    rootDeviceHints:
+      deviceName: /dev/sda
+    interfaces:
+      - name: ens192
+        macAddress: "<CP02_MAC>"
+    networkConfig:
+      interfaces:
+        - name: ens192
+          type: ethernet
+          state: up
+          ipv4:
+            enabled: true
+            address:
+              - ip: 10.10.1.12
+                prefix-length: 16
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - 10.10.0.5
+      routes:
+        config:
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.10.0.1
+            next-hop-interface: ens192
+  - hostname: cp03
+    role: master
+    rootDeviceHints:
+      deviceName: /dev/sda
+    interfaces:
+      - name: ens192
+        macAddress: "<CP03_MAC>"
+    networkConfig:
+      interfaces:
+        - name: ens192
+          type: ethernet
+          state: up
+          ipv4:
+            enabled: true
+            address:
+              - ip: 10.10.1.13
+                prefix-length: 16
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - 10.10.0.5
+      routes:
+        config:
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.10.0.1
+            next-hop-interface: ens192
+  - hostname: wk01
+    role: worker
+    rootDeviceHints:
+      deviceName: /dev/sda
+    interfaces:
+      - name: ens192
+        macAddress: "<WK01_MAC>"
+    networkConfig:
+      interfaces:
+        - name: ens192
+          type: ethernet
+          state: up
+          ipv4:
+            enabled: true
+            address:
+              - ip: 10.10.2.21
+                prefix-length: 16
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - 10.10.0.5
+      routes:
+        config:
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.10.0.1
+            next-hop-interface: ens192
+  - hostname: wk02
+    role: worker
+    rootDeviceHints:
+      deviceName: /dev/sda
+    interfaces:
+      - name: ens192
+        macAddress: "<WK02_MAC>"
+    networkConfig:
+      interfaces:
+        - name: ens192
+          type: ethernet
+          state: up
+          ipv4:
+            enabled: true
+            address:
+              - ip: 10.10.2.22
+                prefix-length: 16
+            dhcp: false
+      dns-resolver:
+        config:
+          server:
+            - 10.10.0.5
+      routes:
+        config:
+          - destination: 0.0.0.0/0
+            next-hop-address: 10.10.0.1
+            next-hop-interface: ens192

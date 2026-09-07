@@ -1,0 +1,67 @@
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: dns-server
+  namespace: infrastructure
+  labels:
+    app: dns-server
+spec:
+  running: true
+  template:
+    metadata:
+      labels:
+        kubevirt.io/vm: dns-server
+    spec:
+      priorityClassName: system-node-critical
+      domain:
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: flat-l2
+              bridge: {}
+        resources:
+          requests:
+            memory: 4Gi
+            cpu: 2
+      networks:
+        - name: flat-l2
+          multus:
+            networkName: infrastructure/flat-l2-network
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: dns-server-dv
+        - name: cloudinitdisk
+          cloudInitConfigDrive:
+            sources:
+              - secret:
+                  secretName: dns-cloud-init
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node-role.kubernetes.io/worker
+                    operator: Exists
+---
+apiVersion: cdi.kubevirt.io/v1beta1
+kind: DataVolume
+metadata:
+  name: dns-server-dv
+  namespace: infrastructure
+spec:
+  source:
+    registry:
+      url: docker://MIRROR_REGISTRY/rhel9/rhel-guest-image:latest
+  pvc:
+    accessModes:
+      - ReadWriteOnce
+    resources:
+      requests:
+        storage: 30Gi

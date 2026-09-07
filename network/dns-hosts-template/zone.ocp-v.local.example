@@ -1,0 +1,41 @@
+$TTL 3600
+$ORIGIN ocp-v.local.
+@   IN  SOA dns.ocp-v.local. admin.ocp-v.local. (
+        2026010101  ; serial (YYYYMMDDnn)
+        3600        ; refresh
+        1800        ; retry
+        604800      ; expire
+        86400       ; minimum TTL
+)
+
+; Name servers
+@           IN  NS  dns.ocp-v.local.
+
+; Infrastructure
+gw          IN  A   10.10.0.1
+bastion     IN  A   10.10.0.5
+registry    IN  A   10.10.0.10
+dns         IN  A   10.10.0.50
+ntp         IN  A   10.10.0.51
+
+; Control plane
+cp01        IN  A   10.10.1.11
+cp02        IN  A   10.10.1.12
+cp03        IN  A   10.10.1.13
+
+; Workers
+wk01        IN  A   10.10.2.21
+wk02        IN  A   10.10.2.22
+
+; OpenShift cluster subdomain
+ocpv-lab    IN  NS  dns.ocp-v.local.
+
+; API and Ingress VIPs
+api.ocpv-lab            IN  A   10.10.0.100
+api-int.ocpv-lab        IN  A   10.10.0.100
+*.apps.ocpv-lab         IN  A   10.10.0.101
+
+; Reverse zone (10.10.in-addr.arpa) — partial
+; 0.10.10.in-addr.arpa PTR records for infrastructure
+; 50  IN  PTR  dns.ocp-v.local.
+; 51  IN  PTR  ntp.ocp-v.local.

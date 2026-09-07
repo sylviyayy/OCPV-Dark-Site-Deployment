@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dns-cloud-init
+  namespace: infrastructure
+data:
+  user-data: |
+    #cloud-config
+    hostname: dns
+    fqdn: dns.BASE_DOMAIN
+    manage_etc_hosts: true
+    chpasswd:
+      expire: false
+      list: |
+        root:changeme-dns-root
+    ssh_authorized_keys:
+      - ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQC... installer@staging
+    packages:
+      - bind
+      - bind-utils
+      - chrony
+    write_files:
+      - path: /etc/named.conf
+        content: |
+          options {
+              listen-on port 53 { any; };
+              directory       "/var/named";
+              dump-file       "/var/named/data/cache_dump.db";
+              statistics-file "/var/named/data/named_stats.txt";
+              allow-query     { any; };
+              recursion no;
+          };
+          zone "BASE_DOMAIN" IN {
+              type master;
+              file "BASE_DOMAIN.zone";
+          };
+          zone "CLUSTER_NAME.BASE_DOMAIN" IN {
+              type master;
+              file "CLUSTER_NAME.BASE_DOMAIN.zone";
+          };
+      - path: /var/named/BASE_DOMAIN.zone
+        content: |
+          $TTL 3600
+          @   IN  SOA dns.BASE_DOMAIN. admin.BASE_DOMAIN. (2026010101 3600 1800 604800 86400)
+          @       IN  NS  dns.BASE_DOMAIN.
+          gw      IN  A   NETWORK_GATEWAY
+          bastion IN  A   BASTION_IP
+          registry IN A   MIRROR_REGISTRY_IP
+          dns     IN  A   DNS_VM_IP
+          ntp     IN  A   NTP_VM_IP
+          cp01    IN  A   CP01_IP
+          cp02    IN  A   CP02_IP
+          cp03    IN  A   CP03_IP
+          wk01    IN  A   WK01_IP
+          wk02    IN  A   WK02_IP
+      - path: /var/named/CLUSTER_NAME.BASE_DOMAIN.zone
+        content: |
+          $TTL 3600
+          @   IN  SOA dns.BASE_DOMAIN. admin.BASE_DOMAIN. (2026010101 3600 1800 604800 86400)
+          @       IN  NS  dns.BASE_DOMAIN.
+          api         IN  A   API_VIP
+          api-int     IN  A   API_VIP
+          *.apps      IN  A   INGRESS_VIP
+      - path: /etc/chrony.conf
+        content: |
+          server BASTION_IP iburst
+          driftfile /var/lib/chrony/drift
+          makestep 1.0 3
+          rtcsync
+    runcmd:
+      - systemctl enable --now named
+      - systemctl enable --now chronyd
+      - firewall-cmd --permanent --add-service=dns
+      - firewall-cmd --reload

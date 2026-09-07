@@ -1,0 +1,30 @@
+# Static hosts file for dark site bootstrap
+# Use when DNS is not yet available
+# Generated from .env — do not edit manually
+
+127.0.0.1   localhost localhost.localdomain
+::1         localhost localhost.localdomain
+
+# Infrastructure
+10.10.0.1   gw.ocp-v.local gw
+10.10.0.5   bastion.ocp-v.local bastion
+10.10.0.10  registry.ocp-v.local registry
+
+# OpenShift VIPs
+10.10.0.100 api.ocpv-lab.ocp-v.local api api-int.ocpv-lab.ocp-v.local api-int
+10.10.0.101 console-openshift-console.apps.ocpv-lab.ocp-v.local
+10.10.0.101 oauth-openshift.apps.ocpv-lab.ocp-v.local
+10.10.0.101 downloads-openshift-console.apps.ocpv-lab.ocp-v.local
+
+# Control plane
+10.10.1.11  cp01.ocp-v.local cp01
+10.10.1.12  cp02.ocp-v.local cp02
+10.10.1.13  cp03.ocp-v.local cp03
+
+# Workers
+10.10.2.21  wk01.ocp-v.local wk01
+10.10.2.22  wk02.ocp-v.local wk02
+
+# Production services (post-install)
+10.10.0.50  dns.ocp-v.local dns
+10.10.0.51  ntp.ocp-v.local ntp
