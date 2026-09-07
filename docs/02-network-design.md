@@ -84,7 +84,7 @@ routes:
 
 ## VM Networking on OCP-V
 
-Once CNV is installed, VMs connect via **Linux bridge** or **OVN** (default in OpenShift 4.14+):
+Once OpenShift Virtualization is installed, VMs connect via **OVN** (default in OpenShift 4.22):
 
 | Network | Type | Purpose |
 |---|---|---|

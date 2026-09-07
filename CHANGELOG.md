@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Updated all documentation and scripts for **OpenShift 4.22** and OpenShift Virtualization 4.22
+- Replaced deprecated `oc adm release mirror` / ICSP workflow with **oc-mirror plugin v2** and IDMS/ITMS
+- Aligned install flow with official Red Hat Agent-based Installer disconnected documentation
+- Default mirror registry port changed to **443** (mirror registry for Red Hat OpenShift)
+- Added `docs/00-disconnected-install-task-flow.md` with full enterprise task checklist
+- Added `mirror/imageset-config.yaml.template` (`mirror.openshift.io/v2alpha1`)
+- Updated CNV deployment to use mirrored `kubevirt-hyperconverged` from `redhat-operator-index:v4.22`
+
 ### Added
 - Changelog policy, release workflow, and PR template for consistent change tracking
 

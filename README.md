@@ -20,7 +20,7 @@ This repository covers the full lifecycle:
 | DNS | Not available until you stand up MVP services |
 | NTP | Not available until you stand up MVP services |
 | Installer | Disconnected (agent-based or IPI with local mirror) |
-| Target | OpenShift 4.14+ with OpenShift Virtualization (CNV) |
+| Target | OpenShift **4.22** with OpenShift Virtualization (Agent-based Installer, oc-mirror v2) |
 
 ## Repository Layout
 
@@ -50,8 +50,8 @@ cd OCPV-Dark-Site-Deployment
 cp .env.example .env
 vi .env
 
-# Download OCP release + operator catalogs (requires internet)
-./scripts/01-mirror-preparation.sh
+# Download OCP release + operator catalogs (requires internet + Red Hat subscription)
+./scripts/01-mirror-preparation.sh --mirror-to-disk
 ```
 
 ### Phase 1 — Bootstrap the dark site (empty network)
@@ -96,6 +96,7 @@ See [docs/06-production-network-services.md](docs/06-production-network-services
 
 | # | Document | Description |
 |---|---|---|
+| 0 | [Disconnected Task Flow](docs/00-disconnected-install-task-flow.md) | Full Red Hat 4.22 disconnected checklist |
 | 1 | [Architecture Overview](docs/01-architecture-overview.md) | High-level design and phase diagram |
 | 2 | [Network Design](docs/02-network-design.md) | Flat L2, IP plan, VM networking |
 | 3 | [Kickstart Procedure](docs/03-kickstart-procedure.md) | Bootstrap from empty network |
@@ -122,7 +123,8 @@ All site-specific values live in `.env`. Key variables:
 | `NETWORK_CIDR` | `10.10.0.0/16` | Flat L2 network |
 | `BASTION_IP` | `10.10.0.5` | Bastion / MVP DNS/NTP |
 | `MIRROR_REGISTRY` | `10.10.0.10:5000` | Local container registry |
-| `OCP_VERSION` | `4.14.16` | Target OpenShift version |
+| `OCP_VERSION` | `4.22.2` | Target OpenShift z-stream (pin from Red Hat mirror) |
+| `OCP_CHANNEL` | `stable-4.22` | Release channel for oc-mirror ImageSet |
 
 ## Support
 

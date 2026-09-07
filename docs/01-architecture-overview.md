@@ -52,17 +52,26 @@ In a dark site with **no existing DNS or NTP**, OpenShift cannot install because
 1. **MVP (Phase 2):** Run `dnsmasq` + `chronyd` on the bastion. All nodes point to the bastion IP for DNS and NTP. Use static `/etc/hosts` entries on every host.
 2. **Production (Phase 5):** Deploy BIND9 and chrony VMs on OCP-V. Update node DNS/NTP to point to the VMs. Decommission bastion services.
 
-## Installer Choice
+## Installer Choice (OpenShift 4.22)
 
-This repo supports **agent-based installation** (recommended for dark sites):
+Red Hat recommends for disconnected environments:
+
+| Component | Official choice | This repo |
+|---|---|---|
+| Mirroring | **oc-mirror plugin v2** (`--v2`) | `scripts/01`, `scripts/04` |
+| Installation | **Agent-based Installer** | `scripts/05` |
+| Cluster mirror config | **IDMS / ITMS** (not ICSP) | oc-mirror `cluster-resources/` |
+| Registry | mirror registry for Red Hat OpenShift | `scripts/04` (+ optional `mirror-registry` CLI) |
+
+The Agent-based Installer requires **no load balancer, bootstrap VM, or DHCP** for bare metal.
+
+Optional community wrapper: [aba](https://github.com/sjbylo/aba) (see [Red Hat Developer article](https://developers.redhat.com/articles/2025/10/14/simplify-openshift-installation-air-gapped-environments)) — not a Red Hat product.
 
 | Method | Pros | Cons |
 |---|---|---|
-| **Agent-based** | No bootstrap VM; works well disconnected; ISO boots each node | Requires per-node ISO |
-| **IPI (installer-provisioned)** | Automated provisioning | Needs DHCP/PXE or vCenter; harder in pure dark site |
-| **UPI (user-provisioned)** | Maximum control | Manual node prep |
-
-The scripts default to **agent-based** with a local mirror registry.
+| **Agent-based** (default) | Official 4.22 preference; disconnected-native | Per-node discovery ISO |
+| **IPI** | Automated VM provisioning | Needs vCenter/DHCP; less common in pure dark sites |
+| **UPI** | Maximum control | Manual node prep |
 
 ## Storage Considerations for OCP-V
 

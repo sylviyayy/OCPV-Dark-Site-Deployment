@@ -5,7 +5,7 @@
 auth/
 pull-secret.json
 /opt/ocp-mirror/
-mirror/
+oc-mirror-workdir/
 *.iso
 *.qcow2
 .DS_Store

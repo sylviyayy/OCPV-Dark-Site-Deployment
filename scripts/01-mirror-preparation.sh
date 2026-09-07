@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Download and mirror OCP release artifacts on a staging machine (requires internet)
+# Download CLI tools and mirror OCP 4.22 images using oc-mirror plugin v2 (connected staging host)
+#
+# Official references:
+# - https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/
+# - https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/about-installing-oc-mirror-v2
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -7,82 +11,96 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 load_env
-require_cmd oc podman skopeo jq curl
+require_cmd oc jq curl
 
 MIRROR_DIR="${MIRROR_DIR:-/opt/ocp-mirror}"
 PULL_SECRET="${PULL_SECRET_FILE:-${MIRROR_DIR}/pull-secret.json}"
+IMAGESET="${IMAGESET_CONFIG:-${MIRROR_DIR}/imageset-config.yaml}"
+WORKDIR="${OC_MIRROR_WORKDIR:-${MIRROR_DIR}/oc-mirror-workdir}"
+OCP_MINOR="${OCP_VERSION%.*}"
 
-log_info "OCP-V Dark Site Mirror Preparation"
-log_info "Target version: ${OCP_VERSION}"
-log_info "Mirror directory: ${MIRROR_DIR}"
+log_info "OCP 4.22 disconnected mirror preparation"
+log_info "Version: ${OCP_VERSION}  Channel: ${OCP_CHANNEL:-stable-${OCP_MINOR}}"
 
 if [[ ! -f "$PULL_SECRET" ]]; then
-  log_error "Pull secret not found at ${PULL_SECRET}"
+  log_error "Pull secret not found: ${PULL_SECRET}"
   log_error "Download from https://console.redhat.com/openshift/install/pull-secret"
   exit 1
 fi
 
-mkdir -p "${MIRROR_DIR}"
+mkdir -p "${MIRROR_DIR}" "${WORKDIR}"
 
-# Download openshift-install and oc client
-RELEASE_IMAGE="quay.io/openshift-release-dev/ocp-release:${OCP_VERSION}-x86_64"
-log_info "Pulling release image: ${RELEASE_IMAGE}"
-oc adm release extract --tools --command=openshift-install "${RELEASE_IMAGE}" -C "${MIRROR_DIR}/"
-oc adm release extract --tools --command=oc "${RELEASE_IMAGE}" -C "${MIRROR_DIR}/"
+# --- Step 1: Download openshift-install, oc, oc-mirror from Red Hat mirror ---
+TOOLS_DIR="${MIRROR_DIR}/clients"
+mkdir -p "${TOOLS_DIR}"
 
-# Create mirror configuration
-cat > "${MIRROR_DIR}/mirror-config.yaml" <<EOF
-apiVersion: v1
-data:
-  mirror-config: |
-    kind: ImageSetConfiguration
-    apiVersion: mirror.openshift.io/v1alpha2
-    storageConfig:
-      registry:
-        imageURL: ${MIRROR_REGISTRY}/ocp-mirror/mirror
-        skipTLS: true
-    mirror:
-      platform:
-        architectures:
-          - amd64
-        channels:
-          - name: stable-${OCP_VERSION%.*}
-            type: ocp-release
-            minVersion: ${OCP_VERSION}
-            maxVersion: ${OCP_VERSION}
-      operators:
-        - catalog: registry.redhat.io/redhat/redhat-operator-index:v4.14
-          packages:
-            - name: kubevirt-hyperconverged
-              channels:
-                - name: stable
-            - name: cnv
-              channels:
-                - name: stable
-      additionalImages:
-        - name: registry.redhat.io/rhel9/rhel-guest-image:latest
-        - name: quay.io/kubevirt/cirros-container-disk-demo:latest
-EOF
+CLIENT_BASE="https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OCP_VERSION}"
+log_info "Downloading OpenShift CLI tools from ${CLIENT_BASE}"
 
-log_info "Mirror config written to ${MIRROR_DIR}/mirror-config.yaml"
+for tool in openshift-install oc oc-mirror; do
+  if [[ ! -x "${TOOLS_DIR}/${tool}" ]]; then
+    curl -fsSL "${CLIENT_BASE}/${tool}.tar.gz" -o "/tmp/${tool}.tar.gz"
+    tar xzf "/tmp/${tool}.tar.gz" -C "${TOOLS_DIR}"
+    chmod +x "${TOOLS_DIR}/${tool}"
+    rm -f "/tmp/${tool}.tar.gz"
+    log_info "  Installed ${tool}"
+  fi
+done
 
-# Run oc mirror (requires oc-mirror plugin v2)
-if command -v oc-mirror &>/dev/null; then
-  log_info "Running oc mirror..."
-  oc mirror --config="${MIRROR_DIR}/mirror-config.yaml" \
-    --workspace="${MIRROR_DIR}/workspace" \
-    docker://${MIRROR_REGISTRY}
-  log_info "Mirror complete. Transfer ${MIRROR_DIR} to dark site."
-else
-  log_warn "oc-mirror plugin not found. Install with:"
-  log_warn "  curl -sL https://mirror.openshift.com/pub/openshift-v4/clients/ocp/${OCP_VERSION}/oc-mirror.tar.gz | tar xz -C /usr/local/bin"
-  log_warn "Mirror config is ready at ${MIRROR_DIR}/mirror-config.yaml"
-  log_warn "Run oc mirror manually after installing the plugin."
+export PATH="${TOOLS_DIR}:${PATH}"
+
+if ! oc mirror --v2 --help &>/dev/null; then
+  log_error "oc-mirror plugin v2 not available. Verify ${TOOLS_DIR}/oc-mirror"
+  exit 1
 fi
 
-# Create transport tarball instructions
+# --- Step 2: Generate ImageSetConfiguration ---
+if [[ ! -f "${IMAGESET}" ]]; then
+  sed \
+    -e "s|stable-4.22|${OCP_CHANNEL:-stable-${OCP_MINOR}}|g" \
+    -e "s|4.22.2|${OCP_VERSION}|g" \
+    -e "s|redhat-operator-index:v4.22|redhat-operator-index:v${OCP_MINOR}|g" \
+    "${REPO_ROOT}/mirror/imageset-config.yaml.template" > "${IMAGESET}"
+  log_info "Generated ${IMAGESET}"
+fi
+
+# --- Step 3: Configure mirror registry credentials (separate from cluster pull secret) ---
+REG_CREDS="${MIRROR_DIR}/mirror-registry-creds.json"
+if [[ ! -f "${REG_CREDS}" ]]; then
+  log_warn "Creating mirror registry credentials template at ${REG_CREDS}"
+  log_warn "Edit this file — add your mirror registry auth (NOT the cluster pull secret)"
+  jq --arg reg "${MIRROR_REGISTRY}" \
+     --arg user "${MIRROR_REGISTRY_USER:-init}" \
+     --arg pass "${MIRROR_REGISTRY_PASSWORD:-changeme}" \
+     '.auths[$reg] = {"auth": (("\($user):\($pass)" | @base64)), "email": "mirror@local"}' \
+     "${PULL_SECRET}" > "${REG_CREDS}"
+fi
+
 log_info ""
-log_info "=== Next Steps ==="
-log_info "1. tar czf /tmp/ocp-mirror.tar.gz -C $(dirname ${MIRROR_DIR}) $(basename ${MIRROR_DIR})"
-log_info "2. Copy tarball + RHEL ISO + this repo to dark site via USB/NAS"
-log_info "3. Follow docs/03-kickstart-procedure.md"
+log_info "=== Mirror workflow (choose one) ==="
+log_info ""
+log_info "A) Mirror-to-disk (fully disconnected transport via USB):"
+log_info "   oc mirror -c ${IMAGESET} --workspace file://${WORKDIR} --v2"
+log_info "   # Transfer ${WORKDIR} tarball to dark site, then run scripts/04-mirror-ocp-images.sh"
+log_info ""
+log_info "B) Mirror-to-mirror (staging host can reach dark-site registry):"
+log_info "   oc mirror -c ${IMAGESET} --workspace file://${WORKDIR} docker://${MIRROR_REGISTRY} --v2"
+log_info ""
+log_info "Optional: install mirror-registry for Red Hat OpenShift on dark site:"
+log_info "   https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/index"
+log_info "   Download mirror-registry CLI from console.redhat.com → Downloads"
+log_info ""
+log_info "After mirroring, verify cluster-resources were generated:"
+log_info "   ls ${WORKDIR}/cluster-resources/"
+
+# Auto-run mirror-to-disk if --mirror flag passed
+if [[ "${1:-}" == "--mirror-to-disk" ]]; then
+  log_info "Running mirror-to-disk..."
+  oc mirror -c "${IMAGESET}" --workspace "file://${WORKDIR}" --v2
+  log_info "Mirror archive ready in ${WORKDIR}"
+fi
+
+if [[ "${1:-}" == "--mirror-to-registry" ]]; then
+  log_info "Running mirror-to-mirror → docker://${MIRROR_REGISTRY}"
+  oc mirror -c "${IMAGESET}" --workspace "file://${WORKDIR}" "docker://${MIRROR_REGISTRY}" --v2
+fi

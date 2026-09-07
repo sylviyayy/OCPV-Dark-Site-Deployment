@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Disconnected OpenShift installation using agent-based installer
+# Disconnected OpenShift 4.22 installation using Agent-based Installer
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -16,7 +16,7 @@ if [[ ! -f "${INSTALL_DIR}/install-config.yaml" ]]; then
   exit 1
 fi
 
-log_info "Starting disconnected OCP installation"
+log_info "Starting disconnected OCP ${OCP_VERSION} installation (Agent-based Installer)"
 log_info "Cluster: ${CLUSTER_NAME}.${BASE_DOMAIN}"
 log_info "Install directory: ${INSTALL_DIR}"
 
@@ -61,12 +61,18 @@ export KUBECONFIG="${INSTALL_DIR}/auth/kubeconfig"
 log_info "Installation complete!"
 oc get nodes
 
-# Apply mirror configuration
-log_info "Applying mirror registry configuration..."
-oc apply -f "${INSTALL_DIR}/mirror-config-generated.yaml"
+# Apply oc-mirror v2 cluster resources (IDMS, ITMS, CatalogSource)
+CLUSTER_RES="${INSTALL_DIR}/cluster-resources"
+if [[ -d "$CLUSTER_RES" ]]; then
+  log_info "Applying mirror registry cluster resources from ${CLUSTER_RES}..."
+  oc apply -f "${CLUSTER_RES}/"
+else
+  log_warn "cluster-resources/ not found — apply oc-mirror output manually"
+  log_warn "  oc apply -f \${OC_MIRROR_WORKDIR}/cluster-resources/"
+fi
 
 log_info ""
 log_info "=== Next Steps ==="
 log_info "1. Verify cluster: oc get co"
-log_info "2. Deploy CNV: ./scripts/06-deploy-cnv.sh"
+log_info "2. Deploy OCP-V: ./scripts/06-deploy-cnv.sh"
 log_info "3. Deploy DNS/NTP VMs: ./scripts/07-deploy-dns-vm.sh"

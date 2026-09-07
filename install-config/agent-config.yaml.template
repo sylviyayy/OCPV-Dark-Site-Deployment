@@ -10,7 +10,7 @@ hosts:
       deviceName: /dev/sda
     interfaces:
       - name: ens192
-        macAddress: "<CP01_MAC>"
+        macAddress: "00:50:56:00:00:11"
     networkConfig:
       interfaces:
         - name: ens192
@@ -37,7 +37,7 @@ hosts:
       deviceName: /dev/sda
     interfaces:
       - name: ens192
-        macAddress: "<CP02_MAC>"
+        macAddress: "00:50:56:00:00:12"
     networkConfig:
       interfaces:
         - name: ens192
@@ -64,7 +64,7 @@ hosts:
       deviceName: /dev/sda
     interfaces:
       - name: ens192
-        macAddress: "<CP03_MAC>"
+        macAddress: "00:50:56:00:00:13"
     networkConfig:
       interfaces:
         - name: ens192
@@ -91,7 +91,7 @@ hosts:
       deviceName: /dev/sda
     interfaces:
       - name: ens192
-        macAddress: "<WK01_MAC>"
+        macAddress: "00:50:56:00:00:21"
     networkConfig:
       interfaces:
         - name: ens192
@@ -118,7 +118,7 @@ hosts:
       deviceName: /dev/sda
     interfaces:
       - name: ens192
-        macAddress: "<WK02_MAC>"
+        macAddress: "00:50:56:00:00:22"
     networkConfig:
       interfaces:
         - name: ens192
@@ -139,3 +139,6 @@ hosts:
           - destination: 0.0.0.0/0
             next-hop-address: 10.10.0.1
             next-hop-interface: ens192
+
+# Optional: bonds, VLANs, proxy — edit nmstate per host before install.
+# Docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/kubernetes_nmstate/
