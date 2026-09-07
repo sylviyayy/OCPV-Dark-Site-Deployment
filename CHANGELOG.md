@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Greenfield partner documentation (`docs/GREENFIELD-README.md`, `docs/greenfield/*`)
+- Deployment tracks (bare metal primary, optional KVM lab appendix)
+- Diagram placement guide — network + storage **before** OCP-V platform topology
+- CoE ImageSet profile `mirror/imageset-ocpv-coe.yaml`
+- Reference to [eanylin/openshift-lab](https://github.com/eanylin/openshift-lab) for optional KVM practice only
+
 ### Changed
 - Updated all documentation and scripts for **OpenShift 4.22** and OpenShift Virtualization 4.22
 - Replaced deprecated `oc adm release mirror` / ICSP workflow with **oc-mirror plugin v2** and IDMS/ITMS
@@ -15,8 +22,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `docs/00-disconnected-install-task-flow.md` with full enterprise task checklist
 - Added `mirror/imageset-config.yaml.template` (`mirror.openshift.io/v2alpha1`)
 - Updated CNV deployment to use mirrored `kubevirt-hyperconverged` from `redhat-operator-index:v4.22`
-
-### Added
 - Changelog policy, release workflow, and PR template for consistent change tracking
 
 ## [1.0.0] - 2026-09-07

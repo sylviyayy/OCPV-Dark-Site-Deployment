@@ -1,6 +1,8 @@
 # OCP-V Dark Site Deployment
 
-End-to-end reference for deploying **OpenShift Virtualization (OCP-V)** in a **dark site** (air-gapped, no internet) environment.
+Greenfield, bare-metal reference for deploying **OpenShift Virtualization (OCP-V)** in a **disconnected** (air-gapped) environment — written for hardware partners, system integrators, and CoE teams.
+
+**New here?** Start with **[docs/GREENFIELD-README.md](docs/GREENFIELD-README.md)** (reading order, diagram placement, deployment tracks).
 
 This repository covers the full lifecycle:
 
@@ -94,9 +96,24 @@ See [docs/06-production-network-services.md](docs/06-production-network-services
 
 ## Documentation Index
 
+### Greenfield (start here)
+
+| Doc | Description |
+|---|---|
+| [Greenfield guide](docs/GREENFIELD-README.md) | Reading order, tracks, **where diagrams go** |
+| [Deployment tracks](docs/DEPLOYMENT-TRACKS.md) | Bare metal (A) vs optional KVM lab (B) |
+| [Diagram guide](docs/diagrams/README.md) | Network + storage diagram **before** platform topology |
+| [Assumptions](docs/greenfield/00-assumptions-and-scope.md) | Scope, minimums, HA baseline |
+| [Worksheet](docs/greenfield/01-information-gathering-worksheet.md) | Mandatory gate before cabling |
+| [Physical / BMC](docs/greenfield/02-physical-cabling-and-bmc.md) | Cables, RAID, virtual CD |
+| [Network + storage](docs/greenfield/03-network-and-storage-design.md) | Bonds, Po, LUN masking (**Diagram 2**) |
+| [Platform / OCP-V](docs/greenfield/04-platform-topology-and-requirements.md) | Cluster topology (**Diagram 3**) |
+
+### Software install runbooks
+
 | # | Document | Description |
 |---|---|---|
-| 0 | [Disconnected Task Flow](docs/00-disconnected-install-task-flow.md) | Full Red Hat 4.22 disconnected checklist |
+| 0 | [Disconnected Task Flow](docs/00-disconnected-install-task-flow.md) | Red Hat 4.22 task checklist |
 | 1 | [Architecture Overview](docs/01-architecture-overview.md) | High-level design and phase diagram |
 | 2 | [Network Design](docs/02-network-design.md) | Flat L2, IP plan, VM networking |
 | 3 | [Kickstart Procedure](docs/03-kickstart-procedure.md) | Bootstrap from empty network |
