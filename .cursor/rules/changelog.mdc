@@ -1,0 +1,26 @@
+---
+description: Update CHANGELOG.md under [Unreleased] for every user-facing change
+alwaysApply: true
+---
+
+# Changelog policy
+
+When editing this repository, update [CHANGELOG.md](CHANGELOG.md) in the same change set.
+
+## Rules
+
+1. Add entries under the **`[Unreleased]`** section only (do not edit past release sections).
+2. Use Keep a Changelog categories: **Added**, **Changed**, **Deprecated**, **Removed**, **Fixed**, **Security**.
+3. One bullet per logical change; mention paths like `scripts/`, `docs/`, or `manifests/` when helpful.
+4. Do not bump version numbers or cut releases unless the user explicitly asks.
+5. See [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/RELEASE.md](docs/RELEASE.md) for full guidance.
+
+## Example
+
+```markdown
+### Added
+- Offline registry health check to `scripts/00-prerequisites-check.sh`
+
+### Fixed
+- Correct worker DNS server IP in `install-config/agent-config.yaml.template`
+```

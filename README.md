@@ -128,6 +128,14 @@ All site-specific values live in `.env`. Key variables:
 
 This is a reference implementation. Validate against your Red Hat subscription entitlements and the [OpenShift disconnected install documentation](https://docs.openshift.com/container-platform/latest/installing/disconnected_install/index.html).
 
+## Contributing
+
+- [CHANGELOG.md](CHANGELOG.md) — all notable changes ([Keep a Changelog](https://keepachangelog.com/) format)
+- [CONTRIBUTING.md](CONTRIBUTING.md) — how to update the changelog and open PRs
+- [docs/RELEASE.md](docs/RELEASE.md) — version tagging and release checklist
+
+Every change that affects users should add bullets under `[Unreleased]` in `CHANGELOG.md`.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
