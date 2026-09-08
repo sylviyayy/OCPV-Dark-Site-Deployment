@@ -2,6 +2,9 @@
 # Trimmed from community reference: eanylin/openshift-lab imageset-config-4.22.yaml
 # Use for partner CoE / demo mirrors. For minimal install use imageset-config.yaml.template
 #
+# Intentionally excludes MTV/forklift — add mtv-operator to mirror.operators.packages
+# before mirroring if the customer needs VMware workload migration.
+#
 # Apply: oc mirror -c mirror/imageset-ocpv-coe.yaml --workspace file://${OC_MIRROR_WORKDIR} --v2
 
 kind: ImageSetConfiguration

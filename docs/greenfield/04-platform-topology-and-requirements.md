@@ -65,7 +65,9 @@ Reference ImageSet: `mirror/imageset-ocpv-coe.yaml`
 
 ---
 
-## DNS/NTP on the platform (replaces VMware DNS)
+## DNS/NTP on the platform (VMware-exit, row 1)
+
+When DNS today serves only the vSphere estate, production DNS moves here after install:
 
 | Phase | Service location |
 |---|---|

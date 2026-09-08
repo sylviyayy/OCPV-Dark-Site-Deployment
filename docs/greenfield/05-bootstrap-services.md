@@ -2,8 +2,10 @@
 
 ## The greenfield DNS problem
 
-**Brownfield:** DNS often lives on VMware.  
-**Greenfield:** Nothing exists until you build it.
+**Brownfield:** DNS may live on VMware, AD, or Infoblox.  
+**This repo (row 1):** DNS served only the vSphere estate — you **rebuild** it on the new platform.
+
+Qualify which case applies: [appendix — does this repo apply?](appendix-brownfield-contrast.md)
 
 This repo uses a **two-stage** approach:
 

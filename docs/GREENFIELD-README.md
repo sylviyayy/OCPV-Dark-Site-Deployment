@@ -1,7 +1,8 @@
 # Greenfield Deployment Guide
 
-**Start here** if you are a hardware partner, system integrator, or customer building a **new**
-bare-metal OpenShift Virtualization environment from scratch (no VMware, no existing DNS).
+**Start here** if you are a hardware partner, system integrator, or customer building a
+**new bare-metal OpenShift Virtualization cluster** — new install, nothing inherited
+into this build. The customer may be exiting VMware; that does not exclude them.
 
 This guide is separate from the **software install runbooks** (`03`–`07` in the parent folder).
 Read the greenfield chapters **first** — they explain *where to cable, what to configure on switches
@@ -34,7 +35,8 @@ and SAN, and what information you must collect* before generating an agent ISO.
   </tbody>
 </table>
 
-**Not in scope:** Brownfield VMware migration. See [appendix-brownfield-contrast.md](greenfield/appendix-brownfield-contrast.md).
+**Qualify your customer first:** [Does this repo apply?](greenfield/appendix-brownfield-contrast.md)  
+**Scope list:** [assumptions and scope](greenfield/00-assumptions-and-scope.md)
 
 ---
 
@@ -117,7 +119,7 @@ Your specialist’s hand-drawn rack diagram maps best to **Diagram 1 + 2** combi
 ## Reference labs (optional)
 
 - [KVM practice lab (eanylin/openshift-lab)](greenfield/appendix-optional-kvm-lab.md) — software-only rehearsal; not for customer delivery
-- [Brownfield contrast](greenfield/appendix-brownfield-contrast.md) — why VMware DNS does not apply here
+- [Does this repo apply?](greenfield/appendix-brownfield-contrast.md) — qualify VMware-exit and brownfield conversations (DNS row table)
 
 ---
 

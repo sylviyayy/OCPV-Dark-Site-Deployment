@@ -43,7 +43,8 @@
 
 ## The Greenfield Story (why this repo exists)
 
-In brownfield OpenShift deployments, customers often have DNS already up and running e.g. on VMware. In greenfield **there is no DNS until you build it**:
+Qualify the customer first: [appendix — does this repo apply?](appendix-brownfield-contrast.md).  
+In **row 1** (DNS served only the vSphere estate), there is no DNS until you build it:
 
 1. **Install phase:** temporary DNS/NTP on bastion
 2. **Steady state:** DNS and NTP VMs **on OpenShift Virtualization**

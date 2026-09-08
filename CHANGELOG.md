@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reference to [eanylin/openshift-lab](https://github.com/eanylin/openshift-lab) for optional KVM practice only
 
 ### Changed
-- Updated all documentation and scripts for **OpenShift 4.22** and OpenShift Virtualization 4.22
+- Rewrote brownfield appendix as customer qualification decision aid; fixed false MTV mirror claim
+- Resolved GREENFIELD-README contradiction on VMware-exit DNS (function rebuild vs "does not apply")
 - Replaced deprecated `oc adm release mirror` / ICSP workflow with **oc-mirror plugin v2** and IDMS/ITMS
 - Aligned install flow with official Red Hat Agent-based Installer disconnected documentation
 - Default mirror registry port changed to **443** (mirror registry for Red Hat OpenShift)
