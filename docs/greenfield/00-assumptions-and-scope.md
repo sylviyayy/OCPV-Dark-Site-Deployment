@@ -43,7 +43,7 @@
 
 ## The Greenfield Story (why this repo exists)
 
-In brownfield, DNS often runs on VMware. In greenfield **there is no DNS until you build it**:
+In brownfield OpenShift deployments, customers often have DNS already up and running e.g. on VMware. In greenfield **there is no DNS until you build it**:
 
 1. **Install phase:** temporary DNS/NTP on bastion
 2. **Steady state:** DNS and NTP VMs **on OpenShift Virtualization**
