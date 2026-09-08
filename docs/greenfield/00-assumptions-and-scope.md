@@ -20,7 +20,7 @@
 - Multi-cluster fleet / ACM (optional mirror only)
 - KVM hypervisor as production platform (see Track B appendix)
 
-## Minimum Hardware (Track A - High Availability Center of Excellence)
+## Minimum Hardware (Track A - High Availability Setup for Center of Excellence)
 
 | Component | Minimum | Rationale |
 |---|---|---|
