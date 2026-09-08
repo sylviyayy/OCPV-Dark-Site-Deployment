@@ -57,7 +57,7 @@ See [05-bootstrap-services.md](05-bootstrap-services.md).
 | Single switch only | Switch failure = total outage (document as lab-only) |
 | No temp DNS/NTP | Image pulls and etcd health fail |
 | Wrong SAN masking | Wrong host sees LUN → data corruption risk |
-| Nested virt only workers | OCP-V performance unusable / unsupported for CoE |
+| Virtualized nodes (nested virtualization) | OCP-V performance unusable / unsupported for CoE |
 | Mixed OCP versions in mirror | Operators stuck in `Pending` |
 
 ## Next step
