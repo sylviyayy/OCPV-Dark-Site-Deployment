@@ -15,7 +15,7 @@ and SAN, and what information you must collect* before generating an agent ISO.
   <thead>
     <tr>
       <th width="50%"> Audience </th>
-      <th width="25%"> Goal </th>
+      <th width="50%"> Goal </th>
     </tr>
   </thead>
   <tbody>
