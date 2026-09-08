@@ -5,7 +5,7 @@
 | Attribute | Value |
 |---|---|
 | **Field** | Greenfield (new rack, new network, new DNS) |
-| **Connectivity** | Disconnected (air-gapped) during install |
+| **Connectivity** | Air-gapped (completely no internet access) during install |
 | **Platform** | Bare metal — **Track A** default |
 | **OpenShift** | 4.22, channel `stable-4.22` |
 | **Installer** | Agent-based Installer (Red Hat recommended for disconnected) |
