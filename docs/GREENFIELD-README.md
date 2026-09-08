@@ -13,9 +13,9 @@ and SAN, and what information you must collect* before generating an agent ISO.
 
 | Audience | Goal |
 |---|---|
-| **Lenovo / hardware partners** | Repeatable CoE and customer rack delivery |
-| **System integrators** | Idiot-proof checklist for greenfield OCP-V |
-| **OpenShift newcomers** | Understand *where* and *why*, not just commands |
+| **Lenovo / hardware partners** | Repeatable CoE and customer rack delivery         |
+| **System integrators** | Idiot-proof checklist for greenfield OCP-V         |
+| **OpenShift newcomers** | Understand *where* and *why*, not just commands         |
 
 **Not in scope:** Brownfield VMware migration. See [appendix-brownfield-contrast.md](greenfield/appendix-brownfield-contrast.md).
 
