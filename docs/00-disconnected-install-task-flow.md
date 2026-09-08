@@ -85,8 +85,7 @@ These are listed in the enterprise runbook but **not automated** in this repo:
 
 [aba](https://github.com/sjbylo/aba) (documented on [Red Hat Developer](https://developers.redhat.com/articles/2025/10/14/simplify-openshift-installation-air-gapped-environments))
 wraps the **Agent-based Installer** and oc-mirror to reduce manual steps (~15 → 3–4).
-It is **not** a Red Hat product. This repo's scripts provide an equivalent manual path
-using only official Red Hat tooling.
+Note that it is **not** an official Red Hat product while useful for customer POCs.
 
 ## Next steps
 
