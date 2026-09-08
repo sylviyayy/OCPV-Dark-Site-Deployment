@@ -55,7 +55,7 @@ See [05-bootstrap-services.md](05-bootstrap-services.md).
 | Violation | What Happens |
 |---|---|
 | Single switch only | Switch failure = total outage (document as lab-only) |
-| No temp DNS/NTP | Image pulls and etcd health fail |
+| No temporary DNS/NTP | Image pulls and etcd health fail |
 | Wrong SAN masking | Wrong host sees LUN → data corruption risk |
 | Virtualized nodes (nested virtualization) | OCP-V performance unusable / unsupported for CoE |
 | Mixed OCP versions in mirror | Operators stuck in `Pending` |
