@@ -1,10 +1,10 @@
 # Assumptions and Scope
 
-## Deployment type
+## Deployment Type
 
 | Attribute | Value |
 |---|---|
-| **Field** | Greenfield (new rack, new network, new DNS story) |
+| **Field** | Greenfield (new rack, new network, new DNS) |
 | **Connectivity** | Disconnected (air-gapped) during install |
 | **Platform** | Bare metal — **Track A** default |
 | **OpenShift** | 4.22, channel `stable-4.22` |
@@ -12,7 +12,7 @@
 | **Mirroring** | oc-mirror plugin v2, IDMS/ITMS |
 | **Virtualization** | OpenShift Virtualization (`kubevirt-hyperconverged`) |
 
-## Out of scope
+## Out of Scope
 
 - VMware migration or coexistence
 - Existing enterprise DNS/AD integration (brownfield)
@@ -20,7 +20,7 @@
 - Multi-cluster fleet / ACM (optional mirror only)
 - KVM hypervisor as production platform (see Track B appendix)
 
-## Minimum hardware (Track A — HA-shaped CoE)
+## Minimum Hardware (Track A - High Availability Center of Excellence)
 
 | Component | Minimum | Rationale |
 |---|---|---|
@@ -34,14 +34,14 @@
 | Bastion | 1 physical server | Mirror + installer + temp DNS/NTP |
 | Registry | 1 host (may co-locate with bastion in tiny labs) | Image pull during install |
 
-## Software assumptions
+## Software Assumptions
 
 - RHEL 9 on bastion/registry (kickstart)
 - Red Hat subscription for pull secret and mirrored content
 - Workers expose `/dev/kvm` (VT-x/AMD-V enabled in BIOS)
 - No DHCP on install VLAN (static nmstate in `agent-config.yaml`)
 
-## Greenfield DNS story (why this repo exists)
+## The Greenfield Story (why this repo exists)
 
 In brownfield, DNS often runs on VMware. In greenfield **there is no DNS until you build it**:
 
@@ -50,9 +50,9 @@ In brownfield, DNS often runs on VMware. In greenfield **there is no DNS until y
 
 See [05-bootstrap-services.md](05-bootstrap-services.md).
 
-## What fails if assumptions are violated
+## What Fails if Assumptions are Violated
 
-| Violation | Failure mode |
+| Violation | What Happens |
 |---|---|
 | Single switch only | Switch failure = total outage (document as lab-only) |
 | No temp DNS/NTP | Image pulls and etcd health fail |
