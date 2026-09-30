@@ -15,8 +15,7 @@ One of:
 
 ## WHY
 
-Kubernetes The Hard Way calls this the jumpbox. Here it is also the temporary DNS/NTP
-server because greenfield dark sites have no Infoblox yet.
+The bastion here serves as the temporary DNS/NTP server since we are deploying this OpenShift cluster from scratch (greenfield).
 
 **PXE is not required.** Use USB or KVM virtual CD.
 
