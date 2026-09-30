@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Beginner lab series `docs/labs/` (Hard Way–style): USB/KVM path, `vim`, per-field `.env` guide, rationale every step
 - Greenfield partner documentation (`docs/GREENFIELD-README.md`, `docs/greenfield/*`)
 - Deployment tracks (bare metal primary, optional KVM lab appendix)
 - Diagram placement guide — network + storage **before** OCP-V platform topology
@@ -15,6 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reference to [eanylin/openshift-lab](https://github.com/eanylin/openshift-lab) for optional KVM practice only
 
 ### Changed
+- Prefer RHEL USB / KVM ISO attach over PXE for bastion/registry; document PXE as optional only
+- Quick start examples use `vim` and point at explicit `.env` field list
 - Rewrote brownfield appendix as customer qualification decision aid; fixed false MTV mirror claim
 - Resolved GREENFIELD-README contradiction on VMware-exit DNS (function rebuild vs "does not apply")
 - Replaced deprecated `oc adm release mirror` / ICSP workflow with **oc-mirror plugin v2** and IDMS/ITMS

@@ -91,12 +91,13 @@ Diagram placement guide: [diagrams/README.md](diagrams/README.md)
 
 | Step | Document |
 |---|---|
-| 10 | [Disconnected task flow (Red Hat mapping)](00-disconnected-install-task-flow.md) |
-| 11 | [Kickstart procedure](03-kickstart-procedure.md) |
-| 12 | [Offline installer guide](04-offline-installer-guide.md) |
-| 13 | [MVP network services](05-mvp-network-services.md) |
-| 14 | [Production network services](06-production-network-services.md) |
-| 15 | [Post-install validation](07-post-install-validation.md) |
+| 10 | **[Labs 00–11 (beginner walkthrough)](labs/README.md)** |
+| 11 | [Disconnected task flow (Red Hat mapping)](00-disconnected-install-task-flow.md) |
+| 12 | [Kickstart procedure](03-kickstart-procedure.md) (USB preferred; PXE optional only) |
+| 13 | [Offline installer guide](04-offline-installer-guide.md) |
+| 14 | [MVP network services](05-mvp-network-services.md) |
+| 15 | [Production network services](06-production-network-services.md) |
+| 16 | [Post-install validation](07-post-install-validation.md) |
 
 Scripts: numbered `scripts/00`–`08` in repo root.
 
@@ -123,10 +124,17 @@ Your specialist’s hand-drawn rack diagram maps best to **Diagram 1 + 2** combi
 
 ---
 
+## Beginner labs (recommended path)
+
+Numbered walkthrough with **WHERE / WHY / DO / VERIFY / FAILS IF** on every step  
+(USB Kickstart + BMC agent ISO — **not PXE**; edit `.env` with **`vim`**):
+
+→ **[labs/README.md](labs/README.md)**
+
 ## Quick link to scripts
 
 ```bash
-cp .env.example .env && vi .env
+cp .env.example .env && vim .env   # see labs/02-configure-site-env.md for each field
 ./scripts/01-mirror-preparation.sh --mirror-to-disk   # connected staging
 ./scripts/02-bootstrap-dns-ntp.sh                     # bastion (dark site)
 ./scripts/03-generate-install-config.sh

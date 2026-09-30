@@ -57,20 +57,26 @@ Copy to USB/NAS:
 
 ## Step 2 — Boot bastion from RHEL ISO
 
-### Option A: USB boot + kickstart
+### Option A: USB boot + kickstart (**preferred**)
 
-1. Write RHEL 9 ISO to USB: `dd if=rhel-9.x.iso of=/dev/sdX bs=4M status=progress`
-2. Copy `kickstart/ks-bastion.cfg` to the USB root
-3. Boot the bastion server from USB
-4. At the boot prompt, append:
+Beginner detail: [labs/04-bastion-and-registry-usb.md](labs/04-bastion-and-registry-usb.md).
+
+1. Write RHEL ISO to USB: `dd if=rhel-9-or-10.iso of=/dev/sdX bs=4M status=progress oflag=sync` (check `lsblk` first)
+2. Edit Kickstart with `vim kickstart/ks-bastion.cfg` (passwords, SSH key, NIC, IP)
+3. Copy Kickstart to USB; boot bastion from USB
+4. At the boot prompt, append for example:
 
 ```
 inst.ks=hd:sdb1:/ks-bastion.cfg
 ```
 
-### Option B: PXE boot (if a temporary DHCP server is available)
+Fedora laptop / RHEL 10 KVM: attach the RHEL ISO as virtual media to a VM instead of physical USB — still not PXE.
 
-See [kickstart/README.md](../kickstart/README.md) for PXE setup.
+### Option B: PXE boot (optional only)
+
+**Not recommended** for greenfield dark sites (needs DHCP/TFTP first).  
+**Never** used for OpenShift cluster nodes in this repo (those use Agent ISO + BMC).  
+See [kickstart/README.md](../kickstart/README.md) only if you already have PXE infrastructure.
 
 ### What the bastion kickstart does
 

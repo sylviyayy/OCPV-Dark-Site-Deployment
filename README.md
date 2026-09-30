@@ -2,7 +2,11 @@
 
 Greenfield, bare-metal reference for deploying **OpenShift Virtualization (OCP-V)** in a **disconnected** (air-gapped) environment — written for hardware partners, system integrators, and CoE teams.
 
-**New here?** Start with **[docs/GREENFIELD-README.md](docs/GREENFIELD-README.md)** (reading order, diagram placement, deployment tracks).
+**New to OpenShift?** Start with the step-by-step labs (rationale on every step, USB boot — not PXE, `vim` for edits):
+
+→ **[docs/labs/README.md](docs/labs/README.md)**
+
+**Partners planning a rack?** Also read **[docs/GREENFIELD-README.md](docs/GREENFIELD-README.md)** (diagrams, worksheet, tracks).
 
 This repository covers the full lifecycle:
 
@@ -41,28 +45,34 @@ This repository covers the full lifecycle:
 
 ## Quick Start
 
-### Phase 0 — Prepare on a connected staging machine
+Prefer the numbered labs in [docs/labs/README.md](docs/labs/README.md). Condensed version:
+
+### Phase 0 — Staging (Fedora laptop or RHEL 10 KVM **with internet**)
 
 ```bash
-# Clone this repo
 git clone https://github.com/sylviyayy/OCPV-Dark-Site-Deployment.git
 cd OCPV-Dark-Site-Deployment
 
-# Copy and edit site variables
 cp .env.example .env
-vi .env
+vim .env
+# Edit values described in docs/labs/02-configure-site-env.md
+# (cluster name, domain, OCP version, IPs, VIPs, real MAC addresses, registry password)
 
-# Download OCP release + operator catalogs (requires internet + Red Hat subscription)
+mkdir -p /opt/ocp-mirror
+cp /path/to/pull-secret.json /opt/ocp-mirror/pull-secret.json
+
 ./scripts/01-mirror-preparation.sh --mirror-to-disk
 ```
 
 ### Phase 1 — Bootstrap the dark site (empty network)
 
-Follow [docs/03-kickstart-procedure.md](docs/03-kickstart-procedure.md) to:
+Follow [docs/labs/04-bastion-and-registry-usb.md](docs/labs/04-bastion-and-registry-usb.md) (or [docs/03-kickstart-procedure.md](docs/03-kickstart-procedure.md)):
 
-1. PXE/kickstart the **bastion host** (RHEL 9)
-2. PXE/kickstart the **mirror registry host**
-3. Copy mirrored artifacts from staging to the dark site (USB / portable NAS)
+1. **USB + Kickstart** the **bastion** (RHEL) — or create it as a VM on Fedora / RHEL 10 KVM
+2. **USB + Kickstart** the **mirror registry** host the same way
+3. Copy mirrored artifacts from staging into the dark site (USB / portable NAS)
+
+Do **not** use PXE unless you already have DHCP/TFTP. OpenShift nodes later boot via **BMC + Agent ISO**, not Kickstart.
 
 ### Phase 2 — MVP network services (no DNS/NTP exists yet)
 
@@ -100,6 +110,7 @@ See [docs/06-production-network-services.md](docs/06-production-network-services
 
 | Doc | Description |
 |---|---|
+| **[Labs 00–11](docs/labs/README.md)** | Beginner walkthrough (USB, `vim`, why each step) |
 | [Greenfield guide](docs/GREENFIELD-README.md) | Reading order, tracks, **where diagrams go** |
 | [Deployment tracks](docs/DEPLOYMENT-TRACKS.md) | Bare metal (A) vs optional KVM lab (B) |
 | [Diagram guide](docs/diagrams/README.md) | Network + storage diagram **before** platform topology |
