@@ -8,6 +8,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Hard Way–style repository front door in `README.md` with hyperlinked labs
+- Lenovo CoE compute lab: 2× SR665 V3 + 1× SR675 V3 (L40S), NIC slot layout, compact 3-node roles
+- Labs 01–16 remapped (jumpbox, compute, mirror, agent bootstrap, `oc` access, cleanup)
 - Beginner lab series `docs/labs/` (Hard Way–style): USB/KVM path, `vim`, per-field `.env` guide, rationale every step
 - Greenfield partner documentation (`docs/GREENFIELD-README.md`, `docs/greenfield/*`)
 - Deployment tracks (bare metal primary, optional KVM lab appendix)

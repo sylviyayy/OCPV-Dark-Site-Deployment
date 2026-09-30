@@ -1,4 +1,6 @@
-# 03 — Staging: Download Tools and Mirror Images
+# Staging mirror (detail)
+
+> Canonical lab: [06 — Mirroring Images](../06-mirroring-images.md).
 
 ## Goal
 
@@ -67,4 +69,4 @@ find "${OC_MIRROR_WORKDIR}" -type d -name cluster-resources 2>/dev/null
 
 ## Next
 
-→ [04 — Bastion and registry via RHEL USB](04-bastion-and-registry-usb.md)
+→ [Lab 06 — Mirroring Images](../06-mirroring-images.md)

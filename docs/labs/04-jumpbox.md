@@ -1,0 +1,72 @@
+# 04 — Setting up the Jumpbox
+
+## Goal
+
+Build the **jumpbox** (bastion): the machine that runs mirroring tools (when online),
+`openshift-install`, and temporary DNS/NTP.
+
+## WHERE
+
+One of:
+
+- Fedora laptop on the install VLAN (and internet when mirroring), or  
+- RHEL 10 KVM VM, or  
+- Physical RHEL host installed with **USB + Kickstart** (preferred for rack delivery)
+
+## WHY
+
+Kubernetes The Hard Way calls this the jumpbox. Here it is also the temporary DNS/NTP
+server because greenfield dark sites have no Infoblox yet.
+
+**PXE is not required.** Use USB or KVM virtual CD.
+
+## DO — path A: Fedora / RHEL KVM
+
+```bash
+sudo dnf install -y git vim jq curl podman
+git clone https://github.com/sylviyayy/OCPV-Dark-Site-Deployment.git
+cd OCPV-Dark-Site-Deployment
+# .env already filled in Lab 03
+sudo mkdir -p /opt/ocp-mirror
+sudo cp /path/to/pull-secret.json /opt/ocp-mirror/pull-secret.json
+sudo chown "$USER:$USER" /opt/ocp-mirror/pull-secret.json
+```
+
+Give the VM a static IP = `BASTION_IP` from `.env` on the install network.
+
+## DO — path B: Physical RHEL USB + Kickstart
+
+Follow the detailed USB steps:
+
+→ [bastion-and-registry-usb (detail)](detail/bastion-and-registry-usb.md)
+
+Edit Kickstart first:
+
+```bash
+vim kickstart/ks-bastion.cfg
+# passwords, ssh key, NIC name, IP = BASTION_IP
+```
+
+If registry is a second host, also prepare `ks-registry-mirror.cfg`.  
+In a small lab, registry may co-locate on the jumpbox.
+
+## VERIFY
+
+```bash
+hostname
+ip -br a
+ping -c1 "${NETWORK_GATEWAY}"
+which vim git
+test -f /opt/ocp-mirror/pull-secret.json && echo pull-secret-ok
+```
+
+## FAILS IF
+
+| Problem | Result |
+|---|---|
+| Jumpbox not on install VLAN | Cannot serve DNS or reach nodes |
+| No pull secret | Lab 06 fails |
+
+## Next
+
+→ [05 — Provisioning Compute Resources](05-compute-resources.md)

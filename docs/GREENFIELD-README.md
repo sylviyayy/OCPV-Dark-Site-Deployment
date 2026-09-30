@@ -126,10 +126,9 @@ Your specialist’s hand-drawn rack diagram maps best to **Diagram 1 + 2** combi
 
 ## Beginner labs (recommended path)
 
-Numbered walkthrough with **WHERE / WHY / DO / VERIFY / FAILS IF** on every step  
-(USB Kickstart + BMC agent ISO — **not PXE**; edit `.env` with **`vim`**):
+Hard Way–style tutorial entry (hyperlinked labs):
 
-→ **[labs/README.md](labs/README.md)**
+→ **[../README.md](../README.md)** · index [labs/README.md](labs/README.md)
 
 ## Quick link to scripts
 

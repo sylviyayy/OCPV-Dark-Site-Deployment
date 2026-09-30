@@ -1,4 +1,6 @@
-# 04 — Bastion and Registry via RHEL USB
+# Bastion and registry via RHEL USB (detail)
+
+> Canonical lab: [04 — Setting up the Jumpbox](../04-jumpbox.md).
 
 ## Goal
 
@@ -127,4 +129,4 @@ curl -sk "https://${MIRROR_REGISTRY}/v2/" && echo "registry API reachable"
 
 ## Next
 
-→ [05 — MVP DNS and NTP](05-mvp-dns-ntp.md)
+→ [Lab 04 — Jumpbox](../04-jumpbox.md) · [Lab 07 — MVP DNS/NTP](../07-mvp-dns-ntp.md)

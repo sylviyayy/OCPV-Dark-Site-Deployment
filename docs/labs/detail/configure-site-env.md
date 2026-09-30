@@ -1,4 +1,7 @@
-# 02 — Configure `.env` (what to edit)
+# Configure `.env` (field-by-field detail)
+
+> Used from [Lab 03 — Site Worksheet](../03-worksheet.md).  
+> Tutorial index: [README Labs](../../../README.md#labs).
 
 ## Goal
 
@@ -186,4 +189,4 @@ Checklist:
 
 ## Next
 
-→ [03 — Staging mirror](03-staging-mirror.md)
+→ [Lab 03 — Site Worksheet](../03-worksheet.md) · [Lab 06 — Mirroring](../06-mirroring-images.md)

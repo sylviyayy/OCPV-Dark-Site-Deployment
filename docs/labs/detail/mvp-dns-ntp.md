@@ -1,4 +1,6 @@
-# 05 — MVP DNS and NTP on the Bastion
+# MVP DNS and NTP (detail)
+
+> Canonical lab: [07 — Bootstrapping MVP DNS and NTP](../07-mvp-dns-ntp.md).
 
 ## Goal
 
@@ -59,4 +61,4 @@ chronyc -h "${BASTION_IP}" tracking
 
 ## Next
 
-→ [06 — Agent configs and discovery ISO](06-agent-config-and-iso.md)
+→ [Lab 07 — MVP DNS/NTP](../07-mvp-dns-ntp.md) · [Lab 08 — Install/Agent config](../08-install-agent-config.md)

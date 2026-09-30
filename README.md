@@ -1,171 +1,113 @@
-# OCP-V Dark Site Deployment
+# OpenShift Virtualization The Explicit Way
 
-Greenfield, bare-metal reference for deploying **OpenShift Virtualization (OCP-V)** in a **disconnected** (air-gapped) environment — written for hardware partners, system integrators, and CoE teams.
+This tutorial walks you through setting up **OpenShift Virtualization** on bare metal
+in a **disconnected (dark site)** environment the explicit way. This guide is not for
+someone looking for a fully automated black-box installer they never read. It is
+optimized for **learning**, which means taking the long route so you understand each
+task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
 
-**New to OpenShift?** Start with the step-by-step labs (rationale on every step, USB boot — not PXE, `vim` for edits):
+> The results of this tutorial should not be viewed as production ready without your
+> own validation against Red Hat documentation and your site standards — but don't let
+> that stop you from learning.
 
-→ **[docs/labs/README.md](docs/labs/README.md)**
+Scripts under `scripts/` are helpers. Every lab still tells you **where** you are,
+**what** to edit (with `vim`), and **why** the step exists.
 
-**Partners planning a rack?** Also read **[docs/GREENFIELD-README.md](docs/GREENFIELD-README.md)** (diagrams, worksheet, tracks).
+## Copyright
 
-This repository covers the full lifecycle:
+MIT License — see [LICENSE](LICENSE).
 
-1. **Flat L2 network** — single network, no VLANs (yet)
-2. **Sample network configuration** — IP plan, switch config, and VM networking
-3. **Kickstart procedure** — bootstrap from an empty network with no DNS/NTP
-4. **Offline installer workflow** — mirror registry, disconnected install, and CNV deployment
-5. **MVP network services** — minimal DNS/NTP on a bastion to survive bootstrap
-6. **Production network services** — DNS and NTP VMs hosted on OCP-V itself
+Lab structure inspired by
+[Kubernetes The Hard Way](https://github.com/kelseyhightower/kubernetes-the-hard-way).
 
-## Scenario Assumptions
+## Target Audience
 
-| Assumption | Detail |
-|---|---|
-| Network | Single flat L2 segment, no VLAN tagging |
-| Internet | None during install; all artifacts mirrored locally |
-| DNS | Not available until you stand up MVP services |
-| NTP | Not available until you stand up MVP services |
-| Installer | Disconnected (agent-based or IPI with local mirror) |
-| Target | OpenShift **4.22** with OpenShift Virtualization (Agent-based Installer, oc-mirror v2) |
+Someone who wants to understand how a **greenfield, air-gapped** OpenShift
+Virtualization deployment fits together: cabling, switches, bastion, mirror registry,
+Agent-based install, and where DNS/NTP live before and after the cluster exists.
 
-## Repository Layout
+You should be comfortable with a terminal, `vim`, and either a Fedora/RHEL laptop or
+access to server BMCs. You do **not** need prior OpenShift experience.
 
-```
-.
-├── docs/                    # Step-by-step guides (read in order)
-├── network/                 # IP plan, switch samples, DNS zone templates
-├── kickstart/               # RHEL kickstart for bastion and mirror hosts
-├── install-config/          # OpenShift install-config templates
-├── scripts/                 # Automation scripts (numbered execution order)
-├── manifests/
-│   ├── mvp/                 # Lightweight DNS/NTP on bastion (pre-OCP)
-│   └── production/          # Full DNS/NTP VMs on OCP-V (post-install)
-└── .env.example             # Site-specific variables (copy to .env)
-```
+## Cluster Details
 
-## Quick Start
+This tutorial guides you through bootstrapping an OpenShift **4.22** cluster suitable
+for a Lenovo CoE / partner lab, using the **Agent-based Installer** and **oc-mirror v2**.
 
-Prefer the numbered labs in [docs/labs/README.md](docs/labs/README.md). Condensed version:
+### Reference hardware (this CoE rack)
 
-### Phase 0 — Staging (Fedora laptop or RHEL 10 KVM **with internet**)
+| Qty | Model | CPU | Memory | Local disks | Accelerators | NICs |
+|---|---|---|---|---|---|---|
+| 2 | **ThinkSystem SR665 V3** | 2× AMD EPYC 9334 (32C) | 256 GB | 2× 960 GB SSD | — | 1× 4-port 10GBase-T (OCP slot) + 1× 2-port 10GBase-T (Slot 1) |
+| 1 | **ThinkSystem SR675 V3** | 2× AMD EPYC 9334 (32C) | 768 GB | 2× 960 GB SSD | **8× NVIDIA L40S** | 1× 4-port 10GBase-T (OCP slot) + 1× 4-port 10GBase-T (Slot 21) |
 
-```bash
-git clone https://github.com/sylviyayy/OCPV-Dark-Site-Deployment.git
-cd OCPV-Dark-Site-Deployment
+**Suggested roles for a 3-node compact cluster** (control plane + workers colocated):
 
-cp .env.example .env
-vim .env
-# Edit values described in docs/labs/02-configure-site-env.md
-# (cluster name, domain, OCP version, IPs, VIPs, real MAC addresses, registry password)
-
-mkdir -p /opt/ocp-mirror
-cp /path/to/pull-secret.json /opt/ocp-mirror/pull-secret.json
-
-./scripts/01-mirror-preparation.sh --mirror-to-disk
-```
-
-### Phase 1 — Bootstrap the dark site (empty network)
-
-Follow [docs/labs/04-bastion-and-registry-usb.md](docs/labs/04-bastion-and-registry-usb.md) (or [docs/03-kickstart-procedure.md](docs/03-kickstart-procedure.md)):
-
-1. **USB + Kickstart** the **bastion** (RHEL) — or create it as a VM on Fedora / RHEL 10 KVM
-2. **USB + Kickstart** the **mirror registry** host the same way
-3. Copy mirrored artifacts from staging into the dark site (USB / portable NAS)
-
-Do **not** use PXE unless you already have DHCP/TFTP. OpenShift nodes later boot via **BMC + Agent ISO**, not Kickstart.
-
-### Phase 2 — MVP network services (no DNS/NTP exists yet)
-
-```bash
-# On the bastion, after kickstart completes
-sudo ./scripts/02-bootstrap-dns-ntp.sh
-```
-
-This starts **dnsmasq** (DNS + DHCP optional) and **chronyd** (NTP server) so OpenShift nodes can resolve names and sync time during install.
-
-See [docs/05-mvp-network-services.md](docs/05-mvp-network-services.md).
-
-### Phase 3 — Install OpenShift (disconnected)
-
-```bash
-./scripts/03-generate-install-config.sh
-./scripts/05-install-ocp-disconnected.sh
-./scripts/06-deploy-cnv.sh
-```
-
-See [docs/04-offline-installer-guide.md](docs/04-offline-installer-guide.md).
-
-### Phase 4 — Production DNS/NTP VMs on OCP-V
-
-```bash
-./scripts/07-deploy-dns-vm.sh
-./scripts/08-deploy-ntp-vm.sh
-```
-
-See [docs/06-production-network-services.md](docs/06-production-network-services.md).
-
-## Documentation Index
-
-### Greenfield (start here)
-
-| Doc | Description |
-|---|---|
-| **[Labs 00–11](docs/labs/README.md)** | Beginner walkthrough (USB, `vim`, why each step) |
-| [Greenfield guide](docs/GREENFIELD-README.md) | Reading order, tracks, **where diagrams go** |
-| [Deployment tracks](docs/DEPLOYMENT-TRACKS.md) | Bare metal (A) vs optional KVM lab (B) |
-| [Diagram guide](docs/diagrams/README.md) | Network + storage diagram **before** platform topology |
-| [Assumptions](docs/greenfield/00-assumptions-and-scope.md) | Scope, minimums, HA baseline |
-| [Worksheet](docs/greenfield/01-information-gathering-worksheet.md) | Mandatory gate before cabling |
-| [Physical / BMC](docs/greenfield/02-physical-cabling-and-bmc.md) | Cables, RAID, virtual CD |
-| [Network + storage](docs/greenfield/03-network-and-storage-design.md) | Bonds, Po, LUN masking (**Diagram 2**) |
-| [Platform / OCP-V](docs/greenfield/04-platform-topology-and-requirements.md) | Cluster topology (**Diagram 3**) |
-
-### Software install runbooks
-
-| # | Document | Description |
+| Hostname (example) | Hardware | Role |
 |---|---|---|
-| 0 | [Disconnected Task Flow](docs/00-disconnected-install-task-flow.md) | Red Hat 4.22 task checklist |
-| 1 | [Architecture Overview](docs/01-architecture-overview.md) | High-level design and phase diagram |
-| 2 | [Network Design](docs/02-network-design.md) | Flat L2, IP plan, VM networking |
-| 3 | [Kickstart Procedure](docs/03-kickstart-procedure.md) | Bootstrap from empty network |
-| 4 | [Offline Installer Guide](docs/04-offline-installer-guide.md) | Mirror registry + disconnected install |
-| 5 | [MVP Network Services](docs/05-mvp-network-services.md) | Bastion DNS/NTP for bootstrap |
-| 6 | [Production Network Services](docs/06-production-network-services.md) | DNS/NTP VMs on OCP-V |
-| 7 | [Post-Install Validation](docs/07-post-install-validation.md) | Health checks and smoke tests |
+| `cp01` | SR665 V3 | Control plane + worker |
+| `cp02` | SR665 V3 | Control plane + worker |
+| `cp03` | SR675 V3 | Control plane + worker (GPU / heavy VM workloads) |
 
-## Prerequisites
+Plus a **jumpbox** (bastion): Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for mirroring, `openshift-install`, and temporary DNS/NTP.
 
-- **Staging machine** (internet access): RHEL 9 or Fedora, `oc`, `podman`, `skopeo`, `jq`
-- **Dark site hardware**: 3+ bare-metal or VM hosts for OCP, 1 bastion, 1 mirror registry
-- **Storage**: Sufficient disk for OCP release mirror (~60–80 GB) and RHCOS images
-- **OpenShift subscription**: Pull secret from [Red Hat OpenShift Cluster Manager](https://console.redhat.com/openshift/install/pull-secret)
+### Software / component versions
 
-## Customization
+| Component | Version / note |
+|---|---|
+| OpenShift Container Platform | **4.22** (`stable-4.22`, pin exact z-stream in `.env`) |
+| OpenShift Virtualization | `kubevirt-hyperconverged` channel `stable` (from mirrored catalog) |
+| Installer | Agent-based Installer (`openshift-install agent`) |
+| Image mirroring | oc-mirror plugin **v2** |
+| Mirror registry | mirror registry for Red Hat OpenShift (or lab registry) |
+| Jumpbox OS | **RHEL 9/10**, **Fedora**, or CentOS Stream equivalent for learning |
+| Cluster node OS | RHCOS (installed by the Agent ISO — you do not Kickstart RHCOS by hand) |
+| Container runtime | **CRI-O** (OpenShift default; not containerd) |
+| Cluster network | **OVN-Kubernetes** |
+| etcd | Bundled with the OpenShift control plane (not installed manually) |
 
-All site-specific values live in `.env`. Key variables:
+> Unlike Kubernetes The Hard Way, you do **not** hand-install etcd, kube-apiserver, or
+> containerd. The Agent-based Installer and RHCOS do that. Labs still explain *what*
+> those pieces are so you know what you are booting.
 
-| Variable | Example | Purpose |
-|---|---|---|
-| `CLUSTER_NAME` | `ocpv-lab` | OpenShift cluster name |
-| `BASE_DOMAIN` | `ocp-v.local` | Base DNS domain |
-| `NETWORK_CIDR` | `10.10.0.0/16` | Flat L2 network |
-| `BASTION_IP` | `10.10.0.5` | Bastion / MVP DNS/NTP |
-| `MIRROR_REGISTRY` | `10.10.0.10:5000` | Local container registry |
-| `OCP_VERSION` | `4.22.2` | Target OpenShift z-stream (pin from Red Hat mirror) |
-| `OCP_CHANNEL` | `stable-4.22` | Release channel for oc-mirror ImageSet |
+## Labs
 
-## Support
+This tutorial assumes **three** AMD64 Lenovo servers (above) plus a jumpbox, on the
+same L2/L3 install network. Adjust hostnames and IPs in the worksheet for your site.
 
-This is a reference implementation. Validate against your Red Hat subscription entitlements and the [OpenShift disconnected install documentation](https://docs.openshift.com/container-platform/latest/installing/disconnected_install/index.html).
+* [Prerequisites and Assumptions](docs/labs/01-prerequisites-assumptions.md)
+* [Architecture Overview and Network Design](docs/labs/02-architecture-network-design.md)
+* [Site Worksheet (mandatory)](docs/labs/03-worksheet.md)
+* [Setting up the Jumpbox](docs/labs/04-jumpbox.md)
+* [Provisioning Compute Resources](docs/labs/05-compute-resources.md)
+* [Mirroring Images for a Disconnected Install](docs/labs/06-mirroring-images.md)
+* [Bootstrapping MVP DNS and NTP](docs/labs/07-mvp-dns-ntp.md)
+* [Generating Install and Agent Configuration](docs/labs/08-install-agent-config.md)
+* [Certificates, Encryption, and etcd (what OpenShift creates for you)](docs/labs/09-certificates-etcd.md)
+* [Bootstrapping the Cluster with the Agent-based Installer](docs/labs/10-bootstrap-cluster.md)
+* [Configuring `oc` for Remote Access](docs/labs/11-oc-remote-access.md)
+* [Integrating the Mirror Registry and OperatorHub](docs/labs/12-mirror-operatorhub.md)
+* [Installing OpenShift Virtualization](docs/labs/13-openshift-virtualization.md)
+* [Production DNS and NTP on OCP-V](docs/labs/14-production-dns-ntp.md)
+* [Smoke Test](docs/labs/15-smoke-test.md)
+* [Cleaning Up](docs/labs/16-cleanup.md)
 
-## Contributing
+### Partner appendices (optional)
 
-- [CHANGELOG.md](CHANGELOG.md) — all notable changes ([Keep a Changelog](https://keepachangelog.com/) format)
-- [CONTRIBUTING.md](CONTRIBUTING.md) — how to update the changelog and open PRs
-- [docs/RELEASE.md](docs/RELEASE.md) — version tagging and release checklist
+* [Does this repo apply to my customer?](docs/greenfield/appendix-brownfield-contrast.md)
+* [Optional KVM practice lab](docs/greenfield/appendix-optional-kvm-lab.md)
+* [Diagram placement guide](docs/diagrams/README.md)
+* [Greenfield partner reading order](docs/GREENFIELD-README.md)
 
-Every change that affects users should add bullets under `[Unreleased]` in `CHANGELOG.md`.
+## Conventions
 
-## License
+```text
+WHERE:    which machine you type on
+WHY:      why this step exists
+DO:       exact commands (use vim, not vi)
+VERIFY:   how you know it worked
+FAILS IF: what breaks if you skip or get it wrong
+```
 
-MIT — see [LICENSE](LICENSE).
+**Boot methods:** RHEL USB / KVM ISO for the jumpbox and registry helper; **BMC virtual CD**
+for OpenShift nodes. **PXE is not used** on the primary path.
