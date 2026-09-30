@@ -23,15 +23,17 @@ You do **not** need prior OpenShift experience.
 This tutorial guides you through bootstrapping an OpenShift **4.22** cluster on Lenovo hardware, using the **Agent-based Installer** and **oc-mirror v2**.
 
 **Compact Bare Metal Cluster with Network Topology:**
+
 <img width="1217" height="513" alt="image" src="https://github.com/user-attachments/assets/181104fe-56e2-4bbf-a11b-0d7a07858746" />
 [Reference](https://access.redhat.com/articles/7067871)
 
-**OpenShift Virtualization Node Roles**
+**OpenShift Virtualization Node Roles:**
 <img width="1148" height="536" alt="image" src="https://github.com/user-attachments/assets/4feb2c86-dd5c-438f-b42c-e8da36d69d9f" />
 
 **There are several ways to configure an OpenShift cluster for different environment demands, but for this particular lab we will be focusing on a compact cluster setup.**
-<img width="816" height="520" alt="image" src="https://github.com/user-attachments/assets/46010051-4786-4a10-9039-21620c2fc69d" />
 
+<img width="816" height="520" alt="image" src="https://github.com/user-attachments/assets/46010051-4786-4a10-9039-21620c2fc69d" />
+[Reference](https://access.redhat.com/articles/7067871)
 
 ### Reference Hardware
 
