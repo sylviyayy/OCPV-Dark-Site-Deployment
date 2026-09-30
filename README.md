@@ -27,6 +27,7 @@ This tutorial guides you through bootstrapping an OpenShift **4.22** cluster on 
 <img width="1217" height="513" alt="image" src="https://github.com/user-attachments/assets/181104fe-56e2-4bbf-a11b-0d7a07858746" />
 [Reference](https://access.redhat.com/articles/7067871)
 
+
 **OpenShift Virtualization Node Roles:**
 <img width="1148" height="536" alt="image" src="https://github.com/user-attachments/assets/4feb2c86-dd5c-438f-b42c-e8da36d69d9f" />
 
