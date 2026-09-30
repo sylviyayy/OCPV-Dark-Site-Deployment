@@ -1,40 +1,28 @@
-# OpenShift Virtualization The Explicit Way
+# Installing a Compact OpenShift Virtualization Cluster In an Air-gapped Environment
 
-This tutorial walks you through setting up **OpenShift Virtualization** on bare metal
-in a **disconnected (dark site)** environment the explicit way. This guide is not for
-someone looking for a fully automated black-box installer they never read. It is
-optimized for **learning**, which means taking the long route so you understand each
-task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
+This tutorial walks you through setting up **OpenShift Virtualization** on 3 bare metal nodes in a **disconnected (dark site)** environment. 
 
-> The results of this tutorial should not be viewed as production ready without your
-> own validation against Red Hat documentation and your site standards — but don't let
-> that stop you from learning.
+This guide is not for someone looking for a fully automated black-box installer they never read. It is optimized for **learning**, which means taking the long route so you understand each task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
+
+> The results of this tutorial should not be viewed as production ready since local storage is used for this lab.
+> Always validate against relevant Red Hat documentation and your site standards. 
+> Have fun learning!
 
 Scripts under `scripts/` are helpers. Every lab still tells you **where** you are,
 **what** to edit (with `vim`), and **why** the step exists.
 
-## Copyright
-
-MIT License — see [LICENSE](LICENSE).
-
-Lab structure inspired by
-[Kubernetes The Hard Way](https://github.com/kelseyhightower/kubernetes-the-hard-way).
-
 ## Target Audience
 
-Someone who wants to understand how a **greenfield, air-gapped** OpenShift
-Virtualization deployment fits together: cabling, switches, bastion, mirror registry,
-Agent-based install, and where DNS/NTP live before and after the cluster exists.
+Someone who wants to understand how a **greenfield, air-gapped** OpenShift Virtualization deployment fits together: cabling, switches, bastion, mirror registry, Agent-based install, and where DNS/NTP live before and after the cluster exists.
 
-You should be comfortable with a terminal, `vim`, and either a Fedora/RHEL laptop or
-access to server BMCs. You do **not** need prior OpenShift experience.
+You should be comfortable with a terminal, commands like `vi` or `vim`, and have either a Fedora/RHEL laptop or access to server BMCs. 
+You do **not** need prior OpenShift experience.
 
 ## Cluster Details
 
-This tutorial guides you through bootstrapping an OpenShift **4.22** cluster suitable
-for a Lenovo CoE / partner lab, using the **Agent-based Installer** and **oc-mirror v2**.
+This tutorial guides you through bootstrapping an OpenShift **4.22** cluster on Lenovo hardware, using the **Agent-based Installer** and **oc-mirror v2**.
 
-### Reference hardware (this CoE rack)
+### Reference Hardware
 
 | Qty | Model | CPU | Memory | Local disks | Accelerators | NICs |
 |---|---|---|---|---|---|---|
@@ -45,15 +33,15 @@ for a Lenovo CoE / partner lab, using the **Agent-based Installer** and **oc-mir
 
 | Hostname (example) | Hardware | Role |
 |---|---|---|
-| `cp01` | SR665 V3 | Control plane + worker |
-| `cp02` | SR665 V3 | Control plane + worker |
-| `cp03` | SR675 V3 | Control plane + worker (GPU / heavy VM workloads) |
+| `mw01` | SR665 V3 | Master + worker |
+| `mw02` | SR665 V3 | Master + worker |
+| `mw03` | SR675 V3 | Master + worker (GPU / heavy VM workloads) |
 
-Plus a **jumpbox** (bastion): Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for mirroring, `openshift-install`, and temporary DNS/NTP.
+Plus a **bastion** (jumphost): Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for mirroring, `openshift-install`, and temporary DNS/NTP.
 
-### Software / component versions
+### Software / Component Versions
 
-| Component | Version / note |
+| Component | Version / Note |
 |---|---|
 | OpenShift Container Platform | **4.22** (`stable-4.22`, pin exact z-stream in `.env`) |
 | OpenShift Virtualization | `kubevirt-hyperconverged` channel `stable` (from mirrored catalog) |
@@ -66,19 +54,15 @@ Plus a **jumpbox** (bastion): Fedora laptop, RHEL 10 KVM VM, or a small physical
 | Cluster network | **OVN-Kubernetes** |
 | etcd | Bundled with the OpenShift control plane (not installed manually) |
 
-> Unlike Kubernetes The Hard Way, you do **not** hand-install etcd, kube-apiserver, or
-> containerd. The Agent-based Installer and RHCOS do that. Labs still explain *what*
-> those pieces are so you know what you are booting.
-
 ## Labs
 
-This tutorial assumes **three** AMD64 Lenovo servers (above) plus a jumpbox, on the
-same L2/L3 install network. Adjust hostnames and IPs in the worksheet for your site.
+This tutorial assumes **three** AMD64 Lenovo servers (above) plus a bastion (jumphost), on the
+same L2/L3 install network. Adjust hostnames and IPs in the checklist for your site.
 
 * [Prerequisites and Assumptions](docs/labs/01-prerequisites-assumptions.md)
 * [Architecture Overview and Network Design](docs/labs/02-architecture-network-design.md)
-* [Site Worksheet (mandatory)](docs/labs/03-worksheet.md)
-* [Setting up the Jumpbox](docs/labs/04-jumpbox.md)
+* [Site Checklist](docs/labs/03-checklist.md)
+* [Setting up the Bastion](docs/labs/04-bastion.md)
 * [Provisioning Compute Resources](docs/labs/05-compute-resources.md)
 * [Mirroring Images for a Disconnected Install](docs/labs/06-mirroring-images.md)
 * [Bootstrapping MVP DNS and NTP](docs/labs/07-mvp-dns-ntp.md)
@@ -109,5 +93,5 @@ VERIFY:   how you know it worked
 FAILS IF: what breaks if you skip or get it wrong
 ```
 
-**Boot methods:** RHEL USB / KVM ISO for the jumpbox and registry helper; **BMC virtual CD**
+**Boot methods:** RHEL USB / KVM ISO for the bastion and registry helper; **BMC virtual CD**
 for OpenShift nodes. **PXE is not used** on the primary path.
