@@ -1,8 +1,8 @@
-# 04 — Setting up the Jumpbox
+# 04 — Setting up the Bastion
 
 ## Goal
 
-Build the **jumpbox** (bastion): the machine that runs mirroring tools (when online),
+Build the **bastion** (jumpbox): the machine that runs mirroring tools (when online),
 `openshift-install`, and temporary DNS/NTP.
 
 ## WHERE
@@ -64,7 +64,7 @@ test -f /opt/ocp-mirror/pull-secret.json && echo pull-secret-ok
 
 | Problem | Result |
 |---|---|
-| Jumpbox not on install VLAN | Cannot serve DNS or reach nodes |
+| Bastion not on install VLAN | Cannot serve DNS or reach nodes |
 | No pull secret | Lab 06 fails |
 
 ## Next
