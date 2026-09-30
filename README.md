@@ -38,14 +38,14 @@ This tutorial guides you through bootstrapping an OpenShift **4.22** cluster on 
 
 [Reference](https://access.redhat.com/articles/7067871)
 
+A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/etcd/index#etcd-overview) to maintain [quorum](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/etcd/index#etcd-performance).
+
 ### Reference Hardware
 
 | Qty | Model | CPU | Memory | Local disks | Accelerators | NICs 
 |---|---|---|---|---|---|---|
 | 2 | **ThinkSystem SR665 V3** | 2× AMD EPYC 9334 (32C) | 256 GB | 2× 960 GB SSD | — | 1× 4-port 10GBase-T (OCP slot) + 1× 2-port 10GBase-T (Slot 1) |
 | 1 | **ThinkSystem SR675 V3** | 2× AMD EPYC 9334 (32C) | 768 GB | 2× 960 GB SSD | **8× NVIDIA L40S** | 1× 4-port 10GBase-T (OCP slot) + 1× 4-port 10GBase-T (Slot 21) |
-
-A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/etcd/index#etcd-overview) to maintain [quorum](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/etcd/index#etcd-performance).
 
 **Suggested roles for a 3-node compact cluster** (control plane + workers colocated):
 
