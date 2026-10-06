@@ -10,7 +10,7 @@ Build the **bastion**: the machine that runs mirroring tools (when online),
 One of:
 
 - Fedora laptop on the install VLAN (and internet when mirroring), or  
-- RHEL 10 KVM VM, or  
+- RHEL 9 KVM VM, or  
 - Physical RHEL host installed with **USB + Kickstart** (preferred for rack delivery)
 
 ## WHY
