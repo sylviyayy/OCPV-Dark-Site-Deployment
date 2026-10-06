@@ -50,7 +50,7 @@ plan come before Agent config.
 
 You can explain in one minute:
 
-- what the jumpbox does vs what `cp01`–`cp03` do  
+- what the jumpbox does vs what `mw01`–`mw03` do  
 - why API/Ingress VIPs are not a physical server  
 - why bastion DNS is temporary  
 
