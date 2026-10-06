@@ -1,17 +1,19 @@
 role,ip,hostname,env_key,notes
-gateway,10.10.0.1,,NETWORK_GATEWAY,Default gateway on the machine network
-bastion,10.10.0.5,bastion.lab.example.com,BASTION_IP,"DNS, NTP, DVD repo and installer for the life of the site"
-registry,10.10.0.10,registry.lab.example.com,MIRROR_REGISTRY_IP,mirror registry for Red Hat OpenShift on port 8443
-ontap-mgmt,10.10.0.30,,ONTAP_MGMT_IP,"Lenovo DM array: SVM management LIF (Trident API calls); STORAGE_BACKEND=ontap only"
-ontap-data,10.10.0.31,,ONTAP_DATA_IP,"Lenovo DM array: SVM NFS data LIF (VM disks); STORAGE_BACKEND=ontap only"
-dns-a,10.10.0.50,dns-a.lab.example.com,DNS_VM_IPS[0],DNS VM on OCP-V (anti-affine with dns-b)
-ntp,10.10.0.51,ntp.lab.example.com,NTP_VM_IP,NTP VM on OCP-V
-dns-b,10.10.0.52,dns-b.lab.example.com,DNS_VM_IPS[1],DNS VM on OCP-V (anti-affine with dns-a)
-api-vip,10.10.0.100,api.coe01.lab.example.com,API_VIP,"API VIP (also api-int)"
-ingress-vip,10.10.0.101,*.apps.coe01.lab.example.com,INGRESS_VIP,Ingress VIP
-mw01,10.10.1.11,mw01.lab.example.com,MW01_IP,"Master + worker, SR665 V3, rendezvous node"
-mw02,10.10.1.12,mw02.lab.example.com,MW02_IP,"Master + worker, SR665 V3"
-mw03,10.10.1.13,mw03.lab.example.com,MW03_IP,"Master + worker, SR675 V3 (8x L40S)"
-mw01-xcc,10.20.0.11,,MW01_BMC_IP,XCC on the BMC network
-mw02-xcc,10.20.0.12,,MW02_BMC_IP,XCC on the BMC network
-mw03-xcc,10.20.0.13,,MW03_BMC_IP,XCC on the BMC network
+gateway,10.10.10.1,,NETWORK_GATEWAY,"Management VLAN 101 gateway (POC sheet)"
+bastion,10.10.10.135,bastion.example.com,BASTION_IP,"PLACEHOLDER - update in .env; DNS, NTP, DVD repo and installer"
+registry,10.10.10.136,registry.example.com,MIRROR_REGISTRY_IP,"PLACEHOLDER - update in .env; mirror registry for Red Hat OpenShift on port 8443"
+mw01,10.10.10.137,mw01.example.com,MW01_IP,"Master + worker, SR665 V3, rendezvous node (POC sheet)"
+mw02,10.10.10.138,mw02.example.com,MW02_IP,"PLACEHOLDER - update in .env (sheet repeats .137); master + worker, SR665 V3"
+mw03,10.10.10.139,mw03.example.com,MW03_IP,"PLACEHOLDER - update in .env (sheet repeats .137); master + worker, SR675 V3 (8x L40S)"
+api-vip,10.10.10.140,api.ocpv-poc.example.com,API_VIP,"API VIP (also api-int), ports 6443 and 22623 (POC sheet)"
+ingress-vip,10.10.10.141,*.apps.ocpv-poc.example.com,INGRESS_VIP,"PLACEHOLDER - update in .env (sheet leaves it blank); port 443"
+dns-a,10.10.10.145,dns-a.example.com,DNS_VM_IPS[0],"PLACEHOLDER - update in .env; DNS VM on OCP-V (anti-affine with dns-b)"
+dns-b,10.10.10.146,dns-b.example.com,DNS_VM_IPS[1],"PLACEHOLDER - update in .env; DNS VM on OCP-V (anti-affine with dns-a)"
+ntp,10.10.10.147,ntp.example.com,NTP_VM_IP,"PLACEHOLDER - update in .env; NTP VM on OCP-V"
+ontap-mgmt,10.10.10.160,,ONTAP_MGMT_IP,"PLACEHOLDER - update in .env; Lenovo DM array SVM management LIF; STORAGE_BACKEND=ontap only"
+ontap-data,10.10.10.161,,ONTAP_DATA_IP,"PLACEHOLDER - update in .env; Lenovo DM array NFS data LIF (sheet Data VLAN 102 is 10.30.10.0/24)"
+mw01-xcc,10.10.20.11,,MW01_BMC_IP,"PLACEHOLDER - update in .env; XCC"
+mw02-xcc,10.10.20.12,,MW02_BMC_IP,"PLACEHOLDER - update in .env; XCC"
+mw03-xcc,10.10.20.13,,MW03_BMC_IP,"PLACEHOLDER - update in .env; XCC"
+site-ntp,10.50.11.12,,TIME_SOURCE,"Site NTP server (POC sheet); bastion chrony upstream"
+site-dns,10.60.10.135,,,"Site DNS server (POC sheet); not used: the bastion is authoritative for example.com"

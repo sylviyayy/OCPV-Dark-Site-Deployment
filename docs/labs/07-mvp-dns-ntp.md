@@ -13,6 +13,36 @@ and ingress names and agree on time — and keep both running for the life of th
 > correlation need UTC, and regulated sites mandate it. For production, set `TIME_SOURCE` to a
 > GPS- or PTP-disciplined NTP appliance and re-run this lab.
 
+## Day 1 on site: DNS and NTP only
+
+You can run this lab on its own, before the mirror, the registry or any node exists. It needs
+only names and addresses from `.env`.
+
+| Need on the bastion | How |
+|---|---|
+| RHEL 9.x, NIC holding `BASTION_IP` | kickstart (Lab 04) or a hand install; script 02 stops with the `nmcli` fix if the address is missing |
+| This repo with your `.env` | the kickstart copies it to `/home/installer/`; otherwise copy it from the USB drive |
+| `dnsmasq`, `chrony`, `bind-utils` | the kickstart installs them; otherwise script 02 installs them from the DVD repo (below) |
+
+```bash
+cd ~/OCPV-Dark-Site-Deployment
+grep -n 'UPDATE' .env                                  # every placeholder: confirm or correct each one
+./scripts/lib/validate-env.sh --scope services         # expect: PASS for scope 'services'
+# Only if the three packages are missing (hand-installed bastion):
+sudo mkdir -p /opt/ocp-mirror && sudo cp /run/media/$USER/<USB>/rhel-9*-dvd.iso /opt/ocp-mirror/rhel9-dvd.iso
+sudo ./scripts/04b-serve-dvd-repo.sh                   # local dnf repo from the DVD
+```
+
+Then steps 7.0 and 7.1. From a laptop on `MACHINE_NETWORK_CIDR`, check the bastion as a client would:
+
+```bash
+nslookup api.ocpv-poc.example.com <BASTION_IP>                           # Windows or Linux → API_VIP
+w32tm /stripchart /computer:<BASTION_IP> /samples:3 /dataonly            # Windows: small offsets
+chronyd -Q "server <BASTION_IP> iburst"                                  # Linux (sudo): |offset| < 1 s
+```
+
+Step 7.2 also checks the Lab 06 clients and registry, so skip it on a DNS/NTP-only day.
+
 ## Steps
 
 ### 7.0 Set the bastion clock to UTC (before anything serves time)
@@ -76,7 +106,11 @@ chronyd -Q "server ${BASTION_IP} iburst"                              # expect: 
 `chronyd -Q` measures the offset as a client without touching your clock. Do not use
 `chronyc -h <host> tracking`: the server refuses it unless `cmdallow` is set, so it fails while NTP is healthy.
 
-**FAILS IF** — `dig` returns nothing ← dnsmasq not running or UDP/TCP 53 blocked; no offset printed ← UDP 123 blocked.
+**FAILS IF** — `BASTION_IP=… is not configured on any interface` ← `.env` and the NIC disagree: fix
+whichever is wrong (the message prints the `nmcli` command); `dig` returns nothing ← dnsmasq not
+running or UDP/TCP 53 blocked; no offset printed ← UDP 123 blocked. `[WARN] TIME_SOURCE … does not
+answer` is not a failure: the bastion serves its own clock (set in 7.0) until the site NTP server
+is reachable.
 
 ### 7.2 Prove the whole high side
 

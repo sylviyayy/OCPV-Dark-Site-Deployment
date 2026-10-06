@@ -15,7 +15,7 @@ or record an amendment; an amendment means the listed files change.
 | ADR-04 | Nodes boot the Agent ISO via XCC virtual media; helpers boot a `mkksiso` DVD; no network boot | Proposed |
 | ADR-05 | VM storage: Lenovo DM/DG (ONTAP) via NetApp Trident NFS; hostpath provisioner until it is attached; LVMS for a DS-series array | Proposed (amended) |
 | ADR-06 | VM network: OVN-K localnet on `br-ex` via an NMState bridge mapping | Proposed |
-| ADR-07 | Steady-state DNS/NTP on VMs; the bastion stays the secondary permanently | Proposed |
+| ADR-07 | Steady-state DNS/NTP on VMs; the bastion stays the secondary (retirement optional, with preconditions) | Proposed (amended) |
 | ADR-08 | `INSTALL_DIR` outside the git working tree; inputs kept as `*.orig` | Proposed |
 | ADR-09 | Node names `mw01`–`mw03` (master + worker), keys `MW01_*`; overrides the PRD's `cp01`–`cp03` | Proposed |
 
@@ -110,6 +110,11 @@ MachineConfig over `/etc/resolv.conf`.
 
 **Consequences.** Lab 14 keeps bastion services enabled; Lab 15 includes a cold-start drill.
 
+**Amendment (merge of PR #1).** Retiring the bastion after the cut-over is supported as an option,
+not the default: [Bastion Lifecycle §4](BASTION-LIFECYCLE.md#4-phase-8-optional-retiring-the-bastion)
+lists its preconditions (separate registry host, a real `TIME_SOURCE`, a resolver outside the
+cluster, a permanent DVD repo) and the drain proof required before unplugging it.
+
 ## ADR-08 — Install directory
 
 **Context.** The installer writes `auth/kubeconfig`, `auth/kubeadmin-password` and
@@ -139,7 +144,7 @@ get their own prefix (Appendix A).
 
 | # | Question | Recommendation (implemented) | What changes otherwise |
 |---|---|---|---|
-| Q1 | Is the bastion a permanent site-services host or a transient laptop? | Permanent physical RHEL 9 host | ADR-07 loses its fallback |
+| Q1 | Is the bastion a permanent site-services host or a transient laptop? | Permanent physical RHEL 9 host; retirement optional (Bastion Lifecycle §4) | ADR-07 loses its fallback; the registry must not be on it |
 | Q2 | Which Lenovo array model (DM, DG or DS), and its SVM/LIF details? | DM assumed: `ontap` target, `hpp` until attached | DS → `lvms` with one LUN per node, no live migration |
 | Q3 | VM network: localnet on `br-ex`, or a Linux bridge on spare ports? | localnet | Cabling, NNCP content, two new register keys |
 | Q4 | Registry port: 8443, or a site-mandated 443? | 8443 | `MIRROR_REGISTRY_PORT` only |

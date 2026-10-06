@@ -35,13 +35,15 @@ and checks them against Red Hat's `sha256sum.txt`, so the bytes that cross are t
 published. It writes `${AUTH_FILE}` (your pull secret) and the ImageSet: one z-stream, the operators
 the labs install, and the RHEL guest image **pinned by digest** so a later re-run cannot change it.
 
-**EDIT** — None (`--profile coe` adds the partner CoE operator set).
+**EDIT** — None. `--profile poc` adds the POC sheet's operators (MTV, Authorino, KMM, Pipelines,
+Service Mesh 3, Serverless); `poc,odf` adds Local Storage and ODF, only if nodes get empty disks or LUNs.
+What is not mirrored now cannot be installed on site.
 
 **DO**
 
 ```bash
 set -a && source .env && set +a
-./scripts/01-mirror-preparation.sh
+./scripts/01-mirror-preparation.sh --profile poc
 ```
 
 **VERIFY**
@@ -63,7 +65,7 @@ on the disk you sized, not in your home directory.
 
 **EDIT** — None.
 
-**DO** — `./scripts/01-mirror-preparation.sh --mirror-to-disk` (hours; resumable — re-run after an interruption).
+**DO** — `./scripts/01-mirror-preparation.sh --mirror-to-disk --profile poc` (hours; resumable — re-run after an interruption).
 
 **VERIFY** — `ls "${MIRROR_ARCHIVE_DIR}"/mirror_*.tar | wc -l` → 1 or more.
 

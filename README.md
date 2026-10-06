@@ -21,21 +21,21 @@ in the same order, and every script refuses to run until `scripts/lib/validate-e
 
 | # | `.env` key | Example | Owner |
 |---|---|---|---|
-| A1 | `CLUSTER_NAME` | `coe01` | OpenShift lead |
-| A2 | `BASE_DOMAIN` | `lab.example.com` | DNS owner |
+| A1 | `CLUSTER_NAME` | `ocpv-poc` | OpenShift lead |
+| A2 | `BASE_DOMAIN` | `example.com` | DNS owner |
 | A3 | `OCP_VERSION` | `4.22.z` | OpenShift lead |
 | A4 | `OCP_CHANNEL` | `stable-4.22` | OpenShift lead |
-| B1 | `MACHINE_NETWORK_CIDR` | `10.10.0.0/16` | Network |
-| B2 | `NETWORK_GATEWAY` | `10.10.0.1` | Network |
+| B1 | `MACHINE_NETWORK_CIDR` | `10.10.10.0/24` | Network |
+| B2 | `NETWORK_GATEWAY` | `10.10.10.1` | Network |
 | B3 | `CLUSTER_NETWORK_CIDR`, `SERVICE_NETWORK_CIDR` | `10.128.0.0/14`, `172.30.0.0/16` | Network |
 | B4 | `MTU` | `1500` | Network |
-| B5 | `API_VIP` | `10.10.0.100` | Network |
-| B6 | `INGRESS_VIP` | `10.10.0.101` | Network |
+| B5 | `API_VIP` | `10.10.10.140` | Network |
+| B6 | `INGRESS_VIP` | `10.10.10.141` *(placeholder)* | Network |
 | C1 | `MW01_HOSTNAME` … `MW03_HOSTNAME` | `mw01` | Hardware |
-| C2 | `MW01_IP` … `MW03_IP` | `10.10.1.11` | Network |
+| C2 | `MW01_IP` … `MW03_IP` | `10.10.10.137` (`.138`, `.139` placeholders) | Network |
 | C3 | `MW01_NICS` … `MW03_NICS` | `ens1f0=aa:bb:cc:00:01:01,…` (4 pairs) | Hardware |
 | C4 | `MW01_ROOT_DEVICE` … `MW03_ROOT_DEVICE` | `/dev/disk/by-path/pci-0000:…` | Hardware |
-| C5 | `MW01_BMC_IP` … `MW03_BMC_IP` | `10.20.0.11` | Hardware |
+| C5 | `MW01_BMC_IP` … `MW03_BMC_IP` | `10.10.20.11` *(placeholder)* | Hardware |
 | C6 | `RENDEZVOUS_IP` | `${MW01_IP}` | OpenShift lead |
 
 ## Target Audience
@@ -125,6 +125,7 @@ host or, in a lab, on the bastion.
 |---|---|
 | OpenShift Container Platform | **4.22** (`stable-4.22`, exact z-stream pinned in `.env` A3) |
 | OpenShift Virtualization | `kubevirt-hyperconverged` channel `stable` (from the mirrored catalog) |
+| POC operators | MTV 2.12, Authorino, Kernel Module Management, Pipelines, Service Mesh 3, Serverless (`--profile poc`); Local Storage + ODF optional (`poc,odf`) |
 | Installer | Agent-based Installer (`openshift-install agent`), compact topology |
 | Image mirroring | oc-mirror plugin **v2**: mirror-to-disk → approved media → disk-to-mirror |
 | Mirror registry | mirror registry for Red Hat OpenShift, `registry.<BASE_DOMAIN>:8443` |

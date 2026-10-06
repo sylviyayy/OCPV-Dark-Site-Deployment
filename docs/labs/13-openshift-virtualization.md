@@ -84,6 +84,36 @@ unreachable (the script prints Trident's message); Trident pods `ImagePullBackOf
 not in the mirror (TODO verify list in ADR-05); `LVMCluster Ready` times out ← no empty disk or LUN
 on some node; test DataVolume `Pending` ← provisioner not Available.
 
+### 13.3 Install the POC operators
+
+**WHERE** — Bastion, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+
+**WHY** — Script 06c subscribes to every operator of the profile you mirrored in Lab 06, reading
+package, channel, namespace and install mode from `mirror/imageset-profiles.yaml` (the same list
+oc-mirror used). It stops if a package was never mirrored, and never creates a second
+OperatorGroup: OLM refuses every Subscription in a namespace that has two.
+
+| Operator | Namespace | Mode | Instance you create afterwards |
+|---|---|---|---|
+| Migration Toolkit for Virtualization | `openshift-mtv` | OwnNamespace | `ForkliftController` (VMware migration) |
+| Red Hat - Authorino | `openshift-operators` | AllNamespaces | `Authorino` (API authorization) |
+| Kernel Module Management | `openshift-kmm` | AllNamespaces | `Module` per out-of-tree driver |
+| OpenShift Pipelines | `openshift-operators` | AllNamespaces | none (`TektonConfig` is created for you) |
+| OpenShift Service Mesh 3 | `openshift-operators` | AllNamespaces | `Istio`, `IstioCNI` |
+| OpenShift Serverless | `openshift-serverless` | AllNamespaces | `KnativeServing` (containers only) |
+| Local Storage, ODF (`odf` profile) | `openshift-local-storage`, `openshift-storage` | OwnNamespace | `LocalVolumeDiscovery`, `StorageCluster` — needs empty disks |
+
+**EDIT** — None.
+
+**DO** — `./scripts/06c-install-operators.sh poc` (add `,odf` only if you mirrored it).
+
+**VERIFY** — Last lines list each operator; `oc get csv -A | grep -v Succeeded` shows only the header
+and copied CSVs.
+
+**FAILS IF** — `… is not in any mirrored catalog` ← mirrored without `--profile poc`: re-mirror (Lab 06);
+`CSV Succeeded` times out ← read the Subscription conditions it prints (usually a channel name
+that changed: confirm with `oc get packagemanifest <name> -o jsonpath='{.status.channels[*].name}'`).
+
 ### GPU node (later)
 
 `mw03` (8× L40S) needs the NVIDIA GPU Operator, which is out of scope for v2.0. Add

@@ -105,6 +105,8 @@ cold start. Do **not** `systemctl disable dnsmasq chronyd`.
 
 **FAILS IF** — `disabled` ← `sudo systemctl enable --now dnsmasq chronyd`.
 
+Retiring the bastion later is optional and has preconditions: [Bastion Lifecycle §4](../BASTION-LIFECYCLE.md#4-phase-8-optional-retiring-the-bastion).
+
 ## Next
 
 → [15 — Smoke Test](15-smoke-test.md)

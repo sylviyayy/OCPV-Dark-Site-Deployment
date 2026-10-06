@@ -12,6 +12,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > Each bullet below names the PRD v2.0 requirement it implements (NFR-9).
 
 ### Added
+- Merged from `main` (PR #1): `docs/USB-TRANSFER-KIT.md` and `docs/BASTION-LIFECYCLE.md`, rewritten against the current scripts (phases mapped to lab steps; defect register shows each item's current status), the README "Before You Go to the Dark Site" section, and the two 24-hour windows in Labs 08, 10 and 14
+- Lab 07: a day-1 DNS/NTP-only path, and step 7.0 (set the bastion clock to UTC before chronyd serves it)
+- `validate-env.sh --scope services|kickstart`: the bastion steps check only the keys they use, so DNS/NTP runs before node MACs, disks or the pull secret are known
+- POC values (POC Cluster Sizing & IP Address Assignment sheet) in `.env.example`, `network/ip-addressing-plan.csv`, README and Lab 03; unknown values are placeholders marked `>>> UPDATE`
+- ImageSet profiles `poc` (MTV, Authorino, KMM, Pipelines, Service Mesh 3, Serverless) and `odf` (Local Storage, ODF and dependencies); `scripts/06c-install-operators.sh` and Lab 13 step 13.3 install them; `scripts/lib/olm.sh` shared with script 06
+- Lab 03: which script to re-run after changing a value
 - `STORAGE_BACKEND=ontap` for a Lenovo ThinkSystem DM or DG array (both NetApp ONTAP): register group G (`ONTAP_MGMT_IP`, `ONTAP_DATA_IP`, `ONTAP_SVM`, `ONTAP_USER`, enforced only for `ontap`); the `ontap` ImageSet profile mirrors `trident-operator` from the certified catalog; script 06 installs it; script 06b creates the credentials Secret (prompted password), `TridentOrchestrator` (autosupport silenced), an `ontap-nas` backend with `autoExportPolicy`, the default `ontap-nas` StorageClass and a ReadWriteMany StorageProfile, and demotes any previous default. VMs use `evictionStrategy: LiveMigrate` on `ontap` and `None` on node-local disks
 - `tests/run-scripts.sh` and `tests/fake/fakecmd.py`: every script runs in lab order against fakes of `oc`, `openshift-install`, `podman`, `curl`, `dig`, `chronyd` and others, with negative cases; new CI job `scripts`. CI also runs Red Hat's `ksvalidator` on both rendered kickstarts
 - **FR-A1** — `scripts/lib/render.py` renders `install-config.yaml` and `agent-config.yaml` into `${INSTALL_DIR}` as data structures (host list, bond ports, PEM bundle); templates are YAML skeletons
@@ -49,6 +55,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.cursor/rules/prd-v2-execution.mdc`: execution rules for agents (requirement IDs in commits, verify-on-4.22 TODOs, local CI before commit)
 
 ### Changed
+- Script 02 stops with the exact `nmcli` fix when `BASTION_IP` is on no interface, installs missing `dnsmasq`/`chrony`/`bind-utils` from a local repository, and warns instead of failing when `TIME_SOURCE` is unreachable (chronyd serves its own clock meanwhile)
+- `BASE_DOMAIN` under `example.com` is a warning, not an error (it works in a closed site, but cannot change after install)
+- `--profile` takes several profiles (`poc,odf`); a profile entry without a channel mirrors its default channel's head
+- ADR-07 amended: retiring the bastion is optional, with preconditions
 - Labs 01–16 tightened: every WHY states what the step does, the mechanism behind it, what consumes the result and what breaks if it is skipped; every VERIFY shows the expected value; storage steps cover `ontap`, `hpp` and `lvms`
 - Lab 14 states that node chrony uses the NTP VM and `TIME_SOURCE` together and selects the better source, instead of expecting the NTP VM to be selected
 - README, Lab 05, `network/ip-addressing-plan.csv` and the reference pages show the Lenovo DM array and its SVM LIFs
