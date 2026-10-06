@@ -25,6 +25,11 @@ load_env() {
     log_error "  cp .env.example .env && vim .env"
     exit 1
   fi
+  # sudo resets HOME to /root; expand ${HOME} in .env as the invoking user so root-run
+  # steps (02, 04 install-registry, 04b) resolve the same paths as everything else.
+  if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
+    HOME="$(getent passwd "${SUDO_USER}" | cut -d: -f6)"
+  fi
   set -a
   # shellcheck disable=SC1090  # path is chosen at run time
   source "${env_file}"

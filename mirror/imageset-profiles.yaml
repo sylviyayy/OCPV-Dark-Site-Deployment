@@ -1,0 +1,30 @@
+# Operator sets for the ImageSet (FR-B6). render.py always includes `default`, adds
+# `lvms` when STORAGE_BACKEND=lvms, and adds one optional profile from
+# `scripts/01-mirror-preparation.sh --profile <name>`. ${OCP_MINOR} becomes e.g. 4.22.
+#
+# Every operator a lab installs must be listed here, or Lab 13 waits on a package the
+# mirrored catalog does not contain.
+
+# Labs 13-14: OpenShift Virtualization, plus NMState for the localnet bridge mapping and
+# the DNS cut-over NNCP (ADR-06, ADR-07).
+default:
+  operators:
+    - name: kubevirt-hyperconverged
+      channel: stable
+    - name: kubernetes-nmstate-operator
+      channel: stable
+
+# ADR-05 alternative: LVM Storage once each node has an empty data drive.
+lvms:
+  operators:
+    - name: lvms-operator
+      channel: stable-${OCP_MINOR}
+
+# Partner CoE demo set (formerly mirror/imageset-ocpv-coe.yaml). MTV is deliberately
+# absent: add `mtv-operator` here before mirroring if the customer migrates from VMware.
+coe:
+  operators:
+    - name: local-storage-operator
+      channel: stable
+    - name: openshift-cert-manager-operator
+      channel: stable-v1
