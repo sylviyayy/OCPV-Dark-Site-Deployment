@@ -7,6 +7,12 @@
 Boot the three servers from the Agent ISO, wait for the install, and prove the result: three Ready
 nodes, four-member bonds, RHCOS on the RAID1 disk, time from your time source.
 
+> **[WINDOW A]** Boot every node within 12 hours of building the ISO (hard limit 24).
+> **[WINDOW B]** From the first boot, keep the cluster powered on and the bastion's DNS/NTP unchanged
+> for 24 hours: the first certificate rotation runs 16–22 hours after install. If the cluster was
+> powered off inside the window, approve the pending kubelet CSRs when it returns:
+> `oc get csr -o name | xargs oc adm certificate approve`.
+
 ## Steps
 
 ### 10.1 Boot every node from the Agent ISO

@@ -1,7 +1,10 @@
 # 06 — Mirroring Images for a Disconnected Install
 
 > **Grade:** production transfer pattern (two machines, checksummed media, TLS verified end to end).
-> A registry co-located on the bastion is a lab simplification.
+> A registry co-located on the bastion is a lab simplification, and rules out ever retiring the bastion.
+>
+> **Nothing here is on a 24-hour clock**: mirror days ahead. Bill of materials and drive checklist:
+> [USB Transfer Kit](../USB-TRANSFER-KIT.md).
 
 ## Goal
 

@@ -15,6 +15,9 @@ After a site-wide power loss, nodes need `registry.<domain>` and time **before**
 them can start. A cluster whose only resolver runs inside it has locked the spare key inside the
 car; the bastion is the key in your pocket (ADR-07).
 
+> **[WINDOW B]** Run 14.2 (the cut-over) no earlier than 24 hours after the install started.
+> Deploying the VMs (14.1) inside the window is fine; switching the nodes to them is not.
+
 ## Steps
 
 ### 14.1 Deploy the two DNS VMs

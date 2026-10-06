@@ -44,7 +44,11 @@ grep -c cloud.openshift.com "${INSTALL_DIR}/install-config.yaml"   # expect: 0
 **FAILS IF** — "AUTH_FILE has no auths entry for registry…" ← Lab 06 step 6.8 not run;
 "does not map …/ocp-release" ← the release was not mirrored.
 
-### 8.2 Create the Agent ISO
+### 8.2 Create the Agent ISO — T-0, the 24-hour clock starts
+
+> **[WINDOW A]** The ISO embeds certificates that expire 24 hours after this command; Red Hat
+> recommends booting the nodes within **12 hours**. Build it on site, only when you can boot all
+> three nodes straight away (Lab 10). Never start T-0 at the end of a shift.
 
 **WHERE** — Bastion, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
@@ -65,6 +69,10 @@ ls "${INSTALL_DIR}/agent.x86_64.iso"                              # expect: the 
 ls "${INSTALL_DIR}"/*.yaml.orig | wc -l                           # expect: 2
 git -C ~/OCPV-Dark-Site-Deployment status --porcelain | wc -l     # expect: 0
 ```
+
+If Window A lapses: restore the two `*.orig` files to their names in `${INSTALL_DIR}`, delete
+`agent.x86_64.iso`, `auth/` and `.openshift_install_state.json`, and re-run 05a. Never mix an ISO
+and an `auth/kubeconfig` from different runs.
 
 **FAILS IF** — `x509: certificate signed by unknown authority` ← CA not trusted (Lab 06 step 6.7);
 `answers ping before install` ← another host owns that VIP; `nmstatectl: command not found` ← `nmstate` RPM missing.

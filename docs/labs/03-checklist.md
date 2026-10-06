@@ -39,7 +39,7 @@ every other file is generated from it.
 | D2 | `BASTION_IFNAME` | Infrastructure | `eno1` | Kickstart `network --device` | From `ip -br link` on the bastion | New |
 | D3 | `MIRROR_REGISTRY_HOSTNAME` | Infrastructure | `registry.lab.example.com` | mirror-registry `--quayHostname`; `imageDigestSources`; DNS | FQDN; resolves via bastion DNS | Keep |
 | D4 | `MIRROR_REGISTRY_PORT` | Infrastructure | `8443` | Derived `MIRROR_REGISTRY=${D3}:${D4}`; firewall rule | `8443` (tool default) unless site policy mandates `443` | New |
-| D5 | `MIRROR_REGISTRY_IP` | Infrastructure | `10.10.0.10` | DNS A record only | May equal `BASTION_IP` | Keep |
+| D5 | `MIRROR_REGISTRY_IP` | Infrastructure | `10.10.0.10` | DNS A record only | May equal `BASTION_IP` only if the bastion is never retired ([Bastion Lifecycle](../BASTION-LIFECYCLE.md)) | Keep |
 | D6 | `MIRROR_REGISTRY_USER` | Infrastructure | `init` | mirror-registry `--initUser`; merged auth file | — | Keep; password leaves `.env` |
 | E1 | `TIME_SOURCE` | Site / security | `10.10.0.2` or `orphan` | Bastion chrony; agent-config `additionalNTPSources`; NTP VM | Explicit; `orphan` marks the run lab-only | New |
 | E2 | `DNS_VM_IPS` | Network | `10.10.0.50,10.10.0.52` | cloud-init network-config; NNCP `dns-resolver` | Two unused IPs | Renamed; now two VMs |

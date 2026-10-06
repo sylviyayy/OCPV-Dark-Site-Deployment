@@ -15,6 +15,31 @@ and ingress names and agree on time — and keep both running for the life of th
 
 ## Steps
 
+### 7.0 Set the bastion clock to UTC (before anything serves time)
+
+**WHERE** — Bastion, `installer` with `sudo`
+
+**WHY** — Whatever this clock reads becomes the site's time: with `orphan`, directly; with a
+`TIME_SOURCE`, until chrony first reaches it. Certificates minted later (registry, cluster) carry
+this time; a node whose BMC clock lags behind sees them as *not yet valid*.
+
+**EDIT** — None.
+
+**DO**
+
+```bash
+sudo timedatectl set-timezone UTC
+timedatectl                                         # compare with a trusted clock (phone, watch)
+sudo timedatectl set-ntp false && sudo timedatectl set-time 'YYYY-MM-DD HH:MM:SS'   # only if it is off
+sudo hwclock --systohc --utc
+```
+
+Set each node's XCC/UEFI clock to UTC within a minute of the bastion.
+
+**VERIFY** — `date -u` agrees with your reference to within a few seconds.
+
+**FAILS IF** — Later: `x509: certificate has expired or is not yet valid` ← clocks disagreed when the certificate was minted.
+
 ### 7.1 Configure and start dnsmasq and chronyd
 
 **WHERE** — Bastion, RHEL 9.x, `installer` with `sudo`, cwd `~/OCPV-Dark-Site-Deployment`

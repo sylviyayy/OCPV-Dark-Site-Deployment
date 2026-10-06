@@ -14,6 +14,10 @@ VERIFY:   command → expect: literal value
 FAILS IF: symptom ← cause
 ```
 
+Before Lab 06, read the [USB Transfer Kit](../USB-TRANSFER-KIT.md). Keep the
+[Bastion Lifecycle](../BASTION-LIFECYCLE.md) open throughout: it maps every phase to these labs and
+marks the two 24-hour windows.
+
 Complete the labs **in order**:
 
 1. [Prerequisites and Assumptions](01-prerequisites-assumptions.md)

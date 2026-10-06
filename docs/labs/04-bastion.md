@@ -1,7 +1,8 @@
 # 04 — Setting up the Bastion
 
-> **Grade:** production pattern: a permanent physical RHEL 9 bastion that never touches the internet
-> and outlives the install as the secondary DNS/NTP source (ADR-02, ADR-07).
+> **Grade:** production pattern: a physical RHEL 9 bastion that never touches the internet and is the
+> secondary DNS/NTP source after the cut-over (ADR-02, ADR-07). Retiring it later is optional and
+> needs a separate registry host: [Bastion Lifecycle](../BASTION-LIFECYCLE.md).
 
 ## Goal
 

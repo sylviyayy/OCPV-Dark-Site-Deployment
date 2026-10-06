@@ -55,7 +55,7 @@ commas (`MW01_NICS="…"`).
 | D2 | `BASTION_IFNAME` | The bastion's cabled NIC as RHEL 9 names it: XCC inventory, or `ip -br link` from a rescue shell | not a VMware-style name on bare metal |
 | D3 | `MIRROR_REGISTRY_HOSTNAME` | Leave `registry.${BASE_DOMAIN}` unless policy says otherwise | under `BASE_DOMAIN` |
 | D4 | `MIRROR_REGISTRY_PORT` | `8443` (mirror-registry default) unless site policy mandates `443` | firewall plan agrees |
-| D5 | `MIRROR_REGISTRY_IP` | The registry host, or `BASTION_IP` when co-located | inside B1 |
+| D5 | `MIRROR_REGISTRY_IP` | The registry host. `BASTION_IP` only if the bastion stays for the life of the site: the cluster pulls every image from the registry forever ([Bastion Lifecycle](../../BASTION-LIFECYCLE.md)) | inside B1 |
 | D6 | `MIRROR_REGISTRY_USER` | Leave `init`; the password is chosen at Lab 06 step 6.6 and never stored here | — |
 
 ## E — Site services

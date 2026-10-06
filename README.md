@@ -2,9 +2,9 @@
 
 This tutorial walks you through setting up a compact **OpenShift Virtualization** cluster on 3 bare metal nodes in a **disconnected (dark site)** environment. It assumes no prior DNS or NTP server, and no existing Operating System nor network set up on all 3 nodes.
 
-This guide is not for someone looking for a fully automated black-box installer they never read. It is optimized for **learning**, which means taking the long route so you understand each task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
+This guide is not for someone looking for a fully automated black-box installer they never read. It is optimized for **learning** so you understand each task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
 
-> The results of this tutorial should not be viewed as production ready until VM disks move from node-local storage to the Lenovo DM array (Lab 13) and time comes from a reference clock (Lab 07).
+> The results of this tutorial should not be viewed as production ready.
 > Always validate against relevant Red Hat documentation and your site standards. 
 > Have fun learning!
 
@@ -135,6 +135,14 @@ host or, in a lab, on the bastion.
 | Cluster network | **OVN-Kubernetes**; VM network: localnet on `br-ex` via Kubernetes NMState |
 | VM storage | `STORAGE_BACKEND`: **ontap** — Lenovo DM/DG via NetApp Trident (NFS, live migration); **hpp** — hostpath provisioner until the array is attached (lab-grade); **lvms** — DS-series LUN per node |
 | etcd | Bundled with the OpenShift control plane (not installed manually) |
+
+## Before You Go to the Dark Site
+
+The USB drive is your only supply line, and the Agent ISO is the only artifact on a 24-hour clock,
+so you build it on site.
+
+* [USB Transfer Kit](docs/USB-TRANSFER-KIT.md): which Hybrid Cloud Console downloads you need (and which you don't), and what else goes on the drive.
+* [Bastion Lifecycle](docs/BASTION-LIFECYCLE.md): USB → bastion as temporary DNS/NTP → install → permanent DNS/NTP with the bastion as secondary → optional bastion retirement, with the two 24-hour windows marked.
 
 ## Labs
 
