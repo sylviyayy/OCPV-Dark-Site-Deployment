@@ -1,0 +1,39 @@
+# Node time sources after the Lab 14 cut-over: NTP VM first, TIME_SOURCE (or the bastion)
+# second. The file body is node-chrony.conf.template, base64-encoded by render.py, so no
+# hand-written URL escaping can corrupt it. Applied only after both DNS VMs answer (FR-H9).
+# The worker pool is empty on a compact cluster; its copy covers workers added later.
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-master-chrony-production
+  labels:
+    machineconfiguration.openshift.io/role: master
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /etc/chrony.conf
+          mode: 420
+          overwrite: true
+          contents:
+            source: data:text/plain;charset=utf-8;base64,${NODE_CHRONY_CONF_B64}
+---
+apiVersion: machineconfiguration.openshift.io/v1
+kind: MachineConfig
+metadata:
+  name: 99-worker-chrony-production
+  labels:
+    machineconfiguration.openshift.io/role: worker
+spec:
+  config:
+    ignition:
+      version: 3.2.0
+    storage:
+      files:
+        - path: /etc/chrony.conf
+          mode: 420
+          overwrite: true
+          contents:
+            source: data:text/plain;charset=utf-8;base64,${NODE_CHRONY_CONF_B64}

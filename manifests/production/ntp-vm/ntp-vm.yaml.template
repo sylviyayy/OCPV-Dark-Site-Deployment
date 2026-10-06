@@ -1,0 +1,144 @@
+# The NTP VM. scripts/08-deploy-ntp-vm.sh renders it through scripts/lib/render.py with
+# VM_NAME=ntp and VM_IP set to NTP_VM_IP. Same contract as dns-vm.yaml.template (FR-H1, H2,
+# H7, H9, H10, H11). It follows TIME_SOURCE, or the bastion's orphan clock when
+# TIME_SOURCE=orphan (lab-grade, Lab 07).
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${VM_NAME}-userdata
+  namespace: infrastructure
+type: Opaque
+stringData:
+  userdata: |
+    #cloud-config
+    hostname: ${VM_NAME}
+    fqdn: ${VM_NAME}.${BASE_DOMAIN}
+    manage_etc_hosts: true
+    disable_root: true
+    ssh_pwauth: false
+    users:
+      - name: cloud-user
+        groups: [wheel]
+        sudo: "ALL=(ALL) NOPASSWD:ALL"
+        lock_passwd: true
+        ssh_authorized_keys:
+          - "${SSH_PUBLIC_KEY}"
+    yum_repos:
+      rhel9-dvd-baseos:
+        name: RHEL 9 DVD BaseOS (bastion)
+        baseurl: http://${BASTION_IP}/rhel9/BaseOS
+        enabled: true
+        gpgcheck: true
+        gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+      rhel9-dvd-appstream:
+        name: RHEL 9 DVD AppStream (bastion)
+        baseurl: http://${BASTION_IP}/rhel9/AppStream
+        enabled: true
+        gpgcheck: true
+        gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+    packages:
+      - chrony
+      - firewalld
+    write_files:
+      - path: /etc/chrony.conf
+        content: |
+          # Generated from .env by scripts/08-deploy-ntp-vm.sh. Do not edit on the VM.
+          server ${TIME_UPSTREAM} iburst
+          # Keep serving at stratum 10 if the upstream is lost, so nodes stay in agreement.
+          local stratum 10 orphan
+          allow ${MACHINE_NETWORK_CIDR}
+          makestep 1.0 3
+          rtcsync
+          driftfile /var/lib/chrony/drift
+          logdir /var/log/chrony
+    runcmd:
+      - [systemctl, enable, --now, firewalld]
+      - [firewall-cmd, --permanent, --add-service=ntp]
+      - [firewall-cmd, --reload]
+      - [systemctl, enable, --now, chronyd]
+      - [systemctl, restart, chronyd]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${VM_NAME}-networkdata
+  namespace: infrastructure
+type: Opaque
+stringData:
+  networkdata: |
+    version: 2
+    ethernets:
+      vmnet0:
+        match:
+          macaddress: "${VM_MAC}"
+        addresses:
+          - ${VM_IP}/${MACHINE_NETWORK_PREFIX}
+        routes:
+          - to: 0.0.0.0/0
+            via: ${NETWORK_GATEWAY}
+        nameservers:
+          addresses: [${DNS_VM1_IP}, ${DNS_VM2_IP}, ${BASTION_IP}]
+          search: [${BASE_DOMAIN}]
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${VM_NAME}
+  namespace: infrastructure
+  labels:
+    app: ntp-server
+spec:
+  runStrategy: Always
+  dataVolumeTemplates:
+    - metadata:
+        name: ${VM_NAME}-rootdisk
+      spec:
+        source:
+          registry:
+            url: "${RHEL_GUEST_IMAGE_URL}"
+            certConfigMap: registry-ca
+            secretRef: registry-pull
+        storage:
+          storageClassName: ${VM_STORAGE_CLASS}
+          resources:
+            requests:
+              storage: 10Gi
+  template:
+    metadata:
+      labels:
+        app: ntp-server
+        kubevirt.io/domain: ${VM_NAME}
+    spec:
+      evictionStrategy: None
+      priorityClassName: infrastructure-vm
+      domain:
+        cpu:
+          cores: 1
+        memory:
+          guest: 2Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: vmnet
+              bridge: {}
+              macAddress: "${VM_MAC}"
+      networks:
+        - name: vmnet
+          multus:
+            networkName: infrastructure/vmnet
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: ${VM_NAME}-rootdisk
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            secretRef:
+              name: ${VM_NAME}-userdata
+            networkDataSecretRef:
+              name: ${VM_NAME}-networkdata

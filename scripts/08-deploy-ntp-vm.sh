@@ -1,65 +1,68 @@
 #!/usr/bin/env bash
-# Deploy production NTP VM (chrony) on OpenShift Virtualization
+# Steady-state NTP VM, then cut the nodes over (Lab 14 step 14.2; FR-H6, FR-H9, FR-H12).
+#
+# Order matters: the resolver NNCP and the chrony MachineConfig roll out only after both DNS
+# VMs answer, and the bastion keeps serving DNS and NTP as the permanent secondary (ADR-07).
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
+# shellcheck source=scripts/lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
 load_env
-require_cmd oc
+validate_env
+refuse_root
+require_cmd oc python3 dig chronyd
+use_kubeconfig
 
-export KUBECONFIG="${REPO_ROOT}/install-config/auth/kubeconfig"
-NAMESPACE="infrastructure"
-MANIFEST_DIR="${REPO_ROOT}/manifests/production/ntp-vm"
+NS=infrastructure
+OUT="${INSTALL_DIR}/manifests"
+mkdir -p "${OUT}"
 
-log_info "Deploying NTP VM at ${NTP_VM_IP}"
+# --- NTP VM ---
+VM_NAME=ntp VM_IP="${NTP_VM_IP}" \
+  render text "${REPO_ROOT}/manifests/production/ntp-vm/ntp-vm.yaml.template" "${OUT}/ntp.yaml"
+oc apply -f "${OUT}/ntp.yaml"
+if ! oc wait vmi/ntp -n "${NS}" --for=condition=Ready --timeout=1200s; then
+  oc get vm,vmi,dv,pvc -n "${NS}"
+  exit 1
+fi
+ntp_vm_ok() { ntp_offset_ok "${NTP_VM_IP}"; }
+if ! wait_until 900 20 "NTP VM ${NTP_VM_IP} serves time with offset < 1 s" ntp_vm_ok; then
+  log_error "Check cloud-init in the guest: virtctl console ntp -n ${NS}"
+  exit 1
+fi
 
-oc create namespace "${NAMESPACE}" --dry-run=client -o yaml | oc apply -f -
-
-for manifest in "${MANIFEST_DIR}"/*.yaml; do
-  [[ -f "$manifest" ]] || continue
-  log_info "Applying $(basename "$manifest")..."
-  sed \
-    -e "s|NTP_VM_IP|${NTP_VM_IP}|g" \
-    -e "s|BASE_DOMAIN|${BASE_DOMAIN}|g" \
-    -e "s|MIRROR_REGISTRY|${MIRROR_REGISTRY}|g" \
-    -e "s|NETWORK_GATEWAY|${NETWORK_GATEWAY}|g" \
-    -e "s|NETWORK_CIDR|${NETWORK_CIDR}|g" \
-    "$manifest" | oc apply -f -
+# --- Precondition for the cut-over: both DNS VMs answer (FR-H9 ordering) ---
+for ip in "${DNS_VM1_IP}" "${DNS_VM2_IP}"; do
+  if ! expect_dns "${ip}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${API_VIP}"; then
+    log_error "DNS VM ${ip} does not answer; finish ./scripts/07-deploy-dns-vm.sh before cutting over"
+    exit 1
+  fi
 done
 
-log_info "Waiting for NTP VM to start..."
-oc wait --for=condition=Ready \
-  --timeout=600s \
-  vmi/ntp-server -n "${NAMESPACE}" 2>/dev/null || {
-  log_warn "VM not ready yet. Monitor with: oc get vmi -n ${NAMESPACE} -w"
-}
-
-sleep 10
-if chronyc -h "${NTP_VM_IP}" tracking &>/dev/null; then
-  log_info "NTP VM is serving time!"
-else
-  log_warn "NTP not responding yet. VM may still be booting."
+# --- Resolver cut-over through NMState, never a MachineConfig over resolv.conf (FR-H6) ---
+render text "${REPO_ROOT}/manifests/production/dns-vm/nncp-dns-cutover.yaml.template" "${OUT}/nncp-dns-cutover.yaml"
+oc apply -f "${OUT}/nncp-dns-cutover.yaml"
+if ! oc wait nncp/dns-cutover --for=condition=Available --timeout=300s; then
+  oc get nncp,nnce
+  exit 1
 fi
 
-# Apply MachineConfig to cutover cluster DNS/NTP
-log_info "Applying DNS/NTP cutover MachineConfigs..."
-if [[ -f "${MANIFEST_DIR}/../dns-vm/machineconfig-dns.yaml" ]]; then
-  sed -e "s|DNS_VM_IP|${DNS_VM_IP}|g" \
-    "${MANIFEST_DIR}/../dns-vm/machineconfig-dns.yaml" | oc apply -f -
-fi
-if [[ -f "${MANIFEST_DIR}/machineconfig-ntp.yaml" ]]; then
-  sed -e "s|NTP_VM_IP|${NTP_VM_IP}|g" \
-    "${MANIFEST_DIR}/machineconfig-ntp.yaml" | oc apply -f -
+# --- Node time sources: NTP VM first, TIME_SOURCE (or the bastion) second ---
+render text "${REPO_ROOT}/manifests/production/ntp-vm/machineconfig-chrony.yaml.template" "${OUT}/machineconfig-chrony.yaml"
+oc apply -f "${OUT}/machineconfig-chrony.yaml"
+log_info "MachineConfig rolling out: nodes drain and reboot one at a time. With evictionStrategy"
+log_info "None the VM on a rebooting node stops until that node returns (node-local disks)."
+# Give the MCO a moment to mark the pool Updating before waiting for Updated.
+sleep 60
+if ! oc wait mcp/master --for=condition=Updated --timeout=5400s; then
+  oc get mcp
+  oc get nodes
+  exit 1
 fi
 
-log_info ""
-log_info "=== NTP VM deployed at ${NTP_VM_IP} ==="
-log_info "Nodes will reboot to apply new DNS/NTP config."
-log_info "Monitor: watch oc get mcp"
-log_info ""
-log_info "After all nodes are updated, decommission bastion MVP services:"
-log_info "  ssh root@${BASTION_IP} 'systemctl stop dnsmasq chronyd && systemctl disable dnsmasq chronyd'"
-log_info ""
+log_info "PASS: NTP VM serving; node resolvers are ${DNS_VM1_IP}, ${DNS_VM2_IP}, ${BASTION_IP}; mcp/master Updated"
+log_info "Keep dnsmasq and chronyd RUNNING on the bastion: it is the secondary resolver and time"
+log_info "source, and the only one available during a cold start (ADR-07, FR-H12)."
 log_info "Run validation: ./scripts/00-prerequisites-check.sh --post-install"

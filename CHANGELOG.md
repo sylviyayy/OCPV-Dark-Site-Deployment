@@ -20,6 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-D7** — `scripts/05a-create-agent-iso.sh` (Lab 08, keeps `*.orig` inputs) and `scripts/05b-wait-install.sh` (Lab 10, asserts 3 Ready nodes and 4 bond members up)
 - **FR-B6** — `mirror/imageset-profiles.yaml`: default set adds `kubernetes-nmstate-operator`, `lvms-operator` joins when `STORAGE_BACKEND=lvms`, and the former `imageset-ocpv-coe.yaml` is the selectable `coe` profile; the RHEL guest image is pinned by digest
 - **FR-H3** — `scripts/04b-serve-dvd-repo.sh` loop-mounts the RHEL 9 DVD on the bastion and serves BaseOS/AppStream over HTTP (local dnf repos for the bastion, package source for the DNS/NTP VMs)
+- **FR-G3** — `scripts/06b-configure-storage.sh`: HostPathProvisioner CR plus default StorageClass `hostpath-csi` (or LVMS when `STORAGE_BACKEND=lvms`), proven by a 1 GiB DataVolume reaching `Succeeded`
+- **FR-H2** — per-VM network-config v2 Secret gives each guest its static address, matched by a MAC pinned on the VM interface
+- **FR-H5** — `manifests/production/network/`: NNCP mapping localnet `vmnet` onto `br-ex` and a localnet NetworkAttachmentDefinition; script 06 installs Kubernetes NMState and its `NMState` instance, which the PRD's localnet design needs but no FR installed
+- **FR-H6** — `dns-vm/nncp-dns-cutover.yaml.template` sets node resolvers (both DNS VMs, then the bastion) through NMState
+- **FR-H8** — two DNS VMs (`dns-a`, `dns-b`) with required pod anti-affinity; all service VMs take time from `TIME_SOURCE` (or the bastion's orphan clock)
+- **FR-H13** — BIND serves a reverse zone for `MACHINE_NETWORK_CIDR`; `recursion no` is documented
 - `scripts/lib/authfile.sh` builds `${AUTH_FILE}`; the registry entry is added on the high side with `podman login --password-stdin`, which also proves password, DNS and CA trust
 - **FR-E4** — kickstarts become `kickstart/*.cfg.template`; `scripts/render-kickstart.sh` fills IPs, `BASTION_IFNAME`, domain and `/etc/hosts` from `.env`
 - Hard Way–style repository front door in `README.md` with hyperlinked labs
@@ -55,6 +61,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-F1** — dnsmasq uses `host-record` (A + PTR), `address=/apps.<cluster>.<domain>/` for the wildcard, no empty `no-dhcp-interface=`, no worker records
 - **FR-F2** — NTP checks use the client-side probe `chronyd -Q "server <ip> iburst"` and assert the offset is under 1 s; `chronyc -h <remote>` removed
 - Bastion chrony follows `TIME_SOURCE` (reference clock, or labelled lab-grade orphan)
+- **FR-G1** — script 06 reads the CatalogSource name from oc-mirror's `cs-*.yaml` and waits for it to report `READY`
+- **FR-G4** — every wait loop in scripts 06/06b/07/08 exits 1 with diagnostics on timeout; missing `/dev/kvm` on any node fails the run
+- **FR-G5** — `HyperConverged` spec is empty: no `withHostPassthroughCPU`, no `completionTimeoutPerGiB`
+- **FR-H4** — scripts 07/08 render manifests through `render.py`; the `sed` token chain (which wrote `registry IN A 10.10.0.10:443_IP`) is gone
+- **FR-H7** — DataVolumes use the `storage:` API, the default StorageClass, the registry CA (`certConfigMap`) and credentials (`secretRef`), and the digest-pinned guest image
+- **FR-H9** — VMs set `evictionStrategy: None`; the chrony MachineConfig rolls out only after both DNS VMs answer
+- **FR-H11** — `runStrategy: Always` replaces `running: true`; a dedicated `infrastructure-vm` PriorityClass replaces `system-node-critical`
+- **FR-H12** — script 08 ends with "keep bastion dnsmasq/chronyd running as secondary" instead of disabling them
 - `.env.example` rewritten to the v2 field register (§1 order, IDs A1–F4, derived block validated); `NETWORK_CIDR` → `MACHINE_NETWORK_CIDR`, `DNS_VM_IP` → `DNS_VM_IPS`, `OC_MIRROR_WORKDIR` → derived `MIRROR_ARCHIVE_DIR`
 - Prefer RHEL USB / KVM ISO attach over PXE for bastion/registry; document PXE as optional only
 - Quick start examples use `vim` and point at explicit `.env` field list
@@ -71,6 +85,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `scripts/05-install-ocp-disconnected.sh` (split into 05a/05b, FR-D7)
 - `mirror/imageset-ocpv-coe.yaml` (now the `coe` profile, FR-B6) and `graph: true` (OSUS is a v2.0 non-goal)
+- `manifests/production/dns-vm/machineconfig-dns.yaml` (its `%0E` data URL wrote an unusable `resolv.conf`), `nad-flat-l2.yaml`, and the ConfigMap-based `cloud-init.yaml`/`vm.yaml` pairs
 - **FR-C2** — the podman `registry:2` fallback in script 04 (its image lives on Docker Hub); a missing `mirror-registry` now exits 1 with the download instruction
 - `.env` keys `NETWORK_INTERFACE`, `NETWORK_NETMASK`, `CPn_MAC`, `WK01_*`, `WK02_*`, `DNS_SERVER`, `NTP_SERVER`, `OPERATOR_CATALOG`, `CNV_*`, `SSH_USER`, `INSTALL_USER`
 
@@ -79,11 +94,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-D3** — `additionalTrustBundle` is emitted as a literal block with every PEM line indented; the old `str.replace` produced YAML that failed to parse
 - **FR-B1** — script 01 picks the RHEL 9 installer, client and oc-mirror builds from the release's `sha256sum.txt` by pattern and verifies them with `sha256sum -c`; the old `openshift-install.tar.gz`/`oc.tar.gz` names returned 404
 - **FR-E1** — bastion kickstart no longer lists `openshift-clients` (not on the RHEL DVD; Anaconda halted) or a duplicate `nmstate`
+- **FR-H1** — VM cloud-init is a `Secret` (`stringData.userdata`) attached with `cloudInitNoCloud.secretRef`; the old ConfigMap was never found and `cloudInitConfigDrive.sources` is not a KubeVirt field
 - Kickstart firewall rules use the declarative `firewall` command; `firewall-cmd` inside a chrooted `%post` under `set -e` failed (firewalld not running) and aborted the rest of `%post` (audit finding beyond the PRD)
 
 ### Security
 - **FR-K1** — `.gitignore` covers rendered install files, `*.orig`, rendered kickstarts and `auth.json`; the inert `/opt/ocp-mirror/` line is gone
 - **FR-K2** — `MIRROR_REGISTRY_PASSWORD` removed from `.env.example`; scripts prompt with `read -rs`
+- **FR-H10** — VM cloud-init has no passwords: `disable_root`, `lock_passwd`, SSH key rendered from `SSH_PUBLIC_KEY_FILE`
 - **FR-E3** — kickstarts lock `root` and give `installer` a SHA-512 hash made at render time from a prompted password; no `--plaintext` anywhere
 
 ## [1.0.0] - 2026-09-07

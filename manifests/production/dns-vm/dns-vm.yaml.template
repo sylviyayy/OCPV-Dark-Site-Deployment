@@ -1,0 +1,218 @@
+# One authoritative DNS VM. scripts/07-deploy-dns-vm.sh renders it twice through
+# scripts/lib/render.py: dns-a on the first DNS_VM_IPS address, dns-b on the second.
+# Dollar-brace tokens are .env keys or render.py derived values; an unknown one fails the render.
+#
+#   FR-H1  cloud-init lives in Secrets, attached with cloudInitNoCloud (not a ConfigMap,
+#          not the non-existent cloudInitConfigDrive.sources field)
+#   FR-H2  network-config v2 gives the guest its static address (no DHCP on the machine network)
+#   FR-H3  packages come from the bastion's DVD repo (Lab 06 step 6.5)
+#   FR-H7  storage API, registry CA, registry credentials, image pinned by digest
+#   FR-H8  required anti-affinity: the two DNS VMs never share a node
+#   FR-H9  evictionStrategy None: node-local RWO disks cannot live-migrate
+#   FR-H10 no passwords; SSH key from SSH_PUBLIC_KEY_FILE; root disabled
+#   FR-H11 runStrategy Always; dedicated PriorityClass
+#   FR-H13 forward and reverse zones; recursion no
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${VM_NAME}-userdata
+  namespace: infrastructure
+type: Opaque
+stringData:
+  userdata: |
+    #cloud-config
+    hostname: ${VM_NAME}
+    fqdn: ${VM_NAME}.${BASE_DOMAIN}
+    manage_etc_hosts: true
+    disable_root: true
+    ssh_pwauth: false
+    users:
+      - name: cloud-user
+        groups: [wheel]
+        sudo: "ALL=(ALL) NOPASSWD:ALL"
+        lock_passwd: true
+        ssh_authorized_keys:
+          - "${SSH_PUBLIC_KEY}"
+    yum_repos:
+      rhel9-dvd-baseos:
+        name: RHEL 9 DVD BaseOS (bastion)
+        baseurl: http://${BASTION_IP}/rhel9/BaseOS
+        enabled: true
+        gpgcheck: true
+        gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+      rhel9-dvd-appstream:
+        name: RHEL 9 DVD AppStream (bastion)
+        baseurl: http://${BASTION_IP}/rhel9/AppStream
+        enabled: true
+        gpgcheck: true
+        gpgkey: file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+    packages:
+      - bind
+      - bind-utils
+      - firewalld
+    write_files:
+      # defer: written after packages install, when the named group and /var/named exist.
+      - path: /etc/named.conf
+        owner: root:named
+        permissions: "0640"
+        defer: true
+        content: |
+          // Generated from .env by scripts/07-deploy-dns-vm.sh. Do not edit on the VM.
+          // Authoritative only: recursion no means names outside ${BASE_DOMAIN} get REFUSED.
+          options {
+              listen-on port 53 { any; };
+              listen-on-v6 { none; };
+              directory "/var/named";
+              allow-query { any; };
+              recursion no;
+          };
+          zone "${BASE_DOMAIN}" IN { type master; file "forward.zone"; };
+          zone "${REVERSE_ZONE}" IN { type master; file "reverse.zone"; };
+      - path: /var/named/forward.zone
+        owner: root:named
+        permissions: "0640"
+        defer: true
+        content: |
+          $TTL 3600
+          @                         IN SOA dns-a.${BASE_DOMAIN}. hostmaster.${BASE_DOMAIN}. ${ZONE_SERIAL} 3600 1800 604800 300
+          @                         IN NS  dns-a.${BASE_DOMAIN}.
+          @                         IN NS  dns-b.${BASE_DOMAIN}.
+          dns-a                     IN A   ${DNS_VM1_IP}
+          dns-b                     IN A   ${DNS_VM2_IP}
+          ntp                       IN A   ${NTP_VM_IP}
+          ${BASTION_HOSTNAME}       IN A   ${BASTION_IP}
+          ${REGISTRY_RELNAME}       IN A   ${MIRROR_REGISTRY_IP}
+          ${CP01_HOSTNAME}          IN A   ${CP01_IP}
+          ${CP02_HOSTNAME}          IN A   ${CP02_IP}
+          ${CP03_HOSTNAME}          IN A   ${CP03_IP}
+          api.${CLUSTER_NAME}       IN A   ${API_VIP}
+          api-int.${CLUSTER_NAME}   IN A   ${API_VIP}
+          *.apps.${CLUSTER_NAME}    IN A   ${INGRESS_VIP}
+      - path: /var/named/reverse.zone
+        owner: root:named
+        permissions: "0640"
+        defer: true
+        content: |
+          $TTL 3600
+          @                IN SOA dns-a.${BASE_DOMAIN}. hostmaster.${BASE_DOMAIN}. ${ZONE_SERIAL} 3600 1800 604800 300
+          @                IN NS  dns-a.${BASE_DOMAIN}.
+          @                IN NS  dns-b.${BASE_DOMAIN}.
+          ${DNS_VM1_PTR}   IN PTR dns-a.${BASE_DOMAIN}.
+          ${DNS_VM2_PTR}   IN PTR dns-b.${BASE_DOMAIN}.
+          ${NTP_VM_PTR}    IN PTR ntp.${BASE_DOMAIN}.
+          ${BASTION_PTR}   IN PTR ${BASTION_HOSTNAME}.${BASE_DOMAIN}.
+          ${REGISTRY_PTR}  IN PTR ${MIRROR_REGISTRY_HOSTNAME}.
+          ${CP01_PTR}      IN PTR ${CP01_HOSTNAME}.${BASE_DOMAIN}.
+          ${CP02_PTR}      IN PTR ${CP02_HOSTNAME}.${BASE_DOMAIN}.
+          ${CP03_PTR}      IN PTR ${CP03_HOSTNAME}.${BASE_DOMAIN}.
+          ${API_VIP_PTR}   IN PTR api.${CLUSTER_NAME}.${BASE_DOMAIN}.
+      # Time from the site reference clock, not from a host Lab 14 used to switch off (FR-H8).
+      - path: /etc/chrony.conf
+        content: |
+          server ${TIME_UPSTREAM} iburst
+          driftfile /var/lib/chrony/drift
+          makestep 1.0 3
+          rtcsync
+          logdir /var/log/chrony
+    runcmd:
+      - [restorecon, -R, /etc/named.conf, /var/named]
+      - [named-checkconf, -z, /etc/named.conf]
+      - [systemctl, enable, --now, firewalld]
+      - [firewall-cmd, --permanent, --add-service=dns]
+      - [firewall-cmd, --reload]
+      - [systemctl, enable, --now, named]
+      - [systemctl, restart, chronyd]
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ${VM_NAME}-networkdata
+  namespace: infrastructure
+type: Opaque
+stringData:
+  networkdata: |
+    version: 2
+    ethernets:
+      vmnet0:
+        # Matched by the MAC pinned on the VM interface below, so the guest's NIC name
+        # (eth0 or enp1s0) never has to be guessed.
+        match:
+          macaddress: "${VM_MAC}"
+        addresses:
+          - ${VM_IP}/${MACHINE_NETWORK_PREFIX}
+        routes:
+          - to: 0.0.0.0/0
+            via: ${NETWORK_GATEWAY}
+        nameservers:
+          addresses: [127.0.0.1]
+          search: [${BASE_DOMAIN}]
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachine
+metadata:
+  name: ${VM_NAME}
+  namespace: infrastructure
+  labels:
+    app: dns-server
+spec:
+  runStrategy: Always
+  dataVolumeTemplates:
+    - metadata:
+        name: ${VM_NAME}-rootdisk
+      spec:
+        source:
+          registry:
+            url: "${RHEL_GUEST_IMAGE_URL}"
+            certConfigMap: registry-ca
+            secretRef: registry-pull
+        storage:
+          storageClassName: ${VM_STORAGE_CLASS}
+          resources:
+            requests:
+              storage: 30Gi
+  template:
+    metadata:
+      labels:
+        app: dns-server
+        kubevirt.io/domain: ${VM_NAME}
+    spec:
+      evictionStrategy: None
+      priorityClassName: infrastructure-vm
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: dns-server
+              topologyKey: kubernetes.io/hostname
+      domain:
+        cpu:
+          cores: 2
+        memory:
+          guest: 4Gi
+        devices:
+          disks:
+            - name: rootdisk
+              disk:
+                bus: virtio
+            - name: cloudinitdisk
+              disk:
+                bus: virtio
+          interfaces:
+            - name: vmnet
+              bridge: {}
+              macAddress: "${VM_MAC}"
+      networks:
+        - name: vmnet
+          multus:
+            networkName: infrastructure/vmnet
+      volumes:
+        - name: rootdisk
+          dataVolume:
+            name: ${VM_NAME}-rootdisk
+        - name: cloudinitdisk
+          cloudInitNoCloud:
+            secretRef:
+              name: ${VM_NAME}-userdata
+            networkDataSecretRef:
+              name: ${VM_NAME}-networkdata

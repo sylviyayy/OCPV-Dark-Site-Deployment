@@ -1,105 +1,133 @@
 #!/usr/bin/env bash
-# Deploy OpenShift Virtualization 4.22 from mirrored operator catalog
+# Install the operators Labs 13-14 need from the mirrored catalog (Lab 13 step 13.1):
+# OpenShift Virtualization, Kubernetes NMState (+ LVM Storage when STORAGE_BACKEND=lvms).
 #
+# Precondition: Lab 12 applied cluster-resources and disabled the default catalog sources.
 # Official: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/virtualization/installing
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
+# shellcheck source=scripts/lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
 load_env
-require_cmd oc
+validate_env
+refuse_root
+require_cmd oc python3
+use_kubeconfig
 
-export KUBECONFIG="${REPO_ROOT}/install-config/auth/kubeconfig"
-CNV_NS="openshift-cnv"
-CATALOG_SOURCE="${CATALOG_SOURCE_NAME:-cs-redhat-operator-index}"
+# FR-G1: oc-mirror v2 names the CatalogSource after catalog image and tag (for example
+# cs-redhat-operator-index-v4-22). Read the name from its output instead of guessing.
+# TODO(verify-4.22): naming per the oc-mirror v2 documentation.
+CATALOG_SOURCE="$(render catalog-source)"
+log_info "Mirrored catalog: ${CATALOG_SOURCE}"
 
-if [[ ! -f "$KUBECONFIG" ]]; then
-  log_error "Kubeconfig not found. Complete OCP install first."
+catalog_ready() {
+  [[ "$(oc get catalogsource "${CATALOG_SOURCE}" -n openshift-marketplace \
+        -o jsonpath='{.status.connectionState.lastObservedState}' 2>/dev/null)" == "READY" ]]
+}
+if ! wait_until 600 15 "CatalogSource ${CATALOG_SOURCE} READY" catalog_ready; then
+  oc get catalogsource -n openshift-marketplace
+  log_error "Apply ${CLUSTER_RESOURCES_DIR} first (Lab 12)."
   exit 1
 fi
 
-log_info "Deploying OpenShift Virtualization (OCP ${OCP_VERSION}, channel ${CNV_CHANNEL})"
-
-# Ensure mirrored catalog is available
-if ! oc get catalogsource "${CATALOG_SOURCE}" -n openshift-marketplace &>/dev/null; then
-  CLUSTER_RES="${REPO_ROOT}/install-config/cluster-resources"
-  if [[ -d "$CLUSTER_RES" ]]; then
-    log_info "Applying mirrored catalog from ${CLUSTER_RES}"
-    oc apply -f "${CLUSTER_RES}/"
-  else
-    log_error "CatalogSource ${CATALOG_SOURCE} not found. Apply oc-mirror cluster-resources first."
-    exit 1
-  fi
-fi
-
-oc create namespace "${CNV_NS}" --dry-run=client -o yaml | oc apply -f -
-
-cat <<EOF | oc apply -f -
+# install_operator NAMESPACE PACKAGE CHANNEL — OperatorGroup + Subscription, then wait for
+# the subscribed CSV to reach Succeeded or exit 1 with diagnostics (FR-G4).
+install_operator() {
+  local ns=$1 pkg=$2 channel=$3
+  oc create namespace "${ns}" --dry-run=client -o yaml | oc apply -f -
+  oc apply -f - <<EOF
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: kubevirt-hyperconverged-group
-  namespace: ${CNV_NS}
+  name: ${pkg}-group
+  namespace: ${ns}
 spec:
   targetNamespaces:
-    - ${CNV_NS}
+    - ${ns}
 ---
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: hco-subscription
-  namespace: ${CNV_NS}
+  name: ${pkg}
+  namespace: ${ns}
 spec:
-  channel: ${CNV_CHANNEL}
-  name: ${CNV_PACKAGE}
+  channel: ${channel}
+  name: ${pkg}
   source: ${CATALOG_SOURCE}
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
 EOF
+  csv_succeeded() {
+    local csv
+    csv="$(oc get subscription "${pkg}" -n "${ns}" -o jsonpath='{.status.installedCSV}' 2>/dev/null)"
+    [[ -n "${csv}" && "$(oc get csv "${csv}" -n "${ns}" -o jsonpath='{.status.phase}' 2>/dev/null)" == "Succeeded" ]]
+  }
+  if ! wait_until 900 15 "${pkg} CSV Succeeded in ${ns}" csv_succeeded; then
+    oc get subscription,installplan,csv -n "${ns}"
+    oc get subscription "${pkg}" -n "${ns}" -o jsonpath='{range .status.conditions[*]}{.type}={.status} {.message}{"\n"}{end}'
+    exit 1
+  fi
+}
 
-log_info "Waiting for HyperConverged operator CSV..."
-for i in $(seq 1 40); do
-  PHASE=$(oc get csv -n "${CNV_NS}" -o jsonpath='{.items[0].status.phase}' 2>/dev/null || echo "")
-  [[ "$PHASE" == "Succeeded" ]] && break
-  sleep 15
-done
+# --- OpenShift Virtualization ---
+install_operator openshift-cnv kubevirt-hyperconverged stable
 
-oc get csv -n "${CNV_NS}"
-
-cat <<EOF | oc apply -f -
+# FR-G5: no withHostPassthroughCPU (pins VMs to one CPU model) and no live-migration tuning
+# (node-local RWO disks cannot live-migrate, ADR-05). Defaults are explained in Lab 13.
+oc apply -f - <<'EOF'
 apiVersion: hco.kubevirt.io/v1beta1
 kind: HyperConverged
 metadata:
   name: kubevirt-hyperconverged
-  namespace: ${CNV_NS}
-spec:
-  featureGates:
-    withHostPassthroughCPU: true
-  liveMigrationConfig:
-    completionTimeoutPerGiB: 800
+  namespace: openshift-cnv
+spec: {}
 EOF
+hco_available() {
+  [[ "$(oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv \
+        -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null)" == "True" ]]
+}
+if ! wait_until 1200 30 "HyperConverged Available" hco_available; then
+  oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv \
+    -o jsonpath='{range .status.conditions[*]}{.type}={.status} {.reason}: {.message}{"\n"}{end}'
+  oc get pods -n openshift-cnv --field-selector=status.phase!=Running
+  exit 1
+fi
 
-log_info "Waiting for HyperConverged Available condition..."
-for i in $(seq 1 30); do
-  STATUS=$(oc get hyperconverged kubevirt-hyperconverged -n "${CNV_NS}" \
-    -o jsonpath='{.status.conditions[?(@.type=="Available")].status}' 2>/dev/null || echo "")
-  [[ "$STATUS" == "True" ]] && break
-  sleep 30
-done
+# --- Kubernetes NMState: localnet bridge mapping and DNS cut-over NNCPs (ADR-06, ADR-07) ---
+install_operator openshift-nmstate kubernetes-nmstate-operator stable
+oc apply -f - <<'EOF'
+apiVersion: nmstate.io/v1
+kind: NMState
+metadata:
+  name: nmstate
+EOF
+handler_ready() { oc rollout status daemonset/nmstate-handler -n openshift-nmstate --timeout=10s &>/dev/null; }
+if ! wait_until 600 15 "nmstate-handler DaemonSet rolled out" handler_ready; then
+  oc get pods -n openshift-nmstate
+  exit 1
+fi
 
-oc get hyperconverged kubevirt-hyperconverged -n "${CNV_NS}" \
-  -o jsonpath='Operator version: {.status.versions}{"\n"}'
+# --- LVM Storage (ADR-05 alternative) ---
+if [[ "${STORAGE_BACKEND}" == "lvms" ]]; then
+  install_operator openshift-storage lvms-operator "stable-${OCP_VERSION%.*}"
+fi
 
-log_info "Checking /dev/kvm on workers..."
-for node in $(oc get nodes -l node-role.kubernetes.io/worker -o jsonpath='{.items[*].metadata.name}'); do
-  if oc debug "node/${node}" -- chroot /host test -e /dev/kvm 2>/dev/null; then
-    log_info "  ${node}: KVM available"
+# --- /dev/kvm on every node (compact: all three run VMs). FR-G4: fail, do not warn. ---
+missing=()
+for node in $(oc get nodes -o jsonpath='{.items[*].metadata.name}'); do
+  if oc debug "node/${node}" --quiet -- chroot /host test -c /dev/kvm; then
+    log_info "${node}: /dev/kvm present"
   else
-    log_warn "  ${node}: KVM missing — enable VT-x/AMD-V in BIOS"
+    missing+=("${node}")
   fi
 done
+if (( ${#missing[@]} > 0 )); then
+  log_error "/dev/kvm missing on: ${missing[*]} — enable AMD SVM in UEFI (Lab 05 step 5.2)"
+  exit 1
+fi
 
-log_info "=== OpenShift Virtualization deployment complete ==="
-log_info "Next: ./scripts/07-deploy-dns-vm.sh"
+oc get csv -n openshift-cnv
+log_info "PASS: OpenShift Virtualization Available; NMState ready; KVM on all nodes"
+log_info "Next (Lab 13 step 13.2): ./scripts/06b-configure-storage.sh"

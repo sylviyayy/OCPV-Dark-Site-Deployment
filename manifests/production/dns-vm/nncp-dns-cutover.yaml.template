@@ -1,0 +1,19 @@
+# Node resolvers after the Lab 14 cut-over (FR-H6, ADR-07): both DNS VMs, then the bastion,
+# which stays up permanently as the cold-start fallback. Replaces machineconfig-dns.yaml,
+# which overwrote /etc/resolv.conf with a data URL that encoded line breaks as %0E (Shift
+# Out) — a one-line file with no valid nameserver — and used the wrong mechanism: on the
+# baremetal platform NetworkManager and the node-local CoreDNS own resolv.conf.
+apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+  name: dns-cutover
+spec:
+  desiredState:
+    dns-resolver:
+      config:
+        search:
+          - ${BASE_DOMAIN}
+        server:
+          - ${DNS_VM1_IP}
+          - ${DNS_VM2_IP}
+          - ${BASTION_IP}

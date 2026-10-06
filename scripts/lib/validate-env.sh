@@ -15,7 +15,10 @@ validate_env() {
   fi
 }
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+# Executed directly (not sourced). The guard matters: common.sh sources this file again, and
+# when the script was started by absolute path BASH_SOURCE[0] still equals $0 there.
+if [[ "${BASH_SOURCE[0]}" == "${0}" && -z "${VALIDATE_ENV_MAIN:-}" ]]; then
+  VALIDATE_ENV_MAIN=1
   set -euo pipefail
   # shellcheck source=scripts/lib/common.sh
   source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
@@ -28,6 +31,6 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
       *) log_error "usage: $0 [--env-file PATH] [--probe]"; exit 2 ;;
     esac
   done
-  load_env "${env_file:-${REPO_ROOT}/.env}"
+  load_env ${env_file:+"${env_file}"}
   validate_env "${probe[@]}"
 fi
