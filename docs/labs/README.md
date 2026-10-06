@@ -2,12 +2,17 @@
 
 The tutorial entry point is the repository [README](../../README.md).
 
+Before Lab 06, read the [USB Transfer Kit](../USB-TRANSFER-KIT.md) (what to download,
+and why). Keep the [Bastion Lifecycle](../BASTION-LIFECYCLE.md) open throughout. It marks
+where the 24-hour windows apply and how the bastion hands DNS/NTP to permanent servers
+before it is disconnected.
+
 Complete labs **in order**:
 
 1. [Prerequisites and Assumptions](01-prerequisites-assumptions.md)
 2. [Architecture Overview and Network Design](02-architecture-network-design.md)
-3. [Site Worksheet (mandatory)](03-worksheet.md)
-4. [Setting up the Jumpbox](04-jumpbox.md)
+3. [Site Checklist (mandatory)](03-checklist.md)
+4. [Setting up the Bastion](04-bastion.md)
 5. [Provisioning Compute Resources](05-compute-resources.md)
 6. [Mirroring Images for a Disconnected Install](06-mirroring-images.md)
 7. [Bootstrapping MVP DNS and NTP](07-mvp-dns-ntp.md)

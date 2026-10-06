@@ -1,6 +1,6 @@
 # Configure `.env` (field-by-field detail)
 
-> Used from [Lab 03 — Site Worksheet](../03-worksheet.md).  
+> Used from [Lab 03 — Site Checklist](../03-checklist.md).  
 > Tutorial index: [README Labs](../../../README.md#labs).
 
 ## Goal
@@ -85,6 +85,8 @@ ip -br link
 | `MIRROR_REGISTRY_PASSWORD` | `changeme` | **Change this** | Used to push/pull mirrored images |
 
 If bastion and registry are **one machine**, set both IPs to that machine’s IP and adjust later docs accordingly.
+**Do not do this if the bastion will be disconnected after cutover.** The cluster pulls
+images from the registry for its whole life ([Bastion Lifecycle](../../BASTION-LIFECYCLE.md), hard constraints).
 
 ### 4) VIPs (virtual IPs — not a physical server)
 
@@ -189,4 +191,4 @@ Checklist:
 
 ## Next
 
-→ [Lab 03 — Site Worksheet](../03-worksheet.md) · [Lab 06 — Mirroring](../06-mirroring-images.md)
+→ [Lab 03 — Site Checklist](../03-checklist.md) · [Lab 06 — Mirroring](../06-mirroring-images.md)

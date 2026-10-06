@@ -17,6 +17,12 @@ One of:
 
 The bastion here serves as the temporary DNS/NTP server since we are deploying this OpenShift cluster from scratch (greenfield).
 
+The bastion is **temporary**. It receives the USB drive, runs DNS/NTP and the installer,
+acts as the **secondary** DNS/NTP during cutover, and is then disconnected. Plan for that
+from the start, and keep the mirror registry on a separate host:
+[Bastion Lifecycle](../BASTION-LIFECYCLE.md). The drive's contents are listed in the
+[USB Transfer Kit](../USB-TRANSFER-KIT.md).
+
 **PXE is not required.** Use USB or KVM virtual CD.
 
 ## DO — path A: Fedora / RHEL KVM

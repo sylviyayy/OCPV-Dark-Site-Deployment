@@ -43,23 +43,12 @@ else
   log_warn "NTP not responding yet. VM may still be booting."
 fi
 
-# Apply MachineConfig to cutover cluster DNS/NTP
-log_info "Applying DNS/NTP cutover MachineConfigs..."
-if [[ -f "${MANIFEST_DIR}/../dns-vm/machineconfig-dns.yaml" ]]; then
-  sed -e "s|DNS_VM_IP|${DNS_VM_IP}|g" \
-    "${MANIFEST_DIR}/../dns-vm/machineconfig-dns.yaml" | oc apply -f -
-fi
-if [[ -f "${MANIFEST_DIR}/machineconfig-ntp.yaml" ]]; then
-  sed -e "s|NTP_VM_IP|${NTP_VM_IP}|g" \
-    "${MANIFEST_DIR}/machineconfig-ntp.yaml" | oc apply -f -
-fi
+# DNS/NTP cutover is deliberately NOT applied here. Cutover is make-before-break:
+# nodes first use the permanent servers as primary with the bastion as secondary,
+# then the bastion is removed. See docs/BASTION-LIFECYCLE.md (Phases 7-8).
 
 log_info ""
 log_info "=== NTP VM deployed at ${NTP_VM_IP} ==="
-log_info "Nodes will reboot to apply new DNS/NTP config."
-log_info "Monitor: watch oc get mcp"
-log_info ""
-log_info "After all nodes are updated, decommission bastion MVP services:"
-log_info "  ssh root@${BASTION_IP} 'systemctl stop dnsmasq chronyd && systemctl disable dnsmasq chronyd'"
-log_info ""
-log_info "Run validation: ./scripts/00-prerequisites-check.sh --post-install"
+log_info "Bastion (${BASTION_IP}) remains the nodes' DNS/NTP source — no cutover applied."
+log_info "Next: docs/BASTION-LIFECYCLE.md Phase 7 (permanent primary, bastion secondary),"
+log_info "      then Phase 8 (remove bastion, verify drain, disconnect)."

@@ -32,6 +32,13 @@ sudo tar -C "$(dirname "${MIRROR_DIR}")" -czf /tmp/ocp-mirror.tar.gz "$(basename
 
 Copy tarball + this repo + pull secret + RHEL ISO to removable media.
 
+The **full bill of materials** is in the [USB Transfer Kit](../USB-TRANSFER-KIT.md). It
+lists which Hybrid Cloud Console downloads you need and why, the drive layout and the
+pre-departure checklist.
+
+**None of this is on a 24-hour clock.** Mirror days ahead. The only artifact that
+expires is the agent ISO, built on site in Lab 08 ([Window A](../BASTION-LIFECYCLE.md#2-the-two-24-hour-windows-and-what-is-not-on-a-clock)).
+
 On the dark-site registry host (or jumpbox if co-located):
 
 ```bash

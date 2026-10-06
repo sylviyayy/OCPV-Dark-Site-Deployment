@@ -162,9 +162,12 @@ spec:
 |---|---|---|---|
 | Pre-install | Bastion dnsmasq | Bastion chronyd | Deploy MVP |
 | During install | Bastion dnsmasq | Bastion chronyd | No change |
-| Post OCP-V install | DNS VM on OCP-V | NTP VM on OCP-V | Deploy production VMs |
-| Cutover | DNS VM `10.10.0.50` | NTP VM `10.10.0.51` | Update node configs, stop bastion services |
-| Steady state | DNS VM | NTP VM | Bastion DNS/NTP decommissioned |
+| Post-install soak (≥ 24 h) | Bastion dnsmasq | Bastion chronyd | Deploy production VMs; do **not** switch yet |
+| Make-before-break | DNS VM `10.10.0.50`, then bastion | NTP VM `10.10.0.51` (`prefer`), then bastion | NNCP + Butane `MachineConfig`; soak |
+| Break | DNS VM | NTP VM | Remove bastion from configs, verify drain, stop services, disconnect |
+| Steady state | DNS VM | NTP VM | Bastion gone |
+
+Full procedure: [Bastion Lifecycle](BASTION-LIFECYCLE.md), Phases 6–8.
 
 ## Decommissioning MVP Services
 

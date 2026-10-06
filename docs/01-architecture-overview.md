@@ -31,8 +31,8 @@ graph TD
 
 | Component | Phase | Role |
 |---|---|---|
-| **Staging machine** | 0 | Download OCP release, operator catalogs, RHCOS images |
-| **Bastion host** | 1–3 | Installer workstation, MVP DNS/NTP, `/etc/hosts` authority |
+| **Staging machine** | 0 | Download CLI tools; mirror the OCP release (which carries the RHCOS base ISO) and operator catalogs to disk. RHCOS is **not** downloaded separately ([USB Transfer Kit](USB-TRANSFER-KIT.md)) |
+| **Bastion host** | 1–6 | Installer workstation, MVP DNS/NTP (secondary during cutover), then disconnected ([Bastion Lifecycle](BASTION-LIFECYCLE.md)) |
 | **Mirror registry** | 1–∞ | Local container registry serving OCP + CNV images |
 | **Control plane nodes** | 3 | OpenShift masters (etcd, API server) |
 | **Worker nodes** | 3–4 | Compute for workloads and VMs (CNV requires bare-metal or nested virt) |
