@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > Each bullet below names the PRD v2.0 requirement it implements (NFR-9).
 
 ### Added
+- Merged from `main`: Lab 07 verification expanded with `nslookup` checks for the API and `*.apps` names, service-health commands and firewall guidance (lab shortcut vs production allow-list); NTP is checked with the `chronyd -Q` client probe rather than `chronyc -h`
 - Merged from `main` (PR #1): `docs/USB-TRANSFER-KIT.md` and `docs/BASTION-LIFECYCLE.md`, rewritten against the current scripts (phases mapped to lab steps; defect register shows each item's current status), the README "Before You Go to the Dark Site" section, and the two 24-hour windows in Labs 08, 10 and 14
 - Lab 07: a day-1 DNS/NTP-only path, and step 7.0 (set the bastion clock to UTC before chronyd serves it)
 - `validate-env.sh --scope services|kickstart`: the bastion steps check only the keys they use, so DNS/NTP runs before node MACs, disks or the pull secret are known

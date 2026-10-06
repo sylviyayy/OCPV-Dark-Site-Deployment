@@ -37,8 +37,9 @@ Then steps 7.0 and 7.1. From a laptop on `MACHINE_NETWORK_CIDR`, check the basti
 
 ```bash
 nslookup api.ocpv-poc.example.com <BASTION_IP>                           # Windows or Linux → API_VIP
+nslookup console-openshift-console.apps.ocpv-poc.example.com <BASTION_IP> # → INGRESS_VIP
 w32tm /stripchart /computer:<BASTION_IP> /samples:3 /dataonly            # Windows: small offsets
-chronyd -Q "server <BASTION_IP> iburst"                                  # Linux (sudo): |offset| < 1 s
+chronyd -Q "server <BASTION_IP> iburst"                                  # Linux, no root needed: |offset| < 1 s
 ```
 
 Step 7.2 also checks the Lab 06 clients and registry, so skip it on a DNS/NTP-only day.
@@ -92,7 +93,33 @@ secondary after Lab 14. *If skipped:* the Agent ISO cannot resolve the registry 
 
 **DO** — `sudo ./scripts/02-bootstrap-dns-ntp.sh`
 
-**VERIFY** — The script compares each answer with `.env` and exits 1 on any mismatch. By hand:
+**Firewall.** The script opens the `dns` (TCP/UDP 53) and `ntp` (UDP 123) services in firewalld.
+Every node IP must reach both.
+
+| Site | Rule |
+|---|---|
+| Closed lab VLAN (shortcut) | Leave the script's rules, or, while debugging, accept everything from the install network: `sudo firewall-cmd --permanent --add-rich-rule="rule family=ipv4 source address=${MACHINE_NETWORK_CIDR} accept" && sudo firewall-cmd --reload`. Avoid `systemctl disable firewalld`: it is easy to forget to undo |
+| Production | Allow 53/tcp, 53/udp and 123/udp **only** from `MACHINE_NETWORK_CIDR`; record the allow-list on the Lab 03 sign-off |
+
+**VERIFY** — Two names must answer before you go on, or DNS is **not ready**:
+
+| Name | Must answer | Needed for |
+|---|---|---|
+| `api.<CLUSTER_NAME>.<BASE_DOMAIN>` | `API_VIP` | Kubernetes API, `oc login` |
+| any name under `*.apps.<CLUSTER_NAME>.<BASE_DOMAIN>` (e.g. the console) | `INGRESS_VIP` | routes, console, OAuth |
+
+The script checks these and more against `.env` and exits 1 on any mismatch. By hand, with
+`nslookup` (on the bastion, or any machine that reaches `BASTION_IP`; a node is ideal):
+
+```bash
+set -a && source .env && set +a
+nslookup "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${BASTION_IP}"                             # expect: API_VIP
+nslookup "console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}" "${BASTION_IP}"  # expect: INGRESS_VIP
+nslookup "${MIRROR_REGISTRY_HOSTNAME}" "${BASTION_IP}"                                   # expect: MIRROR_REGISTRY_IP
+```
+
+Interactive form, if you prefer: run `nslookup`, then `server <BASTION_IP>`, then each name, then `exit`.
+The same with `dig`, plus a reverse lookup and the time probe:
 
 ```bash
 set -a && source .env && set +a
@@ -103,14 +130,27 @@ dig +short @"${BASTION_IP}" -x "${MW01_IP}"                           # expect: 
 chronyd -Q "server ${BASTION_IP} iburst"                              # expect: "System clock wrong by x seconds", |x| < 1
 ```
 
-`chronyd -Q` measures the offset as a client without touching your clock. Do not use
-`chronyc -h <host> tracking`: the server refuses it unless `cmdallow` is set, so it fails while NTP is healthy.
+`chronyd -Q` measures the offset as a client, without root and without touching your clock. Do not
+use `chronyc -h <host> tracking`: chronyd refuses remote monitoring unless `cmdallow` is set, so it
+fails while NTP is healthy. Service health on the bastion itself:
 
-**FAILS IF** — `BASTION_IP=… is not configured on any interface` ← `.env` and the NIC disagree: fix
-whichever is wrong (the message prints the `nmcli` command); `dig` returns nothing ← dnsmasq not
-running or UDP/TCP 53 blocked; no offset printed ← UDP 123 blocked. `[WARN] TIME_SOURCE … does not
-answer` is not a failure: the bastion serves its own clock (set in 7.0) until the site NTP server
-is reachable.
+```bash
+sudo systemctl status dnsmasq chronyd --no-pager       # both active (running)
+sudo ss -ulnp | grep -E ':53 |:123 '                    # dnsmasq on 127.0.0.1 and BASTION_IP; chronyd on 123
+grep -E 'api\.|apps\.' /etc/dnsmasq.d/ocp-v.conf        # one api, one api-int, one apps line
+sudo journalctl -u dnsmasq -u chronyd --since -10min    # start-up errors (queries are not logged)
+```
+
+**FAILS IF**
+
+| Symptom | Cause |
+|---|---|
+| `BASTION_IP=… is not configured on any interface` | `.env` and the NIC disagree; fix whichever is wrong (the message prints the `nmcli` command) |
+| `nslookup` times out | firewall blocks 53, dnsmasq not running, or the wrong server IP |
+| `api` answers, `*.apps` does not | the `address=/apps…/` line is missing: re-run the script |
+| Answers on the bastion, not from a node | firewall allows only localhost, or the node is not using the bastion yet (agent-config sets it, Lab 08) |
+| No offset printed | UDP 123 blocked |
+| `[WARN] TIME_SOURCE … does not answer` | not a failure: the bastion serves its own clock (set in 7.0) until the site NTP server is reachable |
 
 ### 7.2 Prove the whole high side
 

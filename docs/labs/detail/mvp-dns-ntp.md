@@ -37,6 +37,16 @@ chronyd -Q "server ${BASTION_IP} iburst"     # prints "System clock wrong by <x>
 
 `-Q` never touches your clock and needs no privileges (FR-F2).
 
+## Quick DNS check (what the installer and nodes ask first)
+
+```bash
+nslookup "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${BASTION_IP}"                             # → API_VIP
+nslookup "console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}" "${BASTION_IP}"  # → INGRESS_VIP
+```
+
+Both must answer with the VIPs. Firewall guidance (lab shortcut vs production allow-list) is in
+[Lab 07 step 7.1](../07-mvp-dns-ntp.md#71-configure-and-start-dnsmasq-and-chronyd).
+
 ## Lifecycle
 
 | Phase | Primary DNS | Primary time | Bastion role |
