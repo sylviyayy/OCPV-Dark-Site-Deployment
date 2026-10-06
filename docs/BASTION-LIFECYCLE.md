@@ -165,28 +165,33 @@ oc version --client && openshift-install version
 
 **WHERE:** Bastion.
 **WHY:** Nothing on site resolves names or keeps time yet. The bastion's clock becomes
-the site's **time authority**, because chronyd runs in orphan mode with no upstream. So
-set it correctly **before** it starts serving time.
+the site's **time authority**, because chronyd serves its local clock with no upstream.
+So set it correctly **before** it starts serving time.
 
 **DO:**
 
 ```bash
-sudo timedatectl set-timezone UTC
-sudo timedatectl set-ntp false                       # allows a manual set
-sudo timedatectl set-time 'YYYY-MM-DD HH:MM:SS'      # UTC, from a trusted reference
-sudo hwclock --systohc --utc
-
 cd ~/OCPV-Dark-Site-Deployment
-set -a && source .env && set +a
-sudo ./scripts/02-bootstrap-dns-ntp.sh               # dnsmasq + chronyd (orphan)
+date -u                                                         # is it right?
+sudo ./scripts/02-bootstrap-dns-ntp.sh --set-time 'YYYY-MM-DD HH:MM:SS'   # UTC, from a trusted reference
+# (omit --set-time if the clock is already correct)
 ```
+
+The script refuses to run if `BASTION_IP` isn't on this host or port 53 is taken. It
+writes dnsmasq and chrony configs from `.env`, opens the firewall, restarts both
+services, and verifies them. Details are in [Lab 07](labs/07-mvp-dns-ntp.md).
+
+During install the nodes list **only** the bastion: `dns-resolver` and
+`additionalNTPSources` in `agent-config.yaml`. Don't pre-list the permanent servers. A
+dead first nameserver adds a timeout to every lookup, and a half-built one answers
+NXDOMAIN, which resolvers do not fall back from. See
+[Lab 07, "Primary or secondary?"](labs/07-mvp-dns-ntp.md#primary-or-secondary-the-nodes-decide-not-the-bastion).
 
 Also set every node's **BMC/UEFI clock to UTC**, within a minute of the bastion.
 Certificates generated at T-0 carry the bastion's timestamp. A node whose clock lags
 behind it sees them as "not yet valid" until it synchronizes.
 
-**VERIFY:** [Lab 07](labs/07-mvp-dns-ntp.md) checks. `dig` returns the API VIP,
-`*.apps`, the registry and every node, and `chronyc tracking` answers.
+**VERIFY:** `sudo ./scripts/02-bootstrap-dns-ntp.sh --verify`. Every line must say `[PASS]`.
 
 ### Phase 3: Permanent mirror registry (no clock)
 
@@ -577,7 +582,7 @@ has stopped, and only then power it off.
    is still using it:
 
    ```bash
-   sudo tail -n 50 /var/log/dnsmasq.log     # no new queries from node or registry IPs
+   sudo journalctl -u dnsmasq --since '-1h' | grep query   # no queries from node or registry IPs
    sudo chronyc clients                     # no client has polled recently (Last column keeps growing)
    ```
 
@@ -659,6 +664,9 @@ still need a patch. Until then, use the commands on this page.
 | D17 | 7 | `scripts/08-deploy-ntp-vm.sh` | Applied single-server DNS/NTP cutover `MachineConfig`s as soon as the NTP VM booted | Break-before-make, with no bastion fallback during the rolling reboots | **Fixed** (cutover moved to Phase 7) |
 | D18 | 7 | `manifests/production/dns-vm/machineconfig-dns.yaml` | Encodes newlines as `%0E` (Shift Out) instead of `%0A`, and overwrites `/etc/resolv.conf`, which NetworkManager manages | Corrupt or overwritten resolver config. Use the Phase 7 NNCP instead | Open (no longer applied by any script) |
 | D19 | 8 | `scripts/00-prerequisites-check.sh` | In `--post-install`, the pipes sit outside `check`'s arguments, so they filter `check`'s output rather than the command | PASS/FAIL results are meaningless | Open |
+| D20 | all | `scripts/lib/common.sh` | Computed `REPO_ROOT` from its own directory (`scripts/lib/..` = `scripts/`), so `load_env` never found `.env` | **Every** numbered script exited at start-up | **Fixed** |
+| D21 | 2 | `scripts/02-bootstrap-dns-ntp.sh` | Listened only on `BASTION_IP` (so the bastion's own `127.0.0.1` lookups failed). Used a version-dependent `*.apps` wildcard. `enable --now` never applied config changes on re-run. No pre-flight or real verification | Temporary DNS unreliable; re-runs silently ineffective | **Fixed** (rewritten and tested: dnsmasq 2.91, chrony 4.5) |
+| D22 | 2, 6–8 | Labs 07/14, `docs/05`–`07`, `scripts/00`, `scripts/08` | Check NTP with `chronyc -h <remote-ip> tracking`. chronyd answers monitoring commands only from localhost by default | The check always fails remotely. Use `chronyd -Q 'port 0' 'cmdport 0' 'pidfile …' 'server <ip> iburst'` | **Fixed** for the bastion (Lab 07, `docs/03`, `docs/05`, `scripts/00` pre-install). Open for the NTP VM checks |
 
 ---
 
