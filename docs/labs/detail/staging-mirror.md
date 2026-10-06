@@ -1,72 +1,39 @@
 # Staging mirror (detail)
 
-> Canonical lab: [06 — Mirroring Images](../06-mirroring-images.md).
+> Canonical lab: [06 — Mirroring Images](../06-mirroring-images.md). This page explains what
+> `scripts/01-mirror-preparation.sh` does and how the transfer media are assembled.
 
-## Goal
+## What script 01 does, in order
 
-On a machine **with internet**, download OpenShift clients and mirror release + operator images to disk.
+| Step | Mechanism | Fails loudly when |
+|---|---|---|
+| Tools | requires only `curl jq tar sha256sum skopeo python3`; `oc` is checked **after** it is downloaded (FR-B2) | a base tool is missing |
+| Clients | reads `sha256sum.txt` for `OCP_VERSION`, picks the RHEL 9 installer, client and oc-mirror builds by pattern, downloads them and runs `sha256sum -c` (FR-B1) | the z-stream is not published, a pattern matches 0 or 2+ files, or a checksum differs |
+| mirror-registry | downloads the archive the high side installs (FR-C2) | the download fails; the message names the console download page |
+| Auth file | `${AUTH_FILE}` = your pull secret, mode 600; passed to every `oc mirror` with `--authfile` (FR-B3). The registry entry is added on the high side, so the registry password never crosses the air gap | the pull secret is missing or not JSON |
+| ImageSet | `${IMAGESET_CONFIG}` from `mirror/imageset-config.yaml.template` + `mirror/imageset-profiles.yaml`: one exact z-stream, the operators every lab installs, the RHEL guest image pinned by digest (FR-B6) | an unknown profile, or a floating tag |
+| `--mirror-to-disk` | `oc mirror -c ${IMAGESET_CONFIG} file://${MIRROR_ARCHIVE_DIR} --v2 --authfile ${AUTH_FILE}` (FR-B4) | no `mirror_*.tar` is produced |
 
-## WHERE
+The guest image digest is resolved once and reused on every re-run, so the image cannot silently
+change after it was mirrored. Delete `${IMAGESET_CONFIG}` to re-resolve on purpose.
 
-**Staging** = Fedora laptop **or** RHEL 10 KVM VM with:
+## What crosses the air gap
 
-- internet access  
-- Red Hat pull secret in place (Lab 02)  
-- lots of free disk under `MIRROR_DIR` (often `/opt/ocp-mirror`)
-
-```bash
-cd ~/OCPV-Dark-Site-Deployment   # or your clone path
-set -a && source .env && set +a
-```
-
-## WHY this lab exists
-
-The dark site cannot reach `quay.io` or `registry.redhat.io`.  
-`oc mirror` (plugin v2) copies the exact images your cluster will need onto removable media.
-
-## DO — run mirror preparation
-
-```bash
-# Install/download clients + write ImageSet config
-./scripts/01-mirror-preparation.sh
-
-# Actually mirror to disk (large download — can take hours)
-./scripts/01-mirror-preparation.sh --mirror-to-disk
-```
-
-### WHAT the script is doing (rationale)
-
-1. Downloads `oc`, `openshift-install`, and `oc-mirror` for your `OCP_VERSION` from Red Hat’s public mirror  
-2. Builds an ImageSetConfiguration for `stable-4.22` + `kubevirt-hyperconverged`  
-3. With `--mirror-to-disk`, runs `oc mirror --v2` into `OC_MIRROR_WORKDIR`  
-
-For a richer CoE operator set later, you can point at `mirror/imageset-ocpv-coe.yaml` (still **no MTV** unless you add it).
-
-## DO — pack for USB
-
-```bash
-sudo tar -C "$(dirname "${MIRROR_DIR}")" -czf /tmp/ocp-mirror.tar.gz "$(basename "${MIRROR_DIR}")"
-ls -lh /tmp/ocp-mirror.tar.gz
-# Copy /tmp/ocp-mirror.tar.gz + this git repo + RHEL ISO + pull-secret.json onto USB
-```
-
-## VERIFY
-
-```bash
-ls "${MIRROR_DIR}/clients/oc" "${MIRROR_DIR}/clients/openshift-install" "${MIRROR_DIR}/clients/oc-mirror"
-"${MIRROR_DIR}/clients/oc-mirror" --v2 --help | head
-# After mirror-to-disk, cluster-resources should exist under the workdir:
-find "${OC_MIRROR_WORKDIR}" -type d -name cluster-resources 2>/dev/null
-```
-
-## FAILS IF
-
-| Problem | Result |
+| Item | Why the high side needs it |
 |---|---|
-| No pull secret | Auth errors from Red Hat registries |
-| Disk full mid-mirror | Incomplete archive; install later fails randomly |
-| Mixed versions in ImageSet | Operators stuck `Pending` |
+| `mirror_*.tar` | the images; disk-to-mirror reads only these |
+| `clients/` | `openshift-install`, `oc`, `oc-mirror`, `mirror-registry` |
+| `imageset-config.yaml` | disk-to-mirror needs the exact ImageSet that produced the archive |
+| `rhel9-dvd.iso` | the bastion's dnf repo and the DNS/NTP VMs' package source (Lab 06 step 6.5) |
+| `repo.tar.gz` | this repository with your `.env` (no passwords in it) |
+| `pull-secret.json` | part of the cluster `pullSecret`; a secret, handle per site policy |
+| `id_ed25519.pub` | public key only; the private key stays with the operator |
+| `SHA256SUMS` | proof that every byte above arrived unchanged |
+
+oc-mirror archives are already tarballs of compressed layers: re-compressing them with gzip costs
+hours for almost no saving, so the media carry plain copies (FR-B7). Use exFAT, ext4 or XFS: FAT32
+cannot hold a file larger than 4 GiB.
 
 ## Next
 
-→ [Lab 06 — Mirroring Images](../06-mirroring-images.md)
+→ [Lab 06](../06-mirroring-images.md)

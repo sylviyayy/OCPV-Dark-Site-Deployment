@@ -1,4 +1,10 @@
-# Appendix — Optional KVM Practice Lab
+# Appendix — Optional KVM Practice Lab (unsupported)
+
+> **Non-normative reference (ADR-01).** Background kept from v1. The normative path is
+> [the labs](../../labs/README.md); where this page and a lab disagree, the lab wins.
+
+> **Unsupported.** Learning only. This is the one place a Fedora or KVM-hosted path is
+> tolerated (Lab 01 OS table); nothing here is supported for partner delivery.
 
 ## When to use
 
@@ -23,8 +29,8 @@ Excellent step-by-step lab using RHEL KVM:
 
 | Asset | Use in Track B |
 |---|---|
-| `imageset-config-4.22.yaml` | Operator mirror list (see our `mirror/imageset-ocpv-coe.yaml`) |
-| Bastion BIND/chrony steps | Same logic on **physical** bastion in Track A |
+| `imageset-config-4.22.yaml` | Operator mirror list (see our `mirror/imageset-profiles.yaml`, `coe` profile) |
+| Bastion BIND/chrony steps | Same logic on the **physical** bastion in Track A |
 | `mirror-registry install` | Same on physical registry host |
 | `oc mirror --v2` workspace flow | Same commands |
 | Sample `agent-config` / `install-config` | Adapt MACs/IPs from worksheet |
@@ -35,7 +41,7 @@ Excellent step-by-step lab using RHEL KVM:
 |---|---|
 | KVM VM cluster nodes | Track A uses bare metal + BMC |
 | libvirt networks | Track A uses physical switches |
-| `/etc/hosts` on KVM host | Track A uses bastion DNS + proper zones |
+| `/etc/hosts` on the KVM host | Track A uses bastion DNS with A and PTR records |
 
 ---
 

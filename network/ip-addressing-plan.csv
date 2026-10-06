@@ -1,14 +1,15 @@
-role,ip,hostname,notes
-gateway,10.10.0.1,gw.ocp-v.local,Router/L3 switch default gateway
-switch-mgmt,10.10.0.2,sw01.ocp-v.local,Optional switch management IP
-bastion,10.10.0.5,bastion.ocp-v.local,MVP DNS/NTP + installer workstation
-registry,10.10.0.10,registry.ocp-v.local,Mirror container registry
-dns-vm,10.10.0.50,dns.ocp-v.local,Production DNS VM on OCP-V
-ntp-vm,10.10.0.51,ntp.ocp-v.local,Production NTP VM on OCP-V
-api-vip,10.10.0.100,api.ocpv-lab.ocp-v.local,OpenShift API VIP
-ingress-vip,10.10.0.101,*.apps.ocpv-lab.ocp-v.local,OpenShift Ingress VIP
-cp01,10.10.1.11,cp01.ocp-v.local,Control plane node 1
-cp02,10.10.1.12,cp02.ocp-v.local,Control plane node 2
-cp03,10.10.1.13,cp03.ocp-v.local,Control plane node 3
-wk01,10.10.2.21,wk01.ocp-v.local,Worker node 1
-wk02,10.10.2.22,wk02.ocp-v.local,Worker node 2
+role,ip,hostname,env_key,notes
+gateway,10.10.0.1,,NETWORK_GATEWAY,Default gateway on the machine network
+bastion,10.10.0.5,bastion.lab.example.com,BASTION_IP,"DNS, NTP, DVD repo and installer for the life of the site"
+registry,10.10.0.10,registry.lab.example.com,MIRROR_REGISTRY_IP,mirror registry for Red Hat OpenShift on port 8443
+dns-a,10.10.0.50,dns-a.lab.example.com,DNS_VM_IPS[0],DNS VM on OCP-V (anti-affine with dns-b)
+ntp,10.10.0.51,ntp.lab.example.com,NTP_VM_IP,NTP VM on OCP-V
+dns-b,10.10.0.52,dns-b.lab.example.com,DNS_VM_IPS[1],DNS VM on OCP-V (anti-affine with dns-a)
+api-vip,10.10.0.100,api.coe01.lab.example.com,API_VIP,"API VIP (also api-int)"
+ingress-vip,10.10.0.101,*.apps.coe01.lab.example.com,INGRESS_VIP,Ingress VIP
+cp01,10.10.1.11,cp01.lab.example.com,CP01_IP,"Control-plane node, SR665 V3, rendezvous node"
+cp02,10.10.1.12,cp02.lab.example.com,CP02_IP,"Control-plane node, SR665 V3"
+cp03,10.10.1.13,cp03.lab.example.com,CP03_IP,"Control-plane node, SR675 V3 (8x L40S)"
+cp01-xcc,10.20.0.11,,CP01_BMC_IP,XCC on the BMC network
+cp02-xcc,10.20.0.12,,CP02_BMC_IP,XCC on the BMC network
+cp03-xcc,10.20.0.13,,CP03_BMC_IP,XCC on the BMC network

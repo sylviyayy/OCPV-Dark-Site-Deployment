@@ -1,8 +1,11 @@
 # Information Gathering Worksheet
 
-> **STOP:** Do not cable, switch-configure, or generate an agent ISO until every required field below is filled.
+> **Non-normative reference (ADR-01).** Background kept from v1. The normative path is
+> [the labs](../../labs/README.md); where this page and a lab disagree, the lab wins.
 
-Copy this file or export `network/site-inventory.csv` (create from template) for each deployment.
+The `.env` field register in [Lab 03](../../labs/03-checklist.md) is normative and is what the scripts
+validate. Use this page for the facts around it that the register does not hold (serials, switch
+port-channel IDs, BMC credentials references, SAN details) and for the owner sign-off.
 
 ---
 
@@ -12,7 +15,7 @@ Copy this file or export `network/site-inventory.csv` (create from template) for
 |---|---|
 | Customer / site name | |
 | Partner engineer | |
-| Target track | A / B / C |
+| Target track | A (bare metal compact) |
 | OCP version | 4.22.x |
 | Cluster name | |
 | Base domain | |
@@ -27,22 +30,22 @@ Duplicate one block per node.
 
 | Field | Value | Used in |
 |---|---|---|
-| Role | master / worker | agent-config |
-| Hostname | | DNS, agent-config |
+| Role | control-plane node (compact) | agent-config |
+| Hostname (C1) | | DNS, agent-config |
 | Serial / asset tag | | Support |
 | BMC IP | | Virtual CD |
 | BMC type | XCC / iDRAC / iLO | Appendix |
 | BMC username | (vault ref) | |
-| NIC1 port1 MAC | | agent-config |
-| NIC1 port2 MAC | | bond slave |
-| NIC2 port1 MAC | | bond slave |
-| NIC2 port2 MAC | | bond slave |
+| Bond member 1 name=MAC | | `CPn_NICS` (C3) |
+| Bond member 2 name=MAC | | `CPn_NICS` (C3) |
+| Bond member 3 name=MAC | | `CPn_NICS` (C3) |
+| Bond member 4 name=MAC | | `CPn_NICS` (C3) |
 | Bond name | bond0 | nmstate |
 | Bond mode | 802.3ad | switch Po |
 | Node IP / prefix | | nmstate |
 | Gateway | | nmstate |
 | DNS (install) | bastion IP | nmstate |
-| OS disk device | /dev/sda | rootDeviceHints |
+| OS disk by-path | /dev/disk/by-path/… | `CPn_ROOT_DEVICE` (C4) |
 | iSCSI IQN | | LUN masking |
 | Assigned LUN IDs | | SAN |
 
@@ -61,8 +64,9 @@ Duplicate one block per node.
 | Ingress VIP | |
 | Bastion IP | |
 | Registry IP | |
-| DNS VM IP (post-install) | |
+| DNS VM IPs (two, post-install) | |
 | NTP VM IP (post-install) | |
+| Time source (reference clock IP or orphan) | |
 | MTU | |
 
 ---
@@ -101,4 +105,4 @@ Duplicate one block per node.
 | Storage | | | |
 | OpenShift lead | | | |
 
-**All signed → proceed to** [02-physical-cabling-and-bmc.md](02-physical-cabling-and-bmc.md)
+**All signed → proceed to** [Lab 04](../../labs/04-bastion.md) · background: [02-physical-cabling-and-bmc.md](02-physical-cabling-and-bmc.md)

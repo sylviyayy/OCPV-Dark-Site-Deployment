@@ -9,13 +9,40 @@ This guide is not for someone looking for a fully automated black-box installer 
 > Have fun learning!
 
 Scripts under `scripts/` are helpers. Every lab still tells you **where** you are,
-**what** to edit (with `vim`), and **why** the step exists.
+**what** to edit (file, key, old value, new value), and **why** the step exists.
+
+## Pre-defined Fields (decide before Lab 01)
+
+The Agent ISO freezes node identity, the VIPs and the registry mirrors at build time, so these
+values are fixed — and signed by their owners — before anyone cables a server. Short form for
+groups A–C; the full register (groups A–F, with where each value lands and the rule that checks
+it) is in [Lab 03 — Site Checklist](docs/labs/03-checklist.md). `.env.example` lists the same keys
+in the same order, and every script refuses to run until `scripts/lib/validate-env.sh` passes.
+
+| # | `.env` key | Example | Owner |
+|---|---|---|---|
+| A1 | `CLUSTER_NAME` | `coe01` | OpenShift lead |
+| A2 | `BASE_DOMAIN` | `lab.example.com` | DNS owner |
+| A3 | `OCP_VERSION` | `4.22.z` | OpenShift lead |
+| A4 | `OCP_CHANNEL` | `stable-4.22` | OpenShift lead |
+| B1 | `MACHINE_NETWORK_CIDR` | `10.10.0.0/16` | Network |
+| B2 | `NETWORK_GATEWAY` | `10.10.0.1` | Network |
+| B3 | `CLUSTER_NETWORK_CIDR`, `SERVICE_NETWORK_CIDR` | `10.128.0.0/14`, `172.30.0.0/16` | Network |
+| B4 | `MTU` | `1500` | Network |
+| B5 | `API_VIP` | `10.10.0.100` | Network |
+| B6 | `INGRESS_VIP` | `10.10.0.101` | Network |
+| C1 | `CP01_HOSTNAME` … `CP03_HOSTNAME` | `cp01` | Hardware |
+| C2 | `CP01_IP` … `CP03_IP` | `10.10.1.11` | Network |
+| C3 | `CP01_NICS` … `CP03_NICS` | `ens1f0=aa:bb:cc:00:01:01,…` (4 pairs) | Hardware |
+| C4 | `CP01_ROOT_DEVICE` … `CP03_ROOT_DEVICE` | `/dev/disk/by-path/pci-0000:…` | Hardware |
+| C5 | `CP01_BMC_IP` … `CP03_BMC_IP` | `10.20.0.11` | Hardware |
+| C6 | `RENDEZVOUS_IP` | `${CP01_IP}` | OpenShift lead |
 
 ## Target Audience
 
 Someone who wants to understand how a **greenfield, air-gapped** OpenShift Virtualization deployment fits together: cabling, switches, bastion, mirror registry, Agent-based install, and where DNS/NTP live before and after the cluster exists.
 
-You should be comfortable with a terminal, commands like `vi` or `vim`, and have either a Fedora/RHEL laptop or access to server BMCs. 
+You should be comfortable with a terminal and `vim`, and have a **RHEL 9** staging host with internet access plus BMC (XCC) access to the servers.
 You do **not** need prior OpenShift experience.
 
 ## Cluster Details
@@ -23,7 +50,38 @@ You do **not** need prior OpenShift experience.
 This tutorial guides you through bootstrapping an OpenShift **4.22** cluster on Lenovo hardware, using the **Agent-based Installer** and **oc-mirror v2**.
 
 **Compact Bare Metal Cluster with Network Topology:**
-<insert architecture diagram>
+
+```mermaid
+flowchart LR
+  subgraph LOW["Low side: internet"]
+    STG["Staging host<br/>RHEL 9 · oc-mirror v2 · mkksiso"]
+  end
+  MEDIA[/"Approved media<br/>mirror archives · clients · ImageSet<br/>RHEL 9 DVD · SHA256SUMS"/]
+  subgraph HIGH["High side: machine network, no route to the internet"]
+    BAS["Bastion (permanent)<br/>dnsmasq · chrony · DVD repo<br/>openshift-install"]
+    REG["Mirror registry<br/>registry.BASE_DOMAIN:8443"]
+    SW{{"Switch A + Switch B<br/>MLAG/vPC · one LACP port-channel per node"}}
+    subgraph OCP["Compact cluster: 3 schedulable control-plane nodes"]
+      CP1["cp01 · SR665 V3"]
+      CP2["cp02 · SR665 V3"]
+      CP3["cp03 · SR675 V3 · 8× L40S"]
+      VMS["VMs on localnet br-ex<br/>dns-a · dns-b · ntp"]
+    end
+  end
+  XCC["XCC / BMC network<br/>Agent ISO via virtual media"]
+  STG -->|mirror to disk| MEDIA -->|sha256sum -c| BAS
+  BAS -->|disk to mirror| REG
+  BAS --- SW
+  REG --- SW
+  SW ---|bond0 802.3ad, 4 ports| CP1
+  SW --- CP2
+  SW --- CP3
+  XCC -.-> CP1
+  XCC -.-> CP2
+  XCC -.-> CP3
+  VMS -.->|primary DNS and NTP after Lab 14| SW
+  BAS -.->|secondary DNS and NTP, always on| SW
+```
 
 **OpenShift Virtualization Node Roles:**
 <img width="1148" height="536" alt="image" src="https://github.com/user-attachments/assets/4feb2c86-dd5c-438f-b42c-e8da36d69d9f" />
@@ -41,35 +99,40 @@ A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](h
 | 2 | **ThinkSystem SR665 V3** | 2× AMD EPYC 9334 (32C) | 256 GB | 2× 960 GB SSD | — | 1× 4-port 10GBase-T (OCP slot) + 1× 2-port 10GBase-T (Slot 1) |
 | 1 | **ThinkSystem SR675 V3** | 2× AMD EPYC 9334 (32C) | 768 GB | 2× 960 GB SSD | **8× NVIDIA L40S** | 1× 4-port 10GBase-T (OCP slot) + 1× 4-port 10GBase-T (Slot 21) |
 
-**Suggested roles for a 3-node compact cluster** (control plane + workers colocated):
+**Roles for the 3-node compact cluster** (every node is a schedulable control-plane node; compute replicas 0):
 
-| Hostname (example) | Hardware | Role |
+| Hostname (C1) | Hardware | Role |
 |---|---|---|
-| `mw01` | SR665 V3 | Master + worker |
-| `mw02` | SR665 V3 | Master + worker |
-| `mw03` | SR675 V3 | Master + worker (GPU / heavy VM workloads) |
+| `cp01` | SR665 V3 | Control-plane node, schedulable (rendezvous node by default) |
+| `cp02` | SR665 V3 | Control-plane node, schedulable |
+| `cp03` | SR675 V3 | Control-plane node, schedulable (GPU / heavy VM workloads) |
 
-Plus a **bastion** (jumphost): Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for mirroring, `openshift-install`, and temporary DNS/NTP.
+Plus two helper machines that never share a network (ADR-02): a connected **RHEL 9 staging host**
+on the low side for mirroring, and a permanent physical **RHEL 9 bastion** on the machine network for
+`openshift-install`, DNS, NTP and the RHEL DVD repository. The mirror registry runs on its own RHEL 9
+host or, in a lab, on the bastion.
 
 ### Software / Component Versions
 
 | Component | Version / Note |
 |---|---|
-| OpenShift Container Platform | **4.22** (`stable-4.22`, pin exact z-stream in `.env`) |
-| OpenShift Virtualization | `kubevirt-hyperconverged` channel `stable` (from mirrored catalog) |
-| Installer | Agent-based Installer (`openshift-install agent`) |
-| Image mirroring | oc-mirror plugin **v2** |
-| Mirror registry | mirror registry for Red Hat OpenShift (or lab registry) |
-| Jumpbox OS | **RHEL 9/10**, **Fedora**, or CentOS Stream equivalent for learning |
+| OpenShift Container Platform | **4.22** (`stable-4.22`, exact z-stream pinned in `.env` A3) |
+| OpenShift Virtualization | `kubevirt-hyperconverged` channel `stable` (from the mirrored catalog) |
+| Installer | Agent-based Installer (`openshift-install agent`), compact topology |
+| Image mirroring | oc-mirror plugin **v2**: mirror-to-disk → approved media → disk-to-mirror |
+| Mirror registry | mirror registry for Red Hat OpenShift, `registry.<BASE_DOMAIN>:8443` |
+| Staging host OS | **RHEL 9.x** (low side; Fedora tolerated for learning only) |
+| Bastion OS | **RHEL 9.x**, installed from the DVD by kickstart (`mkksiso`) |
 | Cluster node OS | RHCOS (installed by the Agent ISO — you do not Kickstart RHCOS by hand) |
 | Container runtime | **CRI-O** (OpenShift default; not containerd) |
-| Cluster network | **OVN-Kubernetes** |
+| Cluster network | **OVN-Kubernetes**; VM network: localnet on `br-ex` via Kubernetes NMState |
+| VM storage | Hostpath provisioner on the RAID1 OS disk (lab-grade); LVMS once data drives exist |
 | etcd | Bundled with the OpenShift control plane (not installed manually) |
 
 ## Labs
 
-This tutorial assumes **three** AMD64 Lenovo servers (above) plus a bastion (jumphost), on the
-same L2/L3 install network. Adjust hostnames and IPs in the checklist for your site.
+This tutorial assumes **three** AMD64 Lenovo servers (above), a bastion and a staging host.
+Fill the field register in the checklist for your site before Lab 04.
 
 * [Prerequisites and Assumptions](docs/labs/01-prerequisites-assumptions.md)
 * [Architecture Overview and Network Design](docs/labs/02-architecture-network-design.md)
@@ -88,22 +151,29 @@ same L2/L3 install network. Adjust hostnames and IPs in the checklist for your s
 * [Smoke Test](docs/labs/15-smoke-test.md)
 * [Cleaning Up](docs/labs/16-cleanup.md)
 
-### Partner appendices (optional)
+### Appendices and reference (optional)
 
-* [Does this repo apply to my customer?](docs/greenfield/appendix-brownfield-contrast.md)
-* [Optional KVM practice lab](docs/greenfield/appendix-optional-kvm-lab.md)
+* [Architecture decisions (ADR-01 to ADR-08)](docs/DECISIONS.md)
+* [Appendix A — Adding workers later](docs/labs/appendix-a-adding-workers.md)
+* [Appendix B — Network boot](docs/labs/appendix-b-network-boot.md)
+* [Does this repo apply to my customer?](docs/reference/greenfield/appendix-brownfield-contrast.md)
+* [Optional KVM practice lab (unsupported)](docs/reference/greenfield/appendix-optional-kvm-lab.md)
 * [Diagram placement guide](docs/diagrams/README.md)
-* [Greenfield partner reading order](docs/GREENFIELD-README.md)
+* [Greenfield partner reading order (non-normative)](docs/reference/GREENFIELD-README.md)
 
 ## Conventions
 
 ```text
-WHERE:    which machine you type on
-WHY:      why this step exists
-DO:       exact commands (use vim, not vi)
-VERIFY:   how you know it worked
-FAILS IF: what breaks if you skip or get it wrong
+WHERE:    machine role (.env hostname), OS, user, working directory
+WHY:      the outcome, the mechanism behind it, what consumes it, and the symptom if skipped
+EDIT:     file → key, from: old value, to: new value (or "No edits in this step.")
+DO:       exact commands (use vim, not vi); the only variables are ${ENV_KEYS}
+VERIFY:   a command and the literal value to expect
+FAILS IF: symptom ← cause
 ```
 
-**Boot methods:** RHEL USB / KVM ISO for the bastion and registry helper; **BMC virtual CD**
-for OpenShift nodes. **PXE is not used** on the primary path.
+One term per concept: **bastion**, **checklist**, **control-plane node** (`master` appears only as an API value).
+
+**Boot methods:** a `mkksiso`-built RHEL 9 DVD (USB or XCC virtual media) for the bastion and
+registry host; **XCC virtual media** with the Agent ISO for OpenShift nodes. **Network boot**
+(PXE, UEFI HTTP Boot) is out of scope; see [Appendix B](docs/labs/appendix-b-network-boot.md).

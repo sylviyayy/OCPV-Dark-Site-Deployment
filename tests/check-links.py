@@ -42,6 +42,7 @@ def main():
     broken = []
     for md in tracked_markdown():
         text = re.sub(r"```.*?```", "", md.read_text(), flags=re.S)
+        text = re.sub(r"`[^`\n]*`", "", text)  # inline code is never a link
         for m in LINK.finditer(text):
             target = m.group(1) or m.group(2)
             if re.match(r"^[a-z][a-z0-9+.-]*:", target):

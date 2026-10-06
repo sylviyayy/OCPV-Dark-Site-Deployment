@@ -1,9 +1,12 @@
 # Physical Cabling and BMC
 
+> **Non-normative reference (ADR-01).** Background kept from v1. The normative path is
+> [the labs](../../labs/README.md); where this page and a lab disagree, the lab wins.
+
 ## Diagram placeholder
 
 > **Add image:** `docs/diagrams/01-physical-topology.png`  
-> See [diagrams/README.md](../diagrams/README.md) for required elements.
+> See [diagrams/README.md](../../diagrams/README.md) for required elements.
 
 Until the image exists, use your specialist rack diagram here: nodes ↔ dual switches ↔ SAN, plus bastion and BMC (dashed).
 
@@ -20,12 +23,12 @@ This chapter is about **physical ports and cables** — not IP addresses (those 
 **WHAT:** Each cluster node connects **four data ports** to **two switches** for HA.
 
 ```
-Node rear:
-  NIC1-port1 ──────► Switch A (member of Po1)
-  NIC1-port2 ──────► Switch B (member of Po1)
-  NIC2-port1 ──────► Switch A (member of Po2)
-  NIC2-port2 ──────► Switch B (member of Po2)
-  BMC-port   ──────► Management switch only (NOT data Po)
+Node rear (one LACP port-channel per node, spanning the MLAG/vPC pair):
+  OCP-port1   ──────► Switch A  ┐
+  OCP-port2   ──────► Switch B  │ Po<node>
+  Slot-port1  ──────► Switch A  │ (802.3ad, 4 members)
+  Slot-port2  ──────► Switch B  ┘
+  XCC port    ──────► Management switch only (NOT the data port-channel)
 ```
 
 **WHY:**
@@ -89,9 +92,9 @@ Node rear:
 
 **WHERE:** Server RAID controller (BIOS/UEFI or XCC storage config).
 
-**WHAT:** RAID1 on two SSDs for RHCOS; present single virtual disk (e.g. `/dev/sda`).
+**WHAT:** RAID1 on two SSDs for RHCOS; present one virtual disk and record its `/dev/disk/by-path/…` link.
 
-**WHY:** Matches `rootDeviceHints.deviceName` in agent-config.
+**WHY:** That stable path is `CPn_ROOT_DEVICE`, rendered into `rootDeviceHints.deviceName`; `/dev/sdX` letters can shift when virtual media is attached.
 
 **FAILS IF:** Install targets USB key or wrong VD → node breaks on reboot.
 
@@ -99,11 +102,11 @@ Node rear:
 
 ## Physical checklist
 
-- [ ] Worksheet complete ([01-information-gathering-worksheet.md](01-information-gathering-worksheet.md))
+- [ ] Field register signed ([Lab 03](../../labs/03-checklist.md))
 - [ ] All node data cables labeled and match worksheet
 - [ ] BMC reachable on every node
 - [ ] Virtual media test successful on one node
 - [ ] Bastion on install VLAN
-- [ ] SAN paths cabled (dual path)
+- [ ] SAN paths cabled (dual path), only if SAN is in scope
 
 **Next →** [03-network-and-storage-design.md](03-network-and-storage-design.md) (network + storage diagram)

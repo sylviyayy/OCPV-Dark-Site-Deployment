@@ -2,63 +2,49 @@
 
 > Canonical lab: [07 — Bootstrapping MVP DNS and NTP](../07-mvp-dns-ntp.md).
 
-## Goal
+## What `scripts/02-bootstrap-dns-ntp.sh` writes
 
-Start temporary DNS and NTP on the bastion so OpenShift nodes can resolve names and sync time during install.
+Preview without changing anything: `./scripts/02-bootstrap-dns-ntp.sh --print-config`.
 
-## WHERE
+### `/etc/dnsmasq.d/ocp-v.conf`
 
-Bastion host (`BASTION_IP`), as root or with sudo.
-
-```bash
-cd /path/to/OCPV-Dark-Site-Deployment
-set -a && source .env && set +a
-sudo ./scripts/02-bootstrap-dns-ntp.sh
-```
-
-## WHY this lab exists
-
-| Service | OpenShift needs it because… |
+| Line | Why |
 |---|---|
-| **DNS** | Installer and nodes look up `api.<cluster>.<domain>`, `*.apps...`, and the registry hostname |
-| **NTP** | etcd (the cluster’s key-value brain) requires clocks within ~500 ms |
+| `listen-address=127.0.0.1,<BASTION_IP>` + `bind-interfaces` | answers the machine network **and** the bastion's own resolver (FR-E5) |
+| `no-resolv`, `local=/<BASE_DOMAIN>/` | no upstream exists; unknown names under the domain get NXDOMAIN fast |
+| `host-record=<fqdn>,<ip>` per host | publishes an A **and** a PTR record; `address=` answers forward queries only, so reverse lookups failed (FR-F1) |
+| `address=/apps.<cluster>.<domain>/<INGRESS_VIP>` | matches the name and every name below it: the `*.apps` wildcard without a `*` |
+| `dns-a`, `dns-b`, `ntp` records | the Lab 14 VMs resolve the moment they boot |
 
-There is no corporate DNS yet (greenfield row 1). The bastion fills the gap **only until** Lab 10.
+### `/etc/chrony.conf`
 
-## WHAT the script does
-
-1. Writes dnsmasq records from your `.env` (API VIP, Ingress VIP, nodes, registry)  
-2. Configures chronyd in **orphan mode** (authoritative local time with no internet NTP)  
-3. Opens firewall ports 53 and 123  
-4. Enables and starts both services  
-
-Preview the hosts file without changing the system:
-
-```bash
-./scripts/02-bootstrap-dns-ntp.sh --export-hosts | less
-```
-
-## VERIFY
-
-```bash
-dig @"${BASTION_IP}" "registry.${BASE_DOMAIN}" +short
-# Expect: MIRROR_REGISTRY_IP
-
-dig @"${BASTION_IP}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" +short
-# Expect: API_VIP
-
-chronyc -h "${BASTION_IP}" tracking
-# Expect: a valid tracking response (stratum from orphan mode)
-```
-
-## FAILS IF
-
-| Skip / error | Symptom during install |
+| `TIME_SOURCE` | Result |
 |---|---|
-| dnsmasq not running | Cannot pull from registry by hostname |
-| Nodes not pointed at bastion DNS | Same — fix in `agent-config` nmstate (next lab) |
-| No NTP | etcd / TLS weirdness; bootstrap never completes |
+| an IP | `server <TIME_SOURCE> iburst`, plus `local stratum 10 orphan` so the site keeps agreeing if the reference is lost |
+| `orphan` | `local stratum 10 orphan` only: the site agrees with the bastion, **not with UTC** — lab-grade (FR-F3) |
+
+`allow <MACHINE_NETWORK_CIDR>` lets nodes and VMs query it.
+
+## Checking time without `cmdallow`
+
+`chronyc -h <remote> tracking` is a monitoring command; chronyd accepts those only from localhost
+unless `cmdallow` and `bindcmdaddress` are set, so it fails even when NTP is healthy. The client-side
+probe measures what a node would see:
+
+```bash
+chronyd -Q "server ${BASTION_IP} iburst"     # prints "System clock wrong by <x> seconds (ignored)"
+```
+
+`-Q` never touches your clock and needs no privileges (FR-F2).
+
+## Lifecycle
+
+| Phase | Primary DNS | Primary time | Bastion role |
+|---|---|---|---|
+| Install (Labs 07–13) | bastion | `TIME_SOURCE` or bastion | primary |
+| After Lab 14 | `dns-a`, `dns-b` | NTP VM, then `TIME_SOURCE` | **secondary, permanently** (ADR-07, FR-H12) |
+| Cold start | bastion | bastion / `TIME_SOURCE` | the only service up until the VMs start |
 
 ## Next
 
-→ [Lab 07 — MVP DNS/NTP](../07-mvp-dns-ntp.md) · [Lab 08 — Install/Agent config](../08-install-agent-config.md)
+→ [Lab 07](../07-mvp-dns-ntp.md) · [Lab 08](../08-install-agent-config.md)

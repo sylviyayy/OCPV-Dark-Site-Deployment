@@ -1,89 +1,145 @@
 # 05 — Provisioning Compute Resources
 
+> **Grade:** production-grade hardware pattern (dual switches, LACP, RAID1 OS disks). Storage for
+> VMs stays lab-grade until data drives are added (ADR-05).
+
 ## Goal
 
-Cable, RAID, BMC, and role-assign the three Lenovo servers so they are ready for the
-Agent discovery ISO.
-
-## WHERE
-
-Datacenter rack + Lenovo XCC (BMC) for each server. Network/SAN teams for Po and LUNs.
-
-## WHY
-
-This is the Hard Way “provision compute” lab. On bare metal it means **hardware and
-cabling**, not `virsh define`. Wrong NIC→switch mapping breaks LACP before OpenShift starts.
+Cable, configure firmware and RAID, and confirm the node identity fields (C3, C4) on the
+three Lenovo servers, so the Agent ISO in Lab 10 finds exactly what `.env` describes.
 
 ## Reference bill of materials
 
-### Servers
-
-| Role (suggested) | Model | CPU | RAM | Disks | GPU | Networking hardware |
+| Role | Model | CPU | RAM | Disks | GPU | Networking |
 |---|---|---|---|---|---|---|
-| `cp01` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | 4-port 10GBase-T (OCP) + 2-port 10GBase-T (Slot 1) |
+| `cp01` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | 4-port 10GBase-T (OCP slot) + 2-port 10GBase-T (Slot 1) |
 | `cp02` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | same |
-| `cp03` | ThinkSystem **SR675 V3** | 2× EPYC 9334 32C | 768 GB | 2× 960 GB SSD | **8× L40S** | 4-port 10GBase-T (OCP) + 4-port 10GBase-T (Slot 21) |
+| `cp03` | ThinkSystem **SR675 V3** | 2× EPYC 9334 32C | 768 GB | 2× 960 GB SSD | **8× L40S** | 4-port 10GBase-T (OCP slot) + 4-port 10GBase-T (Slot 21) |
 
-### NIC layout (as installed)
+### Bond members: one LACP port-channel per node, split across both switches
 
-**SR665 V3 (each):**
-
-| Adapter | Slot | Ports |
-|---|---|---|
-| 4-port 10GBase-T | **OCP slot** | 4× 10GbE |
-| 2-port 10GBase-T | **Slot 1** | 2× 10GbE |
-
-**SR675 V3:**
-
-| Adapter | Slot | Ports |
-|---|---|---|
-| 4-port 10GBase-T | **OCP slot** | 4× 10GbE |
-| 4-port 10GBase-T | **Slot 21** | 4× 10GbE |
-
-### Recommended bonding for HA (minimum practice)
-
-Use **two switches** with LACP port-channels. Put bond members on **both** switches.
-
-Example pattern for machine network `bond0` (adjust to your worksheet):
-
-| Bond member | SR665 | SR675 | Switch side |
+| `bond0` member | SR665 V3 | SR675 V3 | Switch |
 |---|---|---|---|
-| Slave 1 | OCP port 1 | OCP port 1 | Switch A Po member |
-| Slave 2 | OCP port 2 | OCP port 2 | Switch B Po member |
-| Slave 3 | Slot1 port 1 | Slot21 port 1 | Switch A Po member |
-| Slave 4 | Slot1 port 2 | Slot21 port 2 | Switch B Po member |
+| 1 | OCP port 1 | OCP port 1 | A |
+| 2 | OCP port 2 | OCP port 2 | B |
+| 3 | Slot 1 port 1 | Slot 21 port 1 | A |
+| 4 | Slot 1 port 2 | Slot 21 port 2 | B |
 
-Spare ports: BMC/management, storage VLAN, or future workload networks — **document in the worksheet**; do not leave mystery cables.
+Both switches present the four members as **one** port-channel through MLAG or vPC, so LACP
+negotiates a single 802.3ad bundle. Spare ports stay unplugged or are documented in the checklist.
 
-**WHY 2 switches:** One switch failure must not isolate a node.  
-**FAILS IF** all bond members land on one switch → no switch HA.
+### Compact topology
 
-## DO — per server (XCC / UEFI)
+Exactly three servers run a **compact** cluster: every node is a control-plane node and
+schedulable for workloads. `install-config.yaml` sets compute replicas **0** (FR-A2); no worker
+hosts exist. Put GPU-heavy VMs on `cp03` with node labels later. Adding dedicated workers is in
+[Appendix A](appendix-a-adding-workers.md).
 
-1. **RAID1** on the two 960 GB SSDs for RHCOS; note the virtual disk name (often `/dev/sda`)  
-2. Enable **virtualization** (AMD-V / SVM) — required for OCP-V / KVM on RHCOS  
-3. On SR675: confirm GPUs visible in XCC (driver/operator work comes after cluster install)  
-4. Set **BMC static IP** on management network; test virtual media  
-5. Record **MAC addresses** of every port you will use in `bond0` (Lab 03)  
-6. Cable to switches per worksheet (MLAG / Po IDs)  
-7. If using SAN: dual paths + LUN masking only to these three IQNs/WWNs  
+## Steps
 
-Physical detail: [greenfield/02-physical-cabling-and-bmc.md](../greenfield/02-physical-cabling-and-bmc.md)
+### 5.1 RAID1 virtual disk for RHCOS
 
-## Compact cluster topology
+**WHERE** — Each server's XCC → Storage configuration (or UEFI setup)
 
-With exactly three servers, run a **compact** cluster: each node is control plane **and**
-schedulable for workloads. Put GPU-heavy VMs on `cp03` (SR675) using node labels/taints later.
+**WHY** — RHCOS installs onto the device named by `rootDeviceHints`; one RAID1 virtual disk over
+both SSDs survives a drive failure. Consumed by: `CPn_ROOT_DEVICE` (C4) → agent-config.
+If skipped: RHCOS lands on one bare SSD, or on the wrong device.
 
-Update `.env` for three nodes (remove or ignore WK01/WK02 if unused, or map workers onto the same three hosts in `agent-config` with `master` role and appropriate replicas). For Agent compact installs, set control plane replicas to 3 and worker replicas to 0 (or follow Red Hat compact cluster guidance for your exact 4.22 z-stream).
+**EDIT** — No edits in this step.
 
-## VERIFY
+**DO** — Create one RAID1 virtual disk over the two 960 GB SSDs; initialise it.
 
-- [ ] All three servers power on; XCC reachable  
-- [ ] RAID1 VD healthy  
-- [ ] Virtual media test: mount any ISO once on one node  
-- [ ] Cable labels match worksheet Po / MLAG  
-- [ ] MACs recorded for bond members  
+**VERIFY** — XCC shows the virtual disk **Optimal**, size ≈ 894 GiB.
+
+**FAILS IF** — Two separate disks are presented ← RAID not created; the root hint may pick either.
+
+### 5.2 UEFI and virtualization
+
+**WHERE** — Each server's XCC → UEFI settings
+
+**WHY** — OpenShift Virtualization runs VMs with KVM, which needs AMD SVM; the Agent ISO is UEFI.
+Consumed by: Lab 13 (`/dev/kvm` check). If skipped: the OpenShift Virtualization operator installs, but every VM fails to start.
+
+**EDIT** — No edits in this step.
+
+**DO** — Boot mode UEFI; Processors → SVM Mode **Enabled**; (IOMMU **Enabled** if GPU passthrough comes later).
+
+**VERIFY** — Settings page shows UEFI and SVM Enabled after a save-and-reboot.
+
+**FAILS IF** — `06-deploy-cnv.sh` exits with "/dev/kvm missing" ← SVM still off.
+
+### 5.3 XCC address and virtual media
+
+**WHERE** — Each server's XCC, from the admin workstation
+
+**WHY** — Lab 10 boots the Agent ISO through XCC virtual media; an XCC you cannot reach is a node you cannot install.
+Consumed by: `CPn_BMC_IP` (C5). If skipped: Lab 10 stops at its first step.
+
+**EDIT** — `.env` → `CP01_BMC_IP` … `CP03_BMC_IP` if they differ from what you set in Lab 03.
+
+**DO** — Set each XCC's static address; mount the RHEL 9 DVD ISO as virtual media once (used in 5.4).
+
+**VERIFY**
+
+```bash
+for ip in "${CP01_BMC_IP}" "${CP02_BMC_IP}" "${CP03_BMC_IP}"; do
+  timeout 3 bash -c "</dev/tcp/${ip}/443" && echo "reachable ${ip}" || echo "UNREACHABLE ${ip}"
+done
+# expect: reachable <ip> three times (a TCP connect to 443; no TLS trust involved)
+```
+
+**FAILS IF** — `UNREACHABLE` for an address ← the admin workstation cannot route to the BMC network.
+
+### 5.4 Confirm NIC names, MACs and the root device on the hardware
+
+**WHERE** — Each server, booted from the RHEL 9 DVD (XCC virtual media) → *Troubleshooting* →
+*Rescue a Red Hat Enterprise Linux system* → *3) Skip to shell*
+
+**WHY** — RHCOS 4.22 is RHEL 9-based, so the rescue shell names interfaces the way RHCOS will;
+the Agent ISO matches each server by these MACs and binds `bond0` to these names. The
+`/dev/disk/by-path` link is stable across boots, unlike `/dev/sdX`, which virtual media can shift.
+Consumed by: agent-config → `hosts[n].interfaces[]`, bond0 ports, `rootDeviceHints` (C3, C4).
+If skipped: a server matches no `hosts[]` entry and the install waits for 3 hosts forever (Lab 10).
+
+**EDIT** — `.env` → `CPn_NICS` and `CPn_ROOT_DEVICE` for this node
+from: the values you read from the XCC inventory in Lab 03
+to:   the live values below, if they differ.
+
+**DO**
+
+```bash
+ip -br link                         # names and MACs: pick the 4 cabled bond members
+lsblk -d -o NAME,SIZE,MODEL         # find the ~894 GiB RAID1 virtual disk, e.g. sda
+ls -l /dev/disk/by-path/ | grep -w sda   # replace sda with that NAME; copy the by-path link
+```
+
+**VERIFY** — Back on the staging host after editing `.env`:
+
+```bash
+./scripts/lib/validate-env.sh      # expect: validate-env: PASS
+```
+
+**FAILS IF** — The four names differ between SR665 V3 and SR675 V3 ← expected (Slot 1 vs Slot 21);
+that is why C3 is per node and never assumed.
+
+### 5.5 Cable and configure the port-channels
+
+**WHERE** — Rack, then Switch A and Switch B (network team)
+
+**WHY** — `bond0` runs LACP (802.3ad). A switch port that does not speak LACP is, depending on
+switch defaults, suspended (no network) or left individual (no redundancy).
+Consumed by: `bond0` in agent-config (FR-D4). If skipped: nodes boot the ISO and never reach the rendezvous node.
+
+**EDIT** — No edits in this step.
+
+**DO** — Cable per the bond-member table. Configure one port-channel per node across the MLAG/vPC
+pair, LACP mode active, MTU equal to `MTU` (B4), untagged on the machine network. Example syntax:
+[network/sample-switch-config/lacp-mlag-switch.conf.example](../../network/sample-switch-config/lacp-mlag-switch.conf.example).
+
+**VERIFY** — After Lab 10 boots the nodes, each port-channel shows four bundled members on the
+switches, and Lab 10 step 10.3 shows four `MII Status: up` members per node.
+
+**FAILS IF** — All four members land on one switch ← no switch redundancy; the install still succeeds, which is why this is checked by hand.
 
 ## Next
 

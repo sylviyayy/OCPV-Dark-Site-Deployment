@@ -43,6 +43,16 @@ python3-pyyaml
 tar
 %end
 
+# Same repo copy as the bastion (FR-E6): script 04 install-registry runs on this host.
+%post --nochroot --log=/mnt/sysroot/root/ks-post-nochroot.log
+for src in /run/install/repo/OCPV-Dark-Site-Deployment /run/install/sources/mount-0000-cdrom/OCPV-Dark-Site-Deployment; do
+  if [ -d "$src" ]; then
+    cp -a "$src" /mnt/sysroot/home/installer/
+    break
+  fi
+done
+%end
+
 %post --log=/root/ks-post.log
 set -eux
 
@@ -63,4 +73,7 @@ systemctl enable chronyd
 
 mkdir -p /opt/ocp-mirror
 chown installer:installer /opt/ocp-mirror
+if [ -d /home/installer/OCPV-Dark-Site-Deployment ]; then
+  chown -R installer:installer /home/installer/OCPV-Dark-Site-Deployment
+fi
 %end

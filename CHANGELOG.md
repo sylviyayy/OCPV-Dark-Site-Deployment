@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-D7** — `scripts/05a-create-agent-iso.sh` (Lab 08, keeps `*.orig` inputs) and `scripts/05b-wait-install.sh` (Lab 10, asserts 3 Ready nodes and 4 bond members up)
 - **FR-B6** — `mirror/imageset-profiles.yaml`: default set adds `kubernetes-nmstate-operator`, `lvms-operator` joins when `STORAGE_BACKEND=lvms`, and the former `imageset-ocpv-coe.yaml` is the selectable `coe` profile; the RHEL guest image is pinned by digest
 - **FR-H3** — `scripts/04b-serve-dvd-repo.sh` loop-mounts the RHEL 9 DVD on the bastion and serves BaseOS/AppStream over HTTP (local dnf repos for the bastion, package source for the DNS/NTP VMs)
+- **FR-J6** — interim Mermaid architecture diagram in `README.md` replaces the `<insert architecture diagram>` placeholder (parses with Mermaid 11)
+- `docs/DECISIONS.md` records ADR-01 to ADR-08 and open questions Q1–Q6 with their recommended options (PRD Phase 0)
+- Pre-defined field register: short form (groups A–C) at the top of `README.md`, full form in Lab 03; CI proves `.env.example`, README and Lab 03 match the register in `scripts/lib/render.py`
+- Labs follow the step contract WHERE / WHY / EDIT / DO / VERIFY / FAILS IF, and each lab states whether its result is lab-grade or production-grade
+- `docs/labs/appendix-a-adding-workers.md` and `docs/labs/appendix-b-network-boot.md`
 - **FR-G3** — `scripts/06b-configure-storage.sh`: HostPathProvisioner CR plus default StorageClass `hostpath-csi` (or LVMS when `STORAGE_BACKEND=lvms`), proven by a 1 GiB DataVolume reaching `Succeeded`
 - **FR-H2** — per-VM network-config v2 Secret gives each guest its static address, matched by a MAC pinned on the VM interface
 - **FR-H5** — `manifests/production/network/`: NNCP mapping localnet `vmnet` onto `br-ex` and a localnet NetworkAttachmentDefinition; script 06 installs Kubernetes NMState and its `NMState` instance, which the PRD's localnet design needs but no FR installed
@@ -31,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-E4** — kickstarts become `kickstart/*.cfg.template`; `scripts/render-kickstart.sh` fills IPs, `BASTION_IFNAME`, domain and `/etc/hosts` from `.env`
 - Hard Way–style repository front door in `README.md` with hyperlinked labs
 - Lenovo CoE compute lab: 2× SR665 V3 + 1× SR675 V3 (L40S), NIC slot layout, compact 3-node roles
-- Labs 01–16 remapped (jumpbox, compute, mirror, agent bootstrap, `oc` access, cleanup)
+- Labs 01–16 remapped (bastion, compute, mirror, agent bootstrap, `oc` access, cleanup)
 - Beginner lab series `docs/labs/` (Hard Way–style): USB/KVM path, `vim`, per-field `.env` guide, rationale every step
 - Greenfield partner documentation (`docs/GREENFIELD-README.md`, `docs/greenfield/*`)
 - Deployment tracks (bare metal primary, optional KVM lab appendix)
@@ -72,6 +77,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-H12** — script 08 ends with "keep bastion dnsmasq/chronyd running as secondary" instead of disabling them
 - **FR-I2** — every DNS check compares the answer with the `.env` value (`expect_dns`, `expect_ptr`); `dig … +short` alone passed on an empty answer
 - **FR-I3** — `scripts/00-prerequisites-check.sh` modes `--staging`, `--bastion`, `--post-install`, each asserting the pinned OS first and requiring only tools present at that stage
+- **FR-B7** — Lab 06 and `docs/labs/detail/staging-mirror.md` copy the archive, clients, the exact ImageSet, the repo and the RHEL 9 DVD to media with a generated `SHA256SUMS` (verified on the high side) instead of gzipping the whole mirror directory
+- **FR-B8** — Labs 04 and 06 describe two hosts (low-side staging host, high-side bastion); no lab places one host on both networks
+- **FR-B9** — `/opt/ocp-mirror` is created with `chown -R "$USER:$USER"` (Lab 01, field-by-field guide)
+- **FR-C4** — Lab 06 trusts the registry CA on the bastion (`update-ca-trust`); every VERIFY and script checks TLS without `-k`
+- **FR-F3** — Lab 07 carries a "lab-grade time" callout for `TIME_SOURCE=orphan` and points production at a reference clock
+- **FR-G2** — Lab 12 disables the default catalog sources (`OperatorHub` `disableAllDefaultSources: true`) before applying cluster-resources
+- **FR-J2** — one term per concept: "bastion" everywhere, README roles `cp01`–`cp03`, links to `03-checklist.md` and `04-bastion.md`
+- **FR-J3** — `docs/01`–`07`, `GREENFIELD-README.md`, `DEPLOYMENT-TRACKS.md` and `docs/greenfield/*` moved to `docs/reference/` under a non-normative banner (ADR-01); procedural pages condensed to background and pointers
+- **FR-J4** — one assumptions table: Lab 01 holds the pinned OS per machine role and the platform assumptions with falsification checks; `greenfield/00-assumptions-and-scope.md` points to it
+- **FR-J5** — Lab 09: etcd encryption at rest is opt-in (`apiserver.spec.encryption.type`); Lab 05: compute replicas 0
+- **FR-J7** — default domain `lab.example.com` (and `<name>.internal` guidance) everywhere; `.local` is reserved for mDNS
+- `network/sample-switch-config/lacp-mlag-switch.conf.example` (was `flat-l2-switch.conf.example`) shows one LACP port-channel per node across a vPC pair, matching `bond0`; `network/ip-addressing-plan.csv` matches `.env.example`
 - `.env.example` rewritten to the v2 field register (§1 order, IDs A1–F4, derived block validated); `NETWORK_CIDR` → `MACHINE_NETWORK_CIDR`, `DNS_VM_IP` → `DNS_VM_IPS`, `OC_MIRROR_WORKDIR` → derived `MIRROR_ARCHIVE_DIR`
 - Prefer RHEL USB / KVM ISO attach over PXE for bastion/registry; document PXE as optional only
 - Quick start examples use `vim` and point at explicit `.env` field list
@@ -87,6 +104,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - `scripts/05-install-ocp-disconnected.sh` (split into 05a/05b, FR-D7)
+- `network/dns-hosts-template/` (static copies that drifted from `.env`; the bastion config and the DNS VM zone are rendered)
 - `mirror/imageset-ocpv-coe.yaml` (now the `coe` profile, FR-B6) and `graph: true` (OSUS is a v2.0 non-goal)
 - `manifests/production/dns-vm/machineconfig-dns.yaml` (its `%0E` data URL wrote an unusable `resolv.conf`), `nad-flat-l2.yaml`, and the ConfigMap-based `cloud-init.yaml`/`vm.yaml` pairs
 - **FR-C2** — the podman `registry:2` fallback in script 04 (its image lives on Docker Hub); a missing `mirror-registry` now exits 1 with the download instruction
@@ -95,6 +113,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `scripts/lib/common.sh` resolved `REPO_ROOT` to `scripts/` (it read `BASH_SOURCE[0]` of itself), so every script exited 1 at `load_env` before doing any work (audit finding beyond the PRD)
 - **FR-D3** — `additionalTrustBundle` is emitted as a literal block with every PEM line indented; the old `str.replace` produced YAML that failed to parse
+- **FR-J1** — all 16 broken relative links fixed; CI checks every relative link and heading anchor
+- **FR-I4** — no `curl -k`/`-sk` remains in scripts or docs
 - **FR-B1** — script 01 picks the RHEL 9 installer, client and oc-mirror builds from the release's `sha256sum.txt` by pattern and verifies them with `sha256sum -c`; the old `openshift-install.tar.gz`/`oc.tar.gz` names returned 404
 - **FR-E1** — bastion kickstart no longer lists `openshift-clients` (not on the RHEL DVD; Anaconda halted) or a duplicate `nmstate`
 - **FR-I1** — `--post-install` node and ClusterOperator checks are named functions returning one status; the old pipelines swallowed the PASS/FAIL line, lost the counters in a subshell and inverted the logic, so a broken cluster could pass

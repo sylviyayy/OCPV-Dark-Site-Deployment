@@ -1,5 +1,8 @@
 # Appendix — Does this repo apply to my customer?
 
+> **Non-normative reference (ADR-01).** Background kept from v1. The normative path is
+> [the labs](../../labs/README.md); where this page and a lab disagree, the lab wins.
+
 Use this page when a stakeholder asks about brownfield or VMware.
 
 **Greenfield here means the cluster, not the customer.** A customer exiting
@@ -24,8 +27,8 @@ regardless of which row above applies.
 
 ## Also not covered
 
-- VMware workload migration — **MTV is not in `imageset-ocpv-coe.yaml`**; add it
-  before mirroring if the customer needs it
+- VMware workload migration — **MTV is not in any ImageSet profile** (`mirror/imageset-profiles.yaml`);
+  add `mtv-operator` before mirroring if the customer needs it
 - Existing F5/NetScaler fronting OpenShift
 - In-place cluster adoption on foreign infrastructure
 - Reuse of existing VLANs, IP plans, or storage arrays

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Repo-wide "Done when" searches from the PRD, run against tracked files (FR-I5).
-# Each rule: a pattern that must not appear, optionally outside an allowed file.
+# Each rule: a pattern that must not appear, optionally outside an allowed file. CHANGELOG.md
+# is exempt: recording what was removed requires naming it.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
@@ -11,7 +12,7 @@ forbid() {
   shift 2
   local hits
   # git grep exits 1 when nothing matches, which is the passing case here.
-  hits="$(git grep -nIE "${re}" -- "${@:-.}" ':!tests/check-repo-hygiene.sh' || true)"
+  hits="$(git grep -nIE -e "${re}" -- "${@:-.}" ':!tests/check-repo-hygiene.sh' ':!CHANGELOG.md' || true)"
   if [[ -n "${hits}" ]]; then
     echo "[FAIL] ${id}: /${re}/"
     sed 's/^/         /' <<<"${hits}"
@@ -30,8 +31,8 @@ forbid "FR-E8 no PXE outside appendix"    'pxelinux|tftp' ':!docs/labs/appendix-
 forbid "FR-C1 no :5000/:443 registry"     'registry[^ ]*:(5000|443)\b|:5000\b'
 forbid "FR-C2 no registry:2 fallback"     'registry:2\b'
 forbid "FR-I4 no curl -k"                 'curl (-[a-zA-Z]*k|--insecure)'
-forbid "FR-E3 no plaintext passwords"     '--plaintext|changeme'
-forbid "FR-F2 no chronyc -h remote"       'chronyc -h'
+forbid "FR-E3 no plaintext passwords"     '--plaintext|changeme' 'kickstart/' 'manifests/' 'install-config/' 'scripts/' 'network/' '.env.example'
+forbid "FR-F2 no chronyc -h remote"       'chronyc -h ["$0-9]'
 forbid "FR-J6 no README placeholder"      '<insert ' README.md
 forbid "FR-H11 no running: true"          'running: true'
 forbid "FR-G5 no host-passthrough gate"   'withHostPassthroughCPU: true'

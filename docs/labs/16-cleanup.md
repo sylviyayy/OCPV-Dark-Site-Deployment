@@ -1,48 +1,71 @@
 # 16 — Cleaning Up
 
+> **Grade:** operational. On bare metal "cleanup" means re-imaging, not deleting cloud VMs.
+
 ## Goal
 
-Tear down lab state safely when the exercise is finished (or reset for a re-run).
+Reset the lab for a re-run, or tear it down, without leaving credentials behind.
 
-## WHERE
+## Steps
 
-Jumpbox, BMCs, and optional registry host.
+### 16.1 Soft reset: rebuild the ISO for the same rack
 
-## WHY
+**WHERE** — Bastion (`${BASTION_HOSTNAME}`), RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
-Hard Way ends with cleanup so the next learner starts clean. On bare metal, “cleanup”
-means re-image / re-ISO, not deleting cloud VMs.
+**WHY** — Everything the installer wrote lives in `${INSTALL_DIR}`, outside the repo, and every
+input is re-rendered from `.env`, so a reset is one directory. Consumed by: a fresh Lab 08.
+If skipped: `03-generate-install-config.sh` refuses to overwrite an installed cluster's directory.
 
-## DO — soft cleanup (configs only)
+**EDIT** — No edits in this step (edit `.env` here if the rack changed, then re-run Lab 03 step 3.3).
 
-```bash
-cd OCPV-Dark-Site-Deployment
-# Remove generated install dir (keeps templates)
-rm -rf install-config/auth install-config/agent.x86_64.iso \
-       install-config/install-config.yaml install-config/agent-config.yaml \
-       install-config/cluster-resources
-# Keep .env if you will redeploy the same rack; otherwise:
-# rm -f .env
-```
-
-## DO — hard cleanup (reinstall cluster)
-
-1. On each node BMC: mount a fresh Agent ISO (or wipe disks / re-RAID)  
-2. Re-run Labs 08–10  
-3. Optionally wipe registry data under the registry host’s quay/registry volume  
-
-## DO — jumpbox DNS/NTP
-
-If production DNS/NTP VMs are gone but jumpbox services were stopped:
+**DO**
 
 ```bash
-sudo ./scripts/02-bootstrap-dns-ntp.sh   # only if you need MVP again
+set -a && source .env && set +a
+rm -rf "${INSTALL_DIR}"
 ```
 
-## VERIFY
+**VERIFY** — `test -e "${INSTALL_DIR}" || echo gone` → expect: `gone`. Then repeat Labs 08–10.
 
-- [ ] No cluster API responds on `API_VIP` (after wipe)  
-- [ ] Removable media / pull secrets stored securely offline  
+**FAILS IF** — You delete the directory of a cluster you still need ← its kubeconfig is gone; keep a copy first.
+
+### 16.2 Hard reset: re-image the nodes
+
+**WHERE** — XCC of each node
+
+**WHY** — A new Agent ISO only installs onto disks the installer considers free; re-initialising
+the RAID1 virtual disk guarantees it. Consumed by: Lab 10. If skipped: stale RHCOS partitions can confuse a re-install.
+
+**EDIT** — No edits in this step.
+
+**DO** — In each XCC, re-initialise the RAID1 virtual disk (Lab 05 step 5.1), then boot the new ISO (Lab 10).
+
+**VERIFY** — Lab 10 step 10.2 prints `PASS`.
+
+**FAILS IF** — The installer reports the target disk in use ← the virtual disk was not re-initialised.
+
+### 16.3 Registry and credentials
+
+**WHERE** — Registry host (or bastion), RHEL 9.x, as `installer` with `sudo`
+
+**WHY** — Removing the registry frees its storage; the auth file and pull secret are the only
+secrets the run created outside `INSTALL_DIR`. Consumed by: site hygiene.
+If skipped: a stale registry password keeps working.
+
+**EDIT** — No edits in this step.
+
+**DO**
+
+```bash
+sudo "${MIRROR_DIR}/clients/mirror-registry/mirror-registry" uninstall --quayRoot /opt/quay-install
+shred -u "${AUTH_FILE}"           # only when the mirror is retired
+```
+
+**VERIFY** — `curl -s -o /dev/null -w '%{http_code}\n' "https://${MIRROR_REGISTRY}/v2/"` → expect: `000`.
+
+**FAILS IF** — Still `200`/`401` ← the uninstall targeted a different `--quayRoot`.
+
+The bastion's DNS and NTP stay running unless the whole site is being retired (ADR-07).
 
 ## Done
 
