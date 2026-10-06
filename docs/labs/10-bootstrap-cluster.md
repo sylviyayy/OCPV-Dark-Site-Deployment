@@ -16,6 +16,14 @@ The Agent ISO embeds Assisted Service; nodes self-register using Lab 08 networki
 
 **Not PXE. Not Kickstart on RHCOS.**
 
+> **[WINDOW A]** Boot every node within **12 hours** of creating the ISO (hard limit 24).
+> If you miss it, regenerate both the ISO **and** `auth/` from your config backup. Never mix
+> artifacts from two runs.
+>
+> **[WINDOW B]** After install starts, keep the cluster powered on and the bastion's
+> DNS/NTP unchanged for at least 24 hours (first certificate rotation).
+> See [Bastion Lifecycle §2](../BASTION-LIFECYCLE.md#2-the-two-24-hour-windows-and-what-is-not-on-a-clock).
+
 ## DO — BMC on cp01, cp02, cp03
 
 1. Map `agent.x86_64.iso` as virtual CD  

@@ -3,6 +3,11 @@ kind: AgentConfig
 metadata:
   name: ocpv-lab
 rendezvousIP: 10.10.1.11
+# Temporary NTP on the bastion (BASTION_IP). Without this, nodes fall back to RHCOS's
+# default internet NTP pools during install, which a dark site cannot reach.
+# See docs/BASTION-LIFECYCLE.md (Phases 2 and 5).
+additionalNTPSources:
+  - 10.10.0.5
 hosts:
   - hostname: cp01
     role: master

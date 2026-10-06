@@ -101,6 +101,13 @@ oc get vmi -n infrastructure
 
 ## Step 4 — Cutover cluster DNS/NTP
 
+> **Superseded.** Use the make-before-break procedure in
+> [Bastion Lifecycle, Phases 7–8](BASTION-LIFECYCLE.md#phase-7-make-before-break-permanent-primary-bastion-secondary-no-clock).
+> It keeps the bastion as secondary while the rolling reboots evict the DNS/NTP VMs.
+> The MachineConfigs below have known defects (D18: `machineconfig-dns.yaml` encodes newlines
+> as `%0E` and overwrites NetworkManager's `/etc/resolv.conf`). `scripts/08` no longer
+> applies them.
+
 Update all nodes to use production services via MachineConfig:
 
 ```bash

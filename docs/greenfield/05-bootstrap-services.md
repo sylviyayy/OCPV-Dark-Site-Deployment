@@ -47,14 +47,18 @@ Detail: [06-production-network-services.md](../06-production-network-services.md
 
 ---
 
-## Cutover
+## Cutover (make-before-break)
 
-1. Deploy DNS/NTP VMs on OCP-V  
-2. Apply MachineConfigs (scripts 07/08)  
-3. Verify resolution/time on all nodes  
-4. Stop dnsmasq/chronyd on bastion  
+1. Wait out the first 24 hours after install (first certificate rotation)  
+2. Deploy DNS/NTP VMs on OCP-V (scripts 07/08, which deploy only and never switch)  
+3. Point nodes at **permanent primary + bastion secondary** (NNCP for DNS, Butane `MachineConfig` for chrony). Soak  
+4. Remove the bastion from node and infrastructure configs. Verify that no queries reach it  
+5. Stop dnsmasq/chronyd on the bastion, then disconnect it  
 
-**FAILS IF:** Cutover before VMs healthy → cluster-wide DNS outage.
+Full procedure: [Bastion Lifecycle](../BASTION-LIFECYCLE.md), Phases 6–8.
+
+**FAILS IF:** Cutover before VMs healthy → cluster-wide DNS outage.  
+**FAILS IF:** Bastion unplugged before it is removed from node configs → same outage, if the permanent servers are unhealthy.
 
 ---
 

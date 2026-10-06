@@ -66,6 +66,13 @@ Plus a **bastion** (jumphost): Fedora laptop, RHEL 10 KVM VM, or a small physica
 | Cluster network | **OVN-Kubernetes** |
 | etcd | Bundled with the OpenShift control plane (not installed manually) |
 
+## Before You Go to the Dark Site
+
+The USB drive is your only supply line. The agent ISO is the only artifact on a 24-hour clock, so you build it on site.
+
+* [USB Transfer Kit](docs/USB-TRANSFER-KIT.md): which Hybrid Cloud Console downloads you need (and which you don't), why, and what else goes on the drive (RHEL DVD, and the mirror archive carrying RHCOS and the Virtualization operators).
+* [Bastion Lifecycle](docs/BASTION-LIFECYCLE.md): USB → bastion as temporary DNS/NTP → install → permanent DNS/NTP with the bastion as secondary → bastion disconnected. Also shows exactly where the 24-hour windows start and end.
+
 ## Labs
 
 This tutorial assumes **three** AMD64 Lenovo servers (above) plus a bastion (jumphost), on the

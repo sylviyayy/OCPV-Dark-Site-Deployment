@@ -8,6 +8,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `docs/USB-TRANSFER-KIT.md`: bill of materials for the USB drive. Covers which Red Hat Hybrid Cloud Console downloads are required, optional or not needed (with reasons), why RHCOS and the Virtualization operators come from the mirror archive rather than the Downloads page, the RHEL Binary DVD's three roles, drive layout (XFS, two drives plus a backup) and the pre-departure checklist
+- `docs/BASTION-LIFECYCLE.md`: end-to-end runbook for USB → bastion as temporary DNS/NTP → install → permanent DNS/NTP with the bastion as secondary (make-before-break) → bastion disconnect. Includes the two 24-hour windows (agent ISO shelf life, first certificate rotation), a go/no-go gate before T-0, the bastion evacuation checklist, a risk register and a defect register for this path
+- "Before You Go to the Dark Site" section in `README.md`, and 24-hour window callouts in Labs 06, 08 and 10 and in `docs/00-disconnected-install-task-flow.md`
+- `additionalNTPSources` (bastion) in `install-config/agent-config.yaml.template`, so nodes use the bastion's NTP during install
+- `kubernetes-nmstate-operator` in `mirror/imageset-config.yaml.template` (host bridge for DNS/NTP VMs and the DNS cutover NNCP), plus a storage-operator decision note
 - Hard Way–style repository front door in `README.md` with hyperlinked labs
 - Lenovo CoE compute lab: 2× SR665 V3 + 1× SR675 V3 (L40S), NIC slot layout, compact 3-node roles
 - Labs 01–16 remapped (jumpbox, compute, mirror, agent bootstrap, `oc` access, cleanup)
@@ -30,6 +35,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `mirror/imageset-config.yaml.template` (`mirror.openshift.io/v2alpha1`)
 - Updated CNV deployment to use mirrored `kubevirt-hyperconverged` from `redhat-operator-index:v4.22`
 - Changelog policy, release workflow, and PR template for consistent change tracking
+- `scripts/08-deploy-ntp-vm.sh` no longer applies DNS/NTP cutover MachineConfigs. Cutover is now the make-before-break procedure in `docs/BASTION-LIFECYCLE.md`, Phases 7–8
+- Lab 14, `docs/05`, `docs/06` and `docs/greenfield/05-bootstrap-services.md` keep the bastion running as secondary until the drain is verified, instead of stopping it right after the VMs deploy
+- Labs 03 and `detail/configure-site-env.md` require the mirror registry to be on a separate host when the bastion will be disconnected
+
+### Fixed
+- `kickstart/ks-bastion.cfg` no longer lists `openshift-clients`, which is not on the RHEL DVD and halted the Kickstart. The duplicate `nmstate` entry is also removed
+- `docs/01-architecture-overview.md` no longer says the staging machine downloads RHCOS images. RHCOS ships inside the mirrored release payload
+- `docs/03-kickstart-procedure.md` now specifies the RHEL Binary DVD (not the Boot ISO) and drops the non-existent `openshift-client` package
+- Broken lab links (`03-worksheet.md` → `03-checklist.md`, `04-jumpbox.md` → `04-bastion.md`, `labs/04-bastion-and-registry-usb.md` → `labs/detail/bastion-and-registry-usb.md`) in `docs/labs/README.md`, `docs/labs/03-checklist.md`, `docs/labs/detail/configure-site-env.md` and `docs/03-kickstart-procedure.md`
 
 ## [1.0.0] - 2026-09-07
 

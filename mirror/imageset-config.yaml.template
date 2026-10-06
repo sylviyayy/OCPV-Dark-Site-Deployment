@@ -20,5 +20,12 @@ mirror:
         - name: kubevirt-hyperconverged
           channels:
             - name: stable
+        # Host bridge for the permanent DNS/NTP VMs and the DNS cutover NNCP
+        # (docs/BASTION-LIFECYCLE.md, Phases 6-7)
+        - name: kubernetes-nmstate-operator
+          channels:
+            - name: stable
+        # Storage: add exactly one storage operator BEFORE mirroring (vendor SAN CSI from
+        # certified-operator-index, lvms-operator, or ODF). See docs/USB-TRANSFER-KIT.md §3.2.
   additionalImages:
     - name: registry.redhat.io/rhel9/rhel-guest-image:latest

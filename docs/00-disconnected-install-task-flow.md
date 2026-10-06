@@ -18,13 +18,13 @@ repository's scripts and phases. It aligns with:
 |---|---|---|---|
 | 1 | Decide channel and version | `.env` → `OCP_VERSION`, `OCP_CHANNEL` | Use `stable-4.22`; pin exact z-stream |
 | 2 | Download registry pull secret | `pull-secret.json` | [console.redhat.com](https://console.redhat.com/openshift/install/pull-secret) |
-| 3 | Download CLI tools (`oc`, `openshift-install`, `oc-mirror`) | `scripts/01-mirror-preparation.sh` | From [mirror.openshift.com](https://mirror.openshift.com/pub/openshift-v4/x86_64/) |
-| 4 | Download `mirror-registry` CLI (optional) | Red Hat Downloads page | Subscription entitlement required |
+| 3 | Download CLI tools (`oc`, `openshift-install`, `oc-mirror`, `butane`) | `scripts/01-mirror-preparation.sh` | Full list with reasons: [USB Transfer Kit](USB-TRANSFER-KIT.md) |
+| 4 | Download `mirror-registry` | Hybrid Cloud Console Downloads page | **Required** when the bastion will be disconnected: the registry must live on a permanent host |
 | 5 | Create ImageSetConfiguration | `mirror/imageset-config.yaml.template` | oc-mirror v2 `mirror.openshift.io/v2alpha1` |
 | 6 | Configure platform release images | ImageSet `mirror.platform` | Set `minVersion`/`maxVersion` to same z-stream |
 | 7 | Configure operators to mirror | ImageSet `mirror.operators` | Include `kubevirt-hyperconverged` for OCP-V |
 | 8 | Mirror images (m2d or m2m) | `01-mirror-preparation.sh --mirror-to-disk` | Generates IDMS, ITMS, CatalogSource |
-| 9 | Package for transport | USB / NAS | Tarball of `oc-mirror-workdir` + clients + repo |
+| 9 | Package for transport | USB / NAS | Layout and pre-departure checklist: [USB Transfer Kit](USB-TRANSFER-KIT.md). Nothing here expires in 24 h |
 
 ### Phase 1 — Dark site bootstrap (empty network)
 
@@ -34,7 +34,7 @@ repository's scripts and phases. It aligns with:
 | 11 | Install mirror registry | `scripts/04-mirror-ocp-images.sh` | RH `mirror-registry` or lab fallback |
 | 12 | Create mirror registry pull secret | `mirror-registry-creds.json` | **Separate** from cluster pull secret |
 | 13 | Load images into registry | `04-mirror-ocp-images.sh` disk-to-mirror | `oc mirror ... docker://REGISTRY --v2` |
-| 14 | MVP DNS/NTP on bastion | `scripts/02-bootstrap-dns-ntp.sh` | Until OCP-V hosts production VMs |
+| 14 | MVP DNS/NTP on bastion | `scripts/02-bootstrap-dns-ntp.sh` | Sole authority until cutover, then secondary, then removed ([Bastion Lifecycle](BASTION-LIFECYCLE.md)) |
 
 ### Phase 2 — Agent config files
 
@@ -53,13 +53,21 @@ repository's scripts and phases. It aligns with:
 
 | # | Task | Script | Notes |
 |---|---|---|---|
-| 23 | Generate agent ISO | `scripts/05-install-ocp-disconnected.sh` | `openshift-install agent create image` |
-| 24 | Boot all nodes from ISO | Manual | No LB, bootstrap VM, or DHCP required |
+| 23 | Generate agent ISO | `scripts/05-install-ocp-disconnected.sh` | `openshift-install agent create image`. **T-0: the 24-hour window starts** ([Window A](BASTION-LIFECYCLE.md#2-the-two-24-hour-windows-and-what-is-not-on-a-clock)). Build on site |
+| 24 | Boot all nodes from ISO | Manual | Within 12 h of T-0 (Red Hat recommendation; hard limit 24 h). No LB, bootstrap VM, or DHCP required |
 | 25 | Monitor installation | `openshift-install agent wait-for install-complete` | 60–90 min typical |
 | 26 | Authenticate to cluster | `install-config/auth/kubeconfig` | |
 | 27 | Apply mirror cluster resources | `oc apply -f cluster-resources/` | IDMS, ITMS, CatalogSource |
-| 28 | Configure NTP on nodes | MVP bastion → production NTP VM | MachineConfig |
+| 28 | Configure NTP on nodes | `agent-config.yaml` `additionalNTPSources` (bastion) at install. Production NTP VM later | Butane `MachineConfig` at cutover (row 31) |
 | 29 | Install OpenShift Virtualization | `scripts/06-deploy-cnv.sh` | `kubevirt-hyperconverged`, channel `stable` |
+
+### Phase 4 — Cutover and bastion removal
+
+| # | Task | Script / artifact | Notes |
+|---|---|---|---|
+| 30 | Soak through the first certificate rotation | n/a | Keep the cluster up and the bastion unchanged for 24 h or more ([Window B](BASTION-LIFECYCLE.md#2-the-two-24-hour-windows-and-what-is-not-on-a-clock)) |
+| 31 | Deploy permanent DNS/NTP, then make-before-break | `scripts/07`, `scripts/08`, NNCP + Butane | Permanent primary, bastion secondary ([Phase 7](BASTION-LIFECYCLE.md#phase-7-make-before-break-permanent-primary-bastion-secondary-no-clock)) |
+| 32 | Remove the bastion, verify the drain, empty it, disconnect | n/a | [Phase 8](BASTION-LIFECYCLE.md#phase-8-break-remove-the-bastion-drain-empty-it-disconnect-no-clock) |
 
 ### Out of scope (Day 2 — documented only)
 

@@ -26,7 +26,7 @@ Bootstrap a dark site from an **empty network** with no DNS, no NTP, and no inte
 
 | Item | Size (approx) | Source |
 |---|---|---|
-| RHEL 9 boot ISO | 10 GB | Red Hat Customer Portal |
+| RHEL 9 **Binary DVD** ISO (not the Boot ISO, which has no packages) | 10–11 GB | Red Hat Customer Portal |
 | Kickstart configs | < 1 MB | `kickstart/` in this repo |
 | OCP mirror tarball | 60–80 GB | `scripts/01-mirror-preparation.sh` on staging |
 | This repository | < 5 MB | `git clone` or USB copy |
@@ -59,7 +59,7 @@ Copy to USB/NAS:
 
 ### Option A: USB boot + kickstart (**preferred**)
 
-Beginner detail: [labs/04-bastion-and-registry-usb.md](labs/04-bastion-and-registry-usb.md).
+Beginner detail: [labs/detail/bastion-and-registry-usb.md](labs/detail/bastion-and-registry-usb.md).
 
 1. Write RHEL ISO to USB: `dd if=rhel-9-or-10.iso of=/dev/sdX bs=4M status=progress oflag=sync` (check `lsblk` first)
 2. Edit Kickstart with `vim kickstart/ks-bastion.cfg` (passwords, SSH key, NIC, IP)
@@ -83,7 +83,8 @@ See [kickstart/README.md](../kickstart/README.md) only if you already have PXE i
 - Installs RHEL 9 minimal
 - Sets static IP `10.10.0.5` on `ens192`
 - Configures `/etc/hosts` with all cluster hostnames (no DNS needed)
-- Installs packages: `git`, `jq`, `podman`, `skopeo`, `openshift-client`, `nmstate`
+- Installs packages from the RHEL DVD: `git`, `jq`, `podman`, `skopeo`, `nmstate` (provides `nmstatectl`)
+- Does **not** install `oc`. The OpenShift CLIs come from tarballs on the USB data drive ([USB Transfer Kit](USB-TRANSFER-KIT.md))
 - Creates `installer` user with SSH key
 - Enables `chronyd` as local NTP server (orphan mode — no upstream)
 - Installs `dnsmasq` (disabled until Phase 2 script runs)

@@ -19,6 +19,11 @@ sudo ./scripts/02-bootstrap-dns-ntp.sh
 No enterprise DNS/NTP yet. OpenShift needs name resolution and clock sync for etcd.
 This is the greenfield bridge until [Lab 14](14-production-dns-ntp.md).
 
+The bastion's clock becomes the site's time authority (chronyd orphan mode). **Set it to
+correct UTC before running the script**, and set node BMC clocks to match
+([Bastion Lifecycle, Phase 2](../BASTION-LIFECYCLE.md#phase-2-the-bastion-becomes-the-sole-dns-and-ntp-authority-no-clock)).
+Nodes reach this NTP server during install through `additionalNTPSources` in `agent-config.yaml`.
+
 ## VERIFY
 
 ```bash
