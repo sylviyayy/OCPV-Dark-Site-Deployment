@@ -26,29 +26,29 @@ interface port-channel1
   switchport mode trunk
   vpc peer-link
 
-! --- cp01 on Switch A: OCP port 1 + Slot 1 port 1. Switch B carries OCP port 2 +
+! --- mw01 on Switch A: OCP port 1 + Slot 1 port 1. Switch B carries OCP port 2 +
 ! --- Slot 1 port 2 in the same port-channel11 / vpc 11, so LACP sees one 4-port bundle.
 interface port-channel11
-  description cp01 bond0 (802.3ad)
+  description mw01 bond0 (802.3ad)
   switchport mode access
   switchport access vlan 10
   mtu 1500
   vpc 11
 
 interface Ethernet1/11
-  description cp01 OCP-port1
+  description mw01 OCP-port1
   switchport mode access
   switchport access vlan 10
   channel-group 11 mode active
 
 interface Ethernet1/21
-  description cp01 Slot1-port1
+  description mw01 Slot1-port1
   switchport mode access
   switchport access vlan 10
   channel-group 11 mode active
 
-! --- cp02: port-channel12 / vpc 12, same pattern ----------------------------------
-! --- cp03: port-channel13 / vpc 13; its second adapter is in Slot 21 ---------------
+! --- mw02: port-channel12 / vpc 12, same pattern ----------------------------------
+! --- mw03: port-channel13 / vpc 13; its second adapter is in Slot 21 ---------------
 
 ! --- Bastion and registry host: single access ports on the machine network ---------
 interface Ethernet1/5

@@ -36,16 +36,16 @@ Duplicate one block per node.
 | BMC IP | | Virtual CD |
 | BMC type | XCC / iDRAC / iLO | Appendix |
 | BMC username | (vault ref) | |
-| Bond member 1 name=MAC | | `CPn_NICS` (C3) |
-| Bond member 2 name=MAC | | `CPn_NICS` (C3) |
-| Bond member 3 name=MAC | | `CPn_NICS` (C3) |
-| Bond member 4 name=MAC | | `CPn_NICS` (C3) |
+| Bond member 1 name=MAC | | `MWn_NICS` (C3) |
+| Bond member 2 name=MAC | | `MWn_NICS` (C3) |
+| Bond member 3 name=MAC | | `MWn_NICS` (C3) |
+| Bond member 4 name=MAC | | `MWn_NICS` (C3) |
 | Bond name | bond0 | nmstate |
 | Bond mode | 802.3ad | switch Po |
 | Node IP / prefix | | nmstate |
 | Gateway | | nmstate |
 | DNS (install) | bastion IP | nmstate |
-| OS disk by-path | /dev/disk/by-path/… | `CPn_ROOT_DEVICE` (C4) |
+| OS disk by-path | /dev/disk/by-path/… | `MWn_ROOT_DEVICE` (C4) |
 | iSCSI IQN | | LUN masking |
 | Assigned LUN IDs | | SAN |
 

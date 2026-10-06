@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-H12** — script 08 ends with "keep bastion dnsmasq/chronyd running as secondary" instead of disabling them
 - **FR-I2** — every DNS check compares the answer with the `.env` value (`expect_dns`, `expect_ptr`); `dig … +short` alone passed on an empty answer
 - **FR-I3** — `scripts/00-prerequisites-check.sh` modes `--staging`, `--bastion`, `--post-install`, each asserting the pinned OS first and requiring only tools present at that stage
-- **FR-J2** — one term per concept: "bastion" everywhere, README roles `cp01`–`cp03`, links to `03-checklist.md` and `04-bastion.md`
+- **FR-J2** — one term per concept: "bastion" everywhere; one node naming convention, `mw01`–`mw03` (master + worker, the compact role) for hostnames and `MW01_*`–`MW03_*` for `.env` keys, replacing the PRD's `cp01`–`cp03`; links to `03-checklist.md` and `04-bastion.md`
 - **FR-J3** — `docs/01`–`07`, `GREENFIELD-README.md`, `DEPLOYMENT-TRACKS.md` and `docs/greenfield/*` moved to `docs/reference/` under a non-normative banner (ADR-01); procedural pages condensed to background and pointers
 - **FR-J4** — one assumptions table: Lab 01 holds the pinned OS per machine role and the platform assumptions with falsification checks; `greenfield/00-assumptions-and-scope.md` points to it
 - **FR-J5** — Lab 09: etcd encryption at rest is opt-in (`apiserver.spec.encryption.type`); Lab 05: compute replicas 0

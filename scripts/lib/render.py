@@ -30,7 +30,7 @@ import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
 TOKEN = re.compile(r"\$\{([A-Z][A-Z0-9_]*)\}")
-NODES = ("CP01", "CP02", "CP03")
+NODES = ("MW01", "MW02", "MW03")
 
 # Field register, in the order of docs/labs/03-checklist.md and .env.example (PRD §1).
 REGISTER = [
@@ -282,7 +282,7 @@ def validate(env, probe=False):
         host = env.get(f"{n}_HOSTNAME", "")
         if host:
             if "." in host or not RFC1123_LABEL.match(host):
-                r.fail(f"{n}_HOSTNAME", "must be a short lowercase name (no dots), e.g. cp01")
+                r.fail(f"{n}_HOSTNAME", "must be a short lowercase name (no dots), e.g. mw01")
             elif host in names:
                 r.fail(f"{n}_HOSTNAME", f"duplicates {names[host]}")
             names[host] = f"{n}_HOSTNAME"
@@ -321,7 +321,7 @@ def validate(env, probe=False):
         _ip(r, env, f"{n}_BMC_IP")
     rv = env.get("RENDEZVOUS_IP", "")
     if rv and cp_ips and rv not in cp_ips:
-        r.fail("RENDEZVOUS_IP", f"{rv} must equal one of CP01_IP..CP03_IP ({', '.join(cp_ips)})")
+        r.fail("RENDEZVOUS_IP", f"{rv} must equal one of MW01_IP..MW03_IP ({', '.join(cp_ips)})")
 
     # D — bastion and registry
     bh = env.get("BASTION_HOSTNAME", "")
@@ -473,7 +473,7 @@ def derived_value(env, key):
         "NODE_CHRONY_CONF_B64": lambda: base64.b64encode(render_text(
             env, REPO_ROOT / "manifests/production/ntp-vm/node-chrony.conf.template").encode()).decode(),
     }
-    ptr = re.fullmatch(r"(BASTION|REGISTRY|CP0[123]|DNS_VM[12]|NTP_VM|API_VIP)_PTR", key)
+    ptr = re.fullmatch(r"(BASTION|REGISTRY|MW0[123]|DNS_VM[12]|NTP_VM|API_VIP)_PTR", key)
     if ptr:
         src = {"REGISTRY": "MIRROR_REGISTRY_IP", "API_VIP": "API_VIP"}.get(ptr.group(1), f"{ptr.group(1)}_IP")
         ip = derived_value(env, src) if src.startswith("DNS_VM") else env_get(env, src)

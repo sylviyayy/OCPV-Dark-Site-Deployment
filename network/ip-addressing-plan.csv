@@ -7,9 +7,9 @@ ntp,10.10.0.51,ntp.lab.example.com,NTP_VM_IP,NTP VM on OCP-V
 dns-b,10.10.0.52,dns-b.lab.example.com,DNS_VM_IPS[1],DNS VM on OCP-V (anti-affine with dns-a)
 api-vip,10.10.0.100,api.coe01.lab.example.com,API_VIP,"API VIP (also api-int)"
 ingress-vip,10.10.0.101,*.apps.coe01.lab.example.com,INGRESS_VIP,Ingress VIP
-cp01,10.10.1.11,cp01.lab.example.com,CP01_IP,"Control-plane node, SR665 V3, rendezvous node"
-cp02,10.10.1.12,cp02.lab.example.com,CP02_IP,"Control-plane node, SR665 V3"
-cp03,10.10.1.13,cp03.lab.example.com,CP03_IP,"Control-plane node, SR675 V3 (8x L40S)"
-cp01-xcc,10.20.0.11,,CP01_BMC_IP,XCC on the BMC network
-cp02-xcc,10.20.0.12,,CP02_BMC_IP,XCC on the BMC network
-cp03-xcc,10.20.0.13,,CP03_BMC_IP,XCC on the BMC network
+mw01,10.10.1.11,mw01.lab.example.com,MW01_IP,"Control-plane node, SR665 V3, rendezvous node"
+mw02,10.10.1.12,mw02.lab.example.com,MW02_IP,"Control-plane node, SR665 V3"
+mw03,10.10.1.13,mw03.lab.example.com,MW03_IP,"Control-plane node, SR675 V3 (8x L40S)"
+mw01-xcc,10.20.0.11,,MW01_BMC_IP,XCC on the BMC network
+mw02-xcc,10.20.0.12,,MW02_BMC_IP,XCC on the BMC network
+mw03-xcc,10.20.0.13,,MW03_BMC_IP,XCC on the BMC network

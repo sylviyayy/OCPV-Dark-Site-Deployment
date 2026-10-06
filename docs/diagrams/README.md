@@ -38,7 +38,7 @@ Until the PNGs exist, the README carries an interim Mermaid diagram (GitHub rend
 - SAN or storage controllers
 - Bastion / kickstart server
 - BMC connections (dashed — out-of-band, separate from data plane)
-- Cable labels: `cp01 OCP-p1 → SwA Po11`, `cp01 OCP-p2 → SwB Po11`, etc. (one port-channel per node across MLAG/vPC)
+- Cable labels: `mw01 OCP-p1 → SwA Po11`, `mw01 OCP-p2 → SwB Po11`, etc. (one port-channel per node across MLAG/vPC)
 
 **Matches:** Your specialist’s hand-drawn rack diagram (nodes ↔ switches ↔ SAN).
 

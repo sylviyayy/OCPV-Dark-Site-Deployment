@@ -19,7 +19,7 @@ before filling the field register in Lab 03.
                                      │          │
                                      │    Switch A ══ MLAG/vPC ══ Switch B   (one LACP Po per node)
                                      │          │
-                                     │    cp01 (SR665 V3)   cp02 (SR665 V3)   cp03 (SR675 V3, 8× L40S)
+                                     │    mw01 (SR665 V3)   mw02 (SR665 V3)   mw03 (SR675 V3, 8× L40S)
                                      │    bond0 = 4 ports · schedulable control-plane nodes · API/Ingress VIPs
                                      │          │
                                      │    VMs on localnet (br-ex): dns-a · dns-b · ntp

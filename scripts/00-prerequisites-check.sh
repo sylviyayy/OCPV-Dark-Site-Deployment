@@ -116,7 +116,7 @@ case "${MODE}" in
     check "api -> ${API_VIP}" expect_dns "${BASTION_IP}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${API_VIP}"
     check "api-int -> ${API_VIP}" expect_dns "${BASTION_IP}" "api-int.${CLUSTER_NAME}.${BASE_DOMAIN}" "${API_VIP}"
     check "*.apps -> ${INGRESS_VIP}" expect_dns "${BASTION_IP}" "console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}" "${INGRESS_VIP}"
-    check "PTR ${CP01_IP} -> ${CP01_HOSTNAME}.${BASE_DOMAIN}" expect_ptr "${BASTION_IP}" "${CP01_IP}" "${CP01_HOSTNAME}.${BASE_DOMAIN}"
+    check "PTR ${MW01_IP} -> ${MW01_HOSTNAME}.${BASE_DOMAIN}" expect_ptr "${BASTION_IP}" "${MW01_IP}" "${MW01_HOSTNAME}.${BASE_DOMAIN}"
     echo "--- Time and registry ---"
     check "bastion NTP offset < 1 s (chronyd -Q probe)" ntp_offset_ok "${BASTION_IP}"
     check "registry https://${MIRROR_REGISTRY}/v2/ answers 200/401 with TLS verified" registry_ok
@@ -134,7 +134,7 @@ case "${MODE}" in
     for ip in "${DNS_VM1_IP}" "${DNS_VM2_IP}"; do
       check "${ip}: api -> ${API_VIP}" expect_dns "${ip}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${API_VIP}"
       check "${ip}: registry -> ${MIRROR_REGISTRY_IP}" expect_dns "${ip}" "${MIRROR_REGISTRY_HOSTNAME}" "${MIRROR_REGISTRY_IP}"
-      check "${ip}: PTR ${CP01_IP}" expect_ptr "${ip}" "${CP01_IP}" "${CP01_HOSTNAME}.${BASE_DOMAIN}"
+      check "${ip}: PTR ${MW01_IP}" expect_ptr "${ip}" "${MW01_IP}" "${MW01_HOSTNAME}.${BASE_DOMAIN}"
     done
     echo "--- Time ---"
     check "NTP VM offset < 1 s" ntp_offset_ok "${NTP_VM_IP}"

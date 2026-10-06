@@ -12,9 +12,9 @@ three Lenovo servers, so the Agent ISO in Lab 10 finds exactly what `.env` descr
 
 | Role | Model | CPU | RAM | Disks | GPU | Networking |
 |---|---|---|---|---|---|---|
-| `cp01` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | 4-port 10GBase-T (OCP slot) + 2-port 10GBase-T (Slot 1) |
-| `cp02` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | same |
-| `cp03` | ThinkSystem **SR675 V3** | 2× EPYC 9334 32C | 768 GB | 2× 960 GB SSD | **8× L40S** | 4-port 10GBase-T (OCP slot) + 4-port 10GBase-T (Slot 21) |
+| `mw01` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | 4-port 10GBase-T (OCP slot) + 2-port 10GBase-T (Slot 1) |
+| `mw02` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | same |
+| `mw03` | ThinkSystem **SR675 V3** | 2× EPYC 9334 32C | 768 GB | 2× 960 GB SSD | **8× L40S** | 4-port 10GBase-T (OCP slot) + 4-port 10GBase-T (Slot 21) |
 
 ### Bond members: one LACP port-channel per node, split across both switches
 
@@ -32,7 +32,7 @@ negotiates a single 802.3ad bundle. Spare ports stay unplugged or are documented
 
 Exactly three servers run a **compact** cluster: every node is a control-plane node and
 schedulable for workloads. `install-config.yaml` sets compute replicas **0** (FR-A2); no worker
-hosts exist. Put GPU-heavy VMs on `cp03` with node labels later. Adding dedicated workers is in
+hosts exist. Put GPU-heavy VMs on `mw03` with node labels later. Adding dedicated workers is in
 [Appendix A](appendix-a-adding-workers.md).
 
 ## Steps
@@ -42,7 +42,7 @@ hosts exist. Put GPU-heavy VMs on `cp03` with node labels later. Adding dedicate
 **WHERE** — Each server's XCC → Storage configuration (or UEFI setup)
 
 **WHY** — RHCOS installs onto the device named by `rootDeviceHints`; one RAID1 virtual disk over
-both SSDs survives a drive failure. Consumed by: `CPn_ROOT_DEVICE` (C4) → agent-config.
+both SSDs survives a drive failure. Consumed by: `MWn_ROOT_DEVICE` (C4) → agent-config.
 If skipped: RHCOS lands on one bare SSD, or on the wrong device.
 
 **EDIT** — No edits in this step.
@@ -73,16 +73,16 @@ Consumed by: Lab 13 (`/dev/kvm` check). If skipped: the OpenShift Virtualization
 **WHERE** — Each server's XCC, from the admin workstation
 
 **WHY** — Lab 10 boots the Agent ISO through XCC virtual media; an XCC you cannot reach is a node you cannot install.
-Consumed by: `CPn_BMC_IP` (C5). If skipped: Lab 10 stops at its first step.
+Consumed by: `MWn_BMC_IP` (C5). If skipped: Lab 10 stops at its first step.
 
-**EDIT** — `.env` → `CP01_BMC_IP` … `CP03_BMC_IP` if they differ from what you set in Lab 03.
+**EDIT** — `.env` → `MW01_BMC_IP` … `MW03_BMC_IP` if they differ from what you set in Lab 03.
 
 **DO** — Set each XCC's static address; mount the RHEL 9 DVD ISO as virtual media once (used in 5.4).
 
 **VERIFY**
 
 ```bash
-for ip in "${CP01_BMC_IP}" "${CP02_BMC_IP}" "${CP03_BMC_IP}"; do
+for ip in "${MW01_BMC_IP}" "${MW02_BMC_IP}" "${MW03_BMC_IP}"; do
   timeout 3 bash -c "</dev/tcp/${ip}/443" && echo "reachable ${ip}" || echo "UNREACHABLE ${ip}"
 done
 # expect: reachable <ip> three times (a TCP connect to 443; no TLS trust involved)
@@ -101,7 +101,7 @@ the Agent ISO matches each server by these MACs and binds `bond0` to these names
 Consumed by: agent-config → `hosts[n].interfaces[]`, bond0 ports, `rootDeviceHints` (C3, C4).
 If skipped: a server matches no `hosts[]` entry and the install waits for 3 hosts forever (Lab 10).
 
-**EDIT** — `.env` → `CPn_NICS` and `CPn_ROOT_DEVICE` for this node
+**EDIT** — `.env` → `MWn_NICS` and `MWn_ROOT_DEVICE` for this node
 from: the values you read from the XCC inventory in Lab 03
 to:   the live values below, if they differ.
 

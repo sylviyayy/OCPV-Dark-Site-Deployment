@@ -29,7 +29,7 @@
 | `10.10.0.51` | `ntp.lab.example.com` | NTP VM |
 | `10.10.0.100` | `api.coe01.lab.example.com`, `api-int…` | API VIP |
 | `10.10.0.101` | `*.apps.coe01.lab.example.com` | Ingress VIP |
-| `10.10.1.11`–`13` | `cp01`–`cp03.lab.example.com` | Control-plane nodes |
+| `10.10.1.11`–`13` | `mw01`–`mw03.lab.example.com` | Control-plane nodes |
 
 The same plan as CSV: [network/ip-addressing-plan.csv](../../network/ip-addressing-plan.csv).
 
@@ -44,7 +44,7 @@ interfaces:
     link-aggregation:
       mode: 802.3ad
       options: {miimon: "100"}
-      port: [ens1f0, ens1f1, ens2f0, ens2f1]   # CP01_NICS (C3)
+      port: [ens1f0, ens1f1, ens2f0, ens2f1]   # MW01_NICS (C3)
     ipv4: {enabled: true, dhcp: false, address: [{ip: 10.10.1.11, prefix-length: 16}]}
 dns-resolver:
   config: {server: [10.10.0.5]}     # bastion during install
@@ -82,7 +82,7 @@ lab.example.com
 ├── registry      A    10.10.0.10
 ├── dns-a, dns-b  A    10.10.0.50, 10.10.0.52
 ├── ntp           A    10.10.0.51
-├── cp01 … cp03   A    10.10.1.11 … 10.10.1.13
+├── mw01 … mw03   A    10.10.1.11 … 10.10.1.13
 └── coe01
     ├── api       A    10.10.0.100
     ├── api-int   A    10.10.0.100

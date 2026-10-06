@@ -44,7 +44,7 @@ Consumed by: 14.2 and every node's resolver. If skipped: the cut-over in 14.2 re
 set -a && source .env && set +a
 for ip in "${DNS_VM_IPS%%,*}" "${DNS_VM_IPS##*,}"; do
   test "$(dig +short @"${ip}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}")" = "${API_VIP}" && echo "PASS ${ip} A" || echo "FAIL ${ip} A"
-  test "$(dig +short @"${ip}" -x "${CP01_IP}")" = "${CP01_HOSTNAME}.${BASE_DOMAIN}." && echo "PASS ${ip} PTR" || echo "FAIL ${ip} PTR"
+  test "$(dig +short @"${ip}" -x "${MW01_IP}")" = "${MW01_HOSTNAME}.${BASE_DOMAIN}." && echo "PASS ${ip} PTR" || echo "FAIL ${ip} PTR"
 done
 oc get vmi -n infrastructure -o custom-columns=NAME:.metadata.name,NODE:.status.nodeName   # expect: dns-a and dns-b on different nodes
 ```
@@ -81,7 +81,7 @@ chronyd -Q "server ${NTP_VM_IP} iburst"                                         
 oc get nncp -o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Available")].status}{"\n"}{end}'
 # expect: dns-cutover True, vmnet-bridge-mapping True
 oc get mcp master -o jsonpath='{.status.conditions[?(@.type=="Updated")].status}{"\n"}'          # expect: True
-oc debug "node/${CP01_HOSTNAME}" --quiet -- chroot /host cat /var/run/NetworkManager/resolv.conf
+oc debug "node/${MW01_HOSTNAME}" --quiet -- chroot /host cat /var/run/NetworkManager/resolv.conf
 # expect: nameserver lines for both DNS VMs, then BASTION_IP (verify path on 4.22)
 ```
 

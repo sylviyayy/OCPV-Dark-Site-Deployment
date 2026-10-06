@@ -14,7 +14,7 @@ vim .env
 ```
 
 In `vim`: `i` to insert, `Esc` then `:wq` to save. No spaces around `=`. Quote values that contain
-commas (`CP01_NICS="…"`).
+commas (`MW01_NICS="…"`).
 
 ## A — Cluster identity
 
@@ -40,12 +40,12 @@ commas (`CP01_NICS="…"`).
 
 | ID | Key | Where the value comes from | Check it yourself |
 |---|---|---|---|
-| C1 | `CP01_HOSTNAME` … | Short names (`cp01`…); the README role table uses the same names | no dots |
-| C2 | `CP01_IP` … | Network team, inside B1 | unique |
-| C3 | `CP01_NICS` … | XCC → Inventory → Network adapters gives MACs per port; Lab 05 step 5.4 confirms names and MACs in a RHEL 9 rescue shell (`ip -br link`) | exactly 4 `name=MAC` pairs; real MACs |
-| C4 | `CP01_ROOT_DEVICE` … | Lab 05 step 5.4: `ls -l /dev/disk/by-path/` → the link to the RAID1 virtual disk | starts with `/dev/disk/by-path/` |
-| C5 | `CP01_BMC_IP` … | Hardware team: XCC addresses on the management network | reachable from the admin workstation |
-| C6 | `RENDEZVOUS_IP` | Leave `${CP01_IP}` unless `cp01` is unavailable | equals one C2 value |
+| C1 | `MW01_HOSTNAME` … | Short names (`mw01`…); the README role table uses the same names | no dots |
+| C2 | `MW01_IP` … | Network team, inside B1 | unique |
+| C3 | `MW01_NICS` … | XCC → Inventory → Network adapters gives MACs per port; Lab 05 step 5.4 confirms names and MACs in a RHEL 9 rescue shell (`ip -br link`) | exactly 4 `name=MAC` pairs; real MACs |
+| C4 | `MW01_ROOT_DEVICE` … | Lab 05 step 5.4: `ls -l /dev/disk/by-path/` → the link to the RAID1 virtual disk | starts with `/dev/disk/by-path/` |
+| C5 | `MW01_BMC_IP` … | Hardware team: XCC addresses on the management network | reachable from the admin workstation |
+| C6 | `RENDEZVOUS_IP` | Leave `${MW01_IP}` unless `mw01` is unavailable | equals one C2 value |
 
 ## D — Bastion and mirror registry
 
@@ -84,7 +84,7 @@ commas (`CP01_NICS="…"`).
 ```
 
 Each failure names its field ID and key, for example
-`[FAIL] C3 CP01_NICS: still holds the sample MAC 00:00:00:00:00:00`.
+`[FAIL] C3 MW01_NICS: still holds the sample MAC 00:00:00:00:00:00`.
 
 ## Next
 

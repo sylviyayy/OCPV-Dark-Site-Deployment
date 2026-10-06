@@ -45,7 +45,7 @@ C="${CLUSTER_NAME}.${BASE_DOMAIN}"
 test "$(dig +short @"${BASTION_IP}" "api.${C}")" = "${API_VIP}" && echo PASS || echo FAIL                          # expect: PASS
 test "$(dig +short @"${BASTION_IP}" "console-openshift-console.apps.${C}")" = "${INGRESS_VIP}" && echo PASS || echo FAIL  # expect: PASS
 test "$(dig +short @"${BASTION_IP}" "${MIRROR_REGISTRY_HOSTNAME}")" = "${MIRROR_REGISTRY_IP}" && echo PASS || echo FAIL  # expect: PASS
-test "$(dig +short @"${BASTION_IP}" -x "${CP01_IP}")" = "${CP01_HOSTNAME}.${BASE_DOMAIN}." && echo PASS || echo FAIL   # expect: PASS
+test "$(dig +short @"${BASTION_IP}" -x "${MW01_IP}")" = "${MW01_HOSTNAME}.${BASE_DOMAIN}." && echo PASS || echo FAIL   # expect: PASS
 chronyd -Q "server ${BASTION_IP} iburst"     # expect: "System clock wrong by <x> seconds", |x| < 1
 ```
 

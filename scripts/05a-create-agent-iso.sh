@@ -34,5 +34,5 @@ fi
 sha256sum "${ISO}" | tee "${ISO}.sha256"
 
 log_info "PASS: ${ISO} created; inputs kept as *.orig"
-log_info "Next (Lab 10): mount the ISO on each XCC (${CP01_BMC_IP} ${CP02_BMC_IP} ${CP03_BMC_IP}),"
+log_info "Next (Lab 10): mount the ISO on each XCC (${MW01_BMC_IP} ${MW02_BMC_IP} ${MW03_BMC_IP}),"
 log_info "boot the rendezvous node (${RENDEZVOUS_IP}) first, then run ./scripts/05b-wait-install.sh"

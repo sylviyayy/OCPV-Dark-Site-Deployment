@@ -21,7 +21,7 @@ graph TD
 | Staging host (low side) | 01, 04, 06 | Downloads clients, mirrors to disk, builds the kickstart ISOs; never joins the machine network |
 | Bastion (high side) | 04 onward | Runs `openshift-install`; serves DNS, NTP and the RHEL DVD repo for the life of the site |
 | Mirror registry | 06 onward | mirror registry for Red Hat OpenShift on port 8443 (may share the bastion) |
-| Control-plane nodes `cp01`–`cp03` | 05, 10 | Compact cluster: etcd, API server and workloads on the same three nodes |
+| Control-plane nodes `mw01`–`mw03` | 05, 10 | Compact cluster: etcd, API server and workloads on the same three nodes |
 | DNS VMs `dns-a`, `dns-b` | 14 | Authoritative BIND for `BASE_DOMAIN`, anti-affine |
 | NTP VM `ntp` | 14 | chrony, following `TIME_SOURCE` |
 

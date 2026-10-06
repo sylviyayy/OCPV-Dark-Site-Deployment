@@ -94,7 +94,7 @@ Node rear (one LACP port-channel per node, spanning the MLAG/vPC pair):
 
 **WHAT:** RAID1 on two SSDs for RHCOS; present one virtual disk and record its `/dev/disk/by-path/…` link.
 
-**WHY:** That stable path is `CPn_ROOT_DEVICE`, rendered into `rootDeviceHints.deviceName`; `/dev/sdX` letters can shift when virtual media is attached.
+**WHY:** That stable path is `MWn_ROOT_DEVICE`, rendered into `rootDeviceHints.deviceName`; `/dev/sdX` letters can shift when virtual media is attached.
 
 **FAILS IF:** Install targets USB key or wrong VD → node breaks on reboot.
 

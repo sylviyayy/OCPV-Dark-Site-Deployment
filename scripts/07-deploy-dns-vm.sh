@@ -80,7 +80,7 @@ answers_ok() {
     expect_dns "${ip}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${API_VIP}" || return 1
     expect_dns "${ip}" "${MIRROR_REGISTRY_HOSTNAME}" "${MIRROR_REGISTRY_IP}" || return 1
     expect_dns "${ip}" "console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}" "${INGRESS_VIP}" || return 1
-    expect_ptr "${ip}" "${CP01_IP}" "${CP01_HOSTNAME}.${BASE_DOMAIN}" || return 1
+    expect_ptr "${ip}" "${MW01_IP}" "${MW01_HOSTNAME}.${BASE_DOMAIN}" || return 1
   done
 }
 if ! wait_until 900 20 "both DNS VMs answer A, wildcard and PTR records from .env" answers_ok; then

@@ -37,9 +37,9 @@ domain=${BASE_DOMAIN}
 # host-record = A record plus the matching PTR, so reverse lookups work (FR-F1).
 host-record=${BASTION_HOSTNAME}.${BASE_DOMAIN},${BASTION_IP}
 host-record=${MIRROR_REGISTRY_HOSTNAME},${MIRROR_REGISTRY_IP}
-host-record=${CP01_HOSTNAME}.${BASE_DOMAIN},${CP01_IP}
-host-record=${CP02_HOSTNAME}.${BASE_DOMAIN},${CP02_IP}
-host-record=${CP03_HOSTNAME}.${BASE_DOMAIN},${CP03_IP}
+host-record=${MW01_HOSTNAME}.${BASE_DOMAIN},${MW01_IP}
+host-record=${MW02_HOSTNAME}.${BASE_DOMAIN},${MW02_IP}
+host-record=${MW03_HOSTNAME}.${BASE_DOMAIN},${MW03_IP}
 host-record=api.${CLUSTER_DOMAIN},${API_VIP}
 host-record=api-int.${CLUSTER_DOMAIN},${API_VIP}
 
@@ -112,7 +112,7 @@ verify "registry A via loopback resolver" expect_dns 127.0.0.1 "${MIRROR_REGISTR
 verify "api A -> API_VIP" expect_dns "${BASTION_IP}" "api.${CLUSTER_DOMAIN}" "${API_VIP}"
 verify "api-int A -> API_VIP" expect_dns "${BASTION_IP}" "api-int.${CLUSTER_DOMAIN}" "${API_VIP}"
 verify "*.apps wildcard -> INGRESS_VIP" expect_dns "${BASTION_IP}" "console-openshift-console.apps.${CLUSTER_DOMAIN}" "${INGRESS_VIP}"
-verify "${CP01_HOSTNAME} PTR" expect_ptr "${BASTION_IP}" "${CP01_IP}" "${CP01_HOSTNAME}.${BASE_DOMAIN}"
+verify "${MW01_HOSTNAME} PTR" expect_ptr "${BASTION_IP}" "${MW01_IP}" "${MW01_HOSTNAME}.${BASE_DOMAIN}"
 verify "chronyd serves time (offset < 1 s)" ntp_offset_ok "${BASTION_IP}"
 if (( fails > 0 )); then
   log_error "${fails} check(s) failed"

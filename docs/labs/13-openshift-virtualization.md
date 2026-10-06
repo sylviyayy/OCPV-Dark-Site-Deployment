@@ -41,7 +41,7 @@ oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv \
 oc get nodes -o jsonpath='{range .items[*]}{.metadata.name} {.status.allocatable.devices\.kubevirt\.io/kvm}{"\n"}{end}'   # expect: three lines, each with a non-zero count
 ```
 
-**FAILS IF** — "/dev/kvm missing on: cpNN" ← SVM disabled in UEFI (Lab 05 step 5.2);
+**FAILS IF** — "/dev/kvm missing on: mwNN" ← SVM disabled in UEFI (Lab 05 step 5.2);
 Subscription never resolves ← Lab 12 not applied.
 
 ### 13.2 Give the cluster a default StorageClass
@@ -76,7 +76,7 @@ The script's last line is `PASS: … a 1 GiB DataVolume reached Succeeded`.
 
 ### GPU node (later)
 
-`cp03` (SR675 V3, 8× L40S) needs the NVIDIA GPU Operator, which is not in the default ImageSet
+`mw03` (SR675 V3, 8× L40S) needs the NVIDIA GPU Operator, which is not in the default ImageSet
 (a v2.0 non-goal). Add `gpu-operator-certified` to a profile in `mirror/imageset-profiles.yaml` and
 re-mirror when you need it.
 

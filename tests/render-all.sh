@@ -91,10 +91,10 @@ fi
 pass "no placeholder, sample MAC, ens192, :latest or --plaintext in rendered output"
 
 echo "== MAC set equals .env (AT-01)"
-want="$(for n in CP01 CP02 CP03; do v="${n}_NICS"; tr ',' '\n' <<<"${!v}" | cut -d= -f2; done | sort)"
+want="$(for n in MW01 MW02 MW03; do v="${n}_NICS"; tr ',' '\n' <<<"${!v}" | cut -d= -f2; done | sort)"
 got="$(grep -oE 'macAddress: [0-9a-f:]+' "${CI_TMP}/out1/agent-config.yaml" | awk '{print $2}' | sort)"
 [[ "${want}" == "${got}" ]] || die "MAC set differs: want ${want//$'\n'/ } got ${got//$'\n'/ }"
-pass "12 MACs, identical to CP01..CP03_NICS"
+pass "12 MACs, identical to MW01..MW03_NICS"
 
 echo "== Node chrony.conf decodes to NTP VM then upstream"
 b64="$(grep -m1 -oE 'base64,[A-Za-z0-9+/=]+' "${CI_TMP}/out1/machineconfig-chrony.yaml" | cut -d, -f2)"
@@ -114,7 +114,7 @@ msgs="$(OCPV_ENV_FILE="${REPO}/.env.example" "${REPO}/scripts/lib/validate-env.s
 rc=$?
 set -e
 [[ ${rc} -eq 1 ]] || die "validate-env.sh exited ${rc} on .env.example, expected 1"
-for key in CP01_NICS CP02_NICS CP03_NICS BASE_DOMAIN PULL_SECRET_FILE; do
+for key in MW01_NICS MW02_NICS MW03_NICS BASE_DOMAIN PULL_SECRET_FILE; do
   [[ "$(grep -c "\[FAIL\] .. ${key}:" <<<"${msgs}")" == "1" ]] || die "expected exactly one message for ${key}"
 done
 pass "exit 1 with one message per offending key (sample MACs, domain, missing file)"

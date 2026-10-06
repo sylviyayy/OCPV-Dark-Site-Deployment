@@ -82,9 +82,9 @@ stringData:
           ntp                       IN A   ${NTP_VM_IP}
           ${BASTION_HOSTNAME}       IN A   ${BASTION_IP}
           ${REGISTRY_RELNAME}       IN A   ${MIRROR_REGISTRY_IP}
-          ${CP01_HOSTNAME}          IN A   ${CP01_IP}
-          ${CP02_HOSTNAME}          IN A   ${CP02_IP}
-          ${CP03_HOSTNAME}          IN A   ${CP03_IP}
+          ${MW01_HOSTNAME}          IN A   ${MW01_IP}
+          ${MW02_HOSTNAME}          IN A   ${MW02_IP}
+          ${MW03_HOSTNAME}          IN A   ${MW03_IP}
           api.${CLUSTER_NAME}       IN A   ${API_VIP}
           api-int.${CLUSTER_NAME}   IN A   ${API_VIP}
           *.apps.${CLUSTER_NAME}    IN A   ${INGRESS_VIP}
@@ -102,9 +102,9 @@ stringData:
           ${NTP_VM_PTR}    IN PTR ntp.${BASE_DOMAIN}.
           ${BASTION_PTR}   IN PTR ${BASTION_HOSTNAME}.${BASE_DOMAIN}.
           ${REGISTRY_PTR}  IN PTR ${MIRROR_REGISTRY_HOSTNAME}.
-          ${CP01_PTR}      IN PTR ${CP01_HOSTNAME}.${BASE_DOMAIN}.
-          ${CP02_PTR}      IN PTR ${CP02_HOSTNAME}.${BASE_DOMAIN}.
-          ${CP03_PTR}      IN PTR ${CP03_HOSTNAME}.${BASE_DOMAIN}.
+          ${MW01_PTR}      IN PTR ${MW01_HOSTNAME}.${BASE_DOMAIN}.
+          ${MW02_PTR}      IN PTR ${MW02_HOSTNAME}.${BASE_DOMAIN}.
+          ${MW03_PTR}      IN PTR ${MW03_HOSTNAME}.${BASE_DOMAIN}.
           ${API_VIP_PTR}   IN PTR api.${CLUSTER_NAME}.${BASE_DOMAIN}.
       # Time from the site reference clock, not from a host Lab 14 used to switch off (FR-H8).
       - path: /etc/chrony.conf

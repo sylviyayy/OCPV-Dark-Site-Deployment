@@ -20,7 +20,7 @@
 | Mirror registry | `10.10.0.10:8443` | oc-mirror target, cluster image pulls |
 | API VIP | `10.10.0.100` | Kubernetes API |
 | Ingress VIP | `10.10.0.101` | Routes, console |
-| `cp01`–`cp03` | `10.10.1.11`–`13` | Schedulable control-plane nodes (compact) |
+| `mw01`–`mw03` | `10.10.1.11`–`13` | Schedulable control-plane nodes (compact) |
 | DNS VMs `dns-a`, `dns-b` | `10.10.0.50`, `10.10.0.52` | Production DNS (post-install), anti-affine |
 | NTP VM `ntp` | `10.10.0.51` | Production NTP (post-install) |
 

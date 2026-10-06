@@ -12,7 +12,7 @@ three Ready nodes, four-member bonds, RHCOS on the RAID1 disk, time from the bas
 
 ### 10.1 Boot every node from the Agent ISO
 
-**WHERE** — XCC of `cp01`, `cp02`, `cp03` (`CP01_BMC_IP` …), from the admin workstation; the ISO is `${INSTALL_DIR}/agent.x86_64.iso` on the bastion
+**WHERE** — XCC of `mw01`, `mw02`, `mw03` (`MW01_BMC_IP` …), from the admin workstation; the ISO is `${INSTALL_DIR}/agent.x86_64.iso` on the bastion
 
 **WHY** — The ISO carries each host's identity; a booting server finds its `hosts[]` entry by MAC,
 applies its bond and static IP, and joins the rendezvous node (`RENDEZVOUS_IP`), which runs the
@@ -69,8 +69,8 @@ If skipped: a node on a single SSD or a free-running clock goes unnoticed until 
 ```bash
 set -a && source .env && set +a
 export KUBECONFIG="${INSTALL_DIR}/auth/kubeconfig"
-oc debug "node/${CP01_HOSTNAME}" --quiet -- chroot /host sh -c \
-  "readlink -f ${CP01_ROOT_DEVICE}; findmnt -no SOURCE /sysroot; chronyc -n sources"
+oc debug "node/${MW01_HOSTNAME}" --quiet -- chroot /host sh -c \
+  "readlink -f ${MW01_ROOT_DEVICE}; findmnt -no SOURCE /sysroot; chronyc -n sources"
 ```
 
 **VERIFY**
@@ -80,7 +80,7 @@ expect: the device from readlink is the parent of the /sysroot source (for examp
 expect: a line starting with ^* naming TIME_SOURCE (or BASTION_IP when orphan)
 ```
 
-Repeat for `CP02_HOSTNAME` and `CP03_HOSTNAME`.
+Repeat for `MW02_HOSTNAME` and `MW03_HOSTNAME`.
 
 **FAILS IF** — No `^*` line ← the node cannot reach UDP 123 on the time source; skew will break etcd.
 

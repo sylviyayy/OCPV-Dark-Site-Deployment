@@ -32,7 +32,7 @@ if [[ "${ready}" != "3" ]]; then
   log_error "expected 3 Ready nodes, found ${ready}"
   exit 1
 fi
-for node in "${CP01_HOSTNAME}" "${CP02_HOSTNAME}" "${CP03_HOSTNAME}"; do
+for node in "${MW01_HOSTNAME}" "${MW02_HOSTNAME}" "${MW03_HOSTNAME}"; do
   # stderr carries oc debug's pod start/stop chatter; the bonding file arrives on stdout.
   bonding="$(oc debug "node/${node}" --quiet -- chroot /host cat /proc/net/bonding/bond0 2>/dev/null)"
   members="$(grep -c '^Slave Interface:' <<<"${bonding}" || true)"   # grep -c exits 1 on zero

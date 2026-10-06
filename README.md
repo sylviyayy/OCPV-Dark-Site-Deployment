@@ -31,12 +31,12 @@ in the same order, and every script refuses to run until `scripts/lib/validate-e
 | B4 | `MTU` | `1500` | Network |
 | B5 | `API_VIP` | `10.10.0.100` | Network |
 | B6 | `INGRESS_VIP` | `10.10.0.101` | Network |
-| C1 | `CP01_HOSTNAME` … `CP03_HOSTNAME` | `cp01` | Hardware |
-| C2 | `CP01_IP` … `CP03_IP` | `10.10.1.11` | Network |
-| C3 | `CP01_NICS` … `CP03_NICS` | `ens1f0=aa:bb:cc:00:01:01,…` (4 pairs) | Hardware |
-| C4 | `CP01_ROOT_DEVICE` … `CP03_ROOT_DEVICE` | `/dev/disk/by-path/pci-0000:…` | Hardware |
-| C5 | `CP01_BMC_IP` … `CP03_BMC_IP` | `10.20.0.11` | Hardware |
-| C6 | `RENDEZVOUS_IP` | `${CP01_IP}` | OpenShift lead |
+| C1 | `MW01_HOSTNAME` … `MW03_HOSTNAME` | `mw01` | Hardware |
+| C2 | `MW01_IP` … `MW03_IP` | `10.10.1.11` | Network |
+| C3 | `MW01_NICS` … `MW03_NICS` | `ens1f0=aa:bb:cc:00:01:01,…` (4 pairs) | Hardware |
+| C4 | `MW01_ROOT_DEVICE` … `MW03_ROOT_DEVICE` | `/dev/disk/by-path/pci-0000:…` | Hardware |
+| C5 | `MW01_BMC_IP` … `MW03_BMC_IP` | `10.20.0.11` | Hardware |
+| C6 | `RENDEZVOUS_IP` | `${MW01_IP}` | OpenShift lead |
 
 ## Target Audience
 
@@ -62,9 +62,9 @@ flowchart LR
     REG["Mirror registry<br/>registry.BASE_DOMAIN:8443"]
     SW{{"Switch A + Switch B<br/>MLAG/vPC · one LACP port-channel per node"}}
     subgraph OCP["Compact cluster: 3 schedulable control-plane nodes"]
-      CP1["cp01 · SR665 V3"]
-      CP2["cp02 · SR665 V3"]
-      CP3["cp03 · SR675 V3 · 8× L40S"]
+      MW1["mw01 · SR665 V3"]
+      MW2["mw02 · SR665 V3"]
+      MW3["mw03 · SR675 V3 · 8× L40S"]
       VMS["VMs on localnet br-ex<br/>dns-a · dns-b · ntp"]
     end
   end
@@ -73,12 +73,12 @@ flowchart LR
   BAS -->|disk to mirror| REG
   BAS --- SW
   REG --- SW
-  SW ---|bond0 802.3ad, 4 ports| CP1
-  SW --- CP2
-  SW --- CP3
-  XCC -.-> CP1
-  XCC -.-> CP2
-  XCC -.-> CP3
+  SW ---|bond0 802.3ad, 4 ports| MW1
+  SW --- MW2
+  SW --- MW3
+  XCC -.-> MW1
+  XCC -.-> MW2
+  XCC -.-> MW3
   VMS -.->|primary DNS and NTP after Lab 14| SW
   BAS -.->|secondary DNS and NTP, always on| SW
 ```
@@ -99,13 +99,14 @@ A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](h
 | 2 | **ThinkSystem SR665 V3** | 2× AMD EPYC 9334 (32C) | 256 GB | 2× 960 GB SSD | — | 1× 4-port 10GBase-T (OCP slot) + 1× 2-port 10GBase-T (Slot 1) |
 | 1 | **ThinkSystem SR675 V3** | 2× AMD EPYC 9334 (32C) | 768 GB | 2× 960 GB SSD | **8× NVIDIA L40S** | 1× 4-port 10GBase-T (OCP slot) + 1× 4-port 10GBase-T (Slot 21) |
 
-**Roles for the 3-node compact cluster** (every node is a schedulable control-plane node; compute replicas 0):
+**Roles for the 3-node compact cluster.** Hostnames read `mw` = **m**aster + **w**orker: each node
+runs the control plane (etcd, API server) *and* workloads, so `compute.replicas` is 0.
 
 | Hostname (C1) | Hardware | Role |
 |---|---|---|
-| `cp01` | SR665 V3 | Control-plane node, schedulable (rendezvous node by default) |
-| `cp02` | SR665 V3 | Control-plane node, schedulable |
-| `cp03` | SR675 V3 | Control-plane node, schedulable (GPU / heavy VM workloads) |
+| `mw01` | SR665 V3 | Master + worker (rendezvous node by default) |
+| `mw02` | SR665 V3 | Master + worker |
+| `mw03` | SR675 V3 | Master + worker (GPU / heavy VM workloads) |
 
 Plus two helper machines that never share a network (ADR-02): a connected **RHEL 9 staging host**
 on the low side for mirroring, and a permanent physical **RHEL 9 bastion** on the machine network for

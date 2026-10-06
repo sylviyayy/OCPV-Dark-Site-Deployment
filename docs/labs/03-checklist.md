@@ -34,12 +34,12 @@ is generated from it (rule E2).
 | B4 | `MTU` | Network | `1500` | agent-config → `bond0.mtu` | Equals switch MTU end to end | New |
 | B5 | `API_VIP` | Network | `10.10.0.100` | install-config → `platform.baremetal.apiVIPs[0]`; DNS `api`, `api-int` | Inside B1, unused, not pingable before install | Keep |
 | B6 | `INGRESS_VIP` | Network | `10.10.0.101` | install-config → `platform.baremetal.ingressVIPs[0]`; DNS `*.apps` | Same as B5; differs from B5 | Keep |
-| C1 | `CP01_HOSTNAME` … `CP03_HOSTNAME` | Hardware | `cp01` | agent-config → `hosts[n].hostname`; DNS A + PTR | Short name; the README role table uses the same names | Short name, not FQDN |
-| C2 | `CP01_IP` … `CP03_IP` | Network | `10.10.1.11` | agent-config → `hosts[n].networkConfig` bond0 IPv4 | Unique; inside B1 | Keep |
-| C3 | `CP01_NICS` … `CP03_NICS` | Hardware | `ens1f0=aa:bb:cc:00:01:01,…` (4 pairs) | agent-config → `hosts[n].interfaces[]` and bond0 port list | Exactly the 4 bond members; no `00:50:56` (VMware OUI); names as RHCOS enumerates them | New; replaces `CPn_MAC` and global `NETWORK_INTERFACE` |
-| C4 | `CP01_ROOT_DEVICE` … `CP03_ROOT_DEVICE` | Hardware | `/dev/disk/by-path/pci-0000:…` | agent-config → `hosts[n].rootDeviceHints.deviceName` | A stable path to the RAID1 virtual disk; never `/dev/sdX` | New |
-| C5 | `CP01_BMC_IP` … `CP03_BMC_IP` | Hardware | `10.20.0.11` | Checklist; XCC virtual media | Reachable from admin workstation | New |
-| C6 | `RENDEZVOUS_IP` | OpenShift lead | `${CP01_IP}` | agent-config → `rendezvousIP` | Equals one of C2 | Keep |
+| C1 | `MW01_HOSTNAME` … `MW03_HOSTNAME` | Hardware | `mw01` | agent-config → `hosts[n].hostname`; DNS A + PTR | Short name; the README role table uses the same names | Short name, not FQDN |
+| C2 | `MW01_IP` … `MW03_IP` | Network | `10.10.1.11` | agent-config → `hosts[n].networkConfig` bond0 IPv4 | Unique; inside B1 | Keep |
+| C3 | `MW01_NICS` … `MW03_NICS` | Hardware | `ens1f0=aa:bb:cc:00:01:01,…` (4 pairs) | agent-config → `hosts[n].interfaces[]` and bond0 port list | Exactly the 4 bond members; no `00:50:56` (VMware OUI); names as RHCOS enumerates them | New; replaces `MWn_MAC` and global `NETWORK_INTERFACE` |
+| C4 | `MW01_ROOT_DEVICE` … `MW03_ROOT_DEVICE` | Hardware | `/dev/disk/by-path/pci-0000:…` | agent-config → `hosts[n].rootDeviceHints.deviceName` | A stable path to the RAID1 virtual disk; never `/dev/sdX` | New |
+| C5 | `MW01_BMC_IP` … `MW03_BMC_IP` | Hardware | `10.20.0.11` | Checklist; XCC virtual media | Reachable from admin workstation | New |
+| C6 | `RENDEZVOUS_IP` | OpenShift lead | `${MW01_IP}` | agent-config → `rendezvousIP` | Equals one of C2 | Keep |
 | D1 | `BASTION_HOSTNAME`, `BASTION_IP` | Infrastructure | `bastion`, `10.10.0.5` | Kickstart network; DNS | Inside B1 | Keep |
 | D2 | `BASTION_IFNAME` | Infrastructure | `eno1` | Kickstart `network --device` | From `ip -br link` on the bastion | New |
 | D3 | `MIRROR_REGISTRY_HOSTNAME` | Infrastructure | `registry.lab.example.com` | mirror-registry `--quayHostname`; `imageDigestSources`; DNS | FQDN; resolves via bastion DNS | Keep |
@@ -57,7 +57,7 @@ is generated from it (rule E2).
 | F4 | `INSTALL_DIR` | OpenShift lead | `~/ocp-install/coe01` | `openshift-install --dir` | Outside the git working tree | New |
 
 **Removed from `.env.example`:** `NETWORK_INTERFACE`, `NETWORK_NETMASK` (derived from B1),
-`CPn_MAC`, all `WK01_*`/`WK02_*`, `DNS_SERVER`, `NTP_SERVER`, `MIRROR_REGISTRY_PASSWORD`.
+`MWn_MAC`, all `WK01_*`/`WK02_*`, `DNS_SERVER`, `NTP_SERVER`, `MIRROR_REGISTRY_PASSWORD`.
 `ENV_SCHEMA_VERSION=2` is the first line, so scripts refuse a v1 file. A **derived** block at the
 end (`MIRROR_REGISTRY`, `MIRROR_ARCHIVE_DIR`, `IMAGESET_CONFIG`, `AUTH_FILE`, `REGISTRY_CA_FILE`,
 `CLUSTER_RESOURCES_DIR`) is checked against its formula and must not be edited.
@@ -101,7 +101,7 @@ Consumed by: `scripts/lib/render.py` (see the **Lands in** column).
 If skipped: Lab 03 step 3.3 prints one `[FAIL]` line per undecided key.
 
 **EDIT** — `.env` → every key in groups A–F, top to bottom, with `vim .env`. The node identity
-fields follow this worked example (C3; repeat for `CP02_NICS`, `CP03_NICS`):
+fields follow this worked example (C3; repeat for `MW02_NICS`, `MW03_NICS`):
 
 ```text
 WHERE:    Staging host, RHEL 9.x, as your user, cwd ~/OCPV-Dark-Site-Deployment
@@ -109,9 +109,9 @@ WHY:      The Agent ISO matches each server by the MACs of its NICs, then applie
           host's bond, static IP and role. Consumed by: agent-config.yaml → hosts[n].interfaces[].
           If skipped: the server boots the ISO but matches no hosts[] entry, and
           `openshift-install agent wait-for` waits for 3 hosts forever (Lab 10).
-EDIT:     .env → CP01_NICS
-          from: CP01_NICS="ens1f0=00:00:00:00:00:00,ens1f1=00:00:00:00:00:00,..."
-          to:   CP01_NICS="<ifname>=<MAC>,..."   (4 pairs, read from the XCC hardware inventory)
+EDIT:     .env → MW01_NICS
+          from: MW01_NICS="ens1f0=00:00:00:00:00:00,ens1f1=00:00:00:00:00:00,..."
+          to:   MW01_NICS="<ifname>=<MAC>,..."   (4 pairs, read from the XCC hardware inventory)
 DO:       ./scripts/03-generate-install-config.sh            (in Lab 08)
 VERIFY:   grep -c macAddress "${INSTALL_DIR}/agent-config.yaml"   →  expect: 12
           grep -c 00:50:56 "${INSTALL_DIR}/agent-config.yaml"     →  expect: 0
@@ -156,7 +156,7 @@ If skipped: the first script you run stops with the same messages.
 # 00 --staging expect: "Results: N passed, 0 failed"
 ```
 
-**FAILS IF** — `[FAIL] C3 CP01_NICS: still holds the sample MAC` ← C3 not filled;
+**FAILS IF** — `[FAIL] C3 MW01_NICS: still holds the sample MAC` ← C3 not filled;
 `[WARN] E1 TIME_SOURCE: orphan` is a warning, not a failure: it labels the run lab-grade.
 
 ### 3.4 Sign off

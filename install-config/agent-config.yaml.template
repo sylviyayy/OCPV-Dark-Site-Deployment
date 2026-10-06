@@ -6,10 +6,10 @@
 #   metadata.name                         <- CLUSTER_NAME (A1, FR-D8)
 #   rendezvousIP                          <- RENDEZVOUS_IP (C6)
 #   additionalNTPSources[0]               <- TIME_SOURCE, or BASTION_IP when TIME_SOURCE=orphan (E1, FR-D6)
-#   hosts[n].hostname                     <- CPn_HOSTNAME (C1)
-#   hosts[n].rootDeviceHints.deviceName   <- CPn_ROOT_DEVICE (C4, FR-D5)
-#   hosts[n].interfaces[]                 <- CPn_NICS (C3): the MACs that identify each server
-#   hosts[n].networkConfig (nmstate)      <- bond0 802.3ad over CPn_NICS, MTU (B4), CPn_IP (C2),
+#   hosts[n].hostname                     <- MWn_HOSTNAME (C1)
+#   hosts[n].rootDeviceHints.deviceName   <- MWn_ROOT_DEVICE (C4, FR-D5)
+#   hosts[n].interfaces[]                 <- MWn_NICS (C3): the MACs that identify each server
+#   hosts[n].networkConfig (nmstate)      <- bond0 802.3ad over MWn_NICS, MTU (B4), MWn_IP (C2),
 #                                            NETWORK_GATEWAY (B2), resolver BASTION_IP (D1)
 # TODO(verify-4.22): apiVersion v1beta1 per
 #   https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/installing_an_on-premise_cluster_with_the_agent-based_installer/

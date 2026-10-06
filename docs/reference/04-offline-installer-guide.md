@@ -41,7 +41,7 @@ Typically 60–90 minutes for the three-node compact cluster, from the first ISO
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| ISO boots, node never discovered | a MAC in `CPn_NICS` is wrong or not a bond member | fix C3; re-run Lab 08 |
+| ISO boots, node never discovered | a MAC in `MWn_NICS` is wrong or not a bond member | fix C3; re-run Lab 08 |
 | Waiting for five hosts on a three-server rack | worker hosts in the inputs | compact topology: compute replicas 0 |
 | `ImagePullBackOff` during install | `imageDigestSources` or `pullSecret` incomplete | re-run Lab 06 step 6.8, then Lab 08 |
 | `x509: unknown authority` building the ISO | registry CA not trusted on the bastion | Lab 06 step 6.7 |

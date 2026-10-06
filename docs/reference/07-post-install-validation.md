@@ -13,7 +13,7 @@ broken cluster cannot pass; the script exits 1 and names each failed check.
 | Nodes | API answers; every node `Ready` (three on the compact rack) |
 | ClusterOperators | every operator `Available=True` and `Degraded=False` |
 | Catalogs | only the mirrored CatalogSource exists |
-| DNS | both DNS VMs answer `api` → `API_VIP`, `registry` → `MIRROR_REGISTRY_IP`, PTR for `cp01` |
+| DNS | both DNS VMs answer `api` → `API_VIP`, `registry` → `MIRROR_REGISTRY_IP`, PTR for `mw01` |
 | Time | NTP VM and bastion both serve time with offset < 1 s (`chronyd -Q` probe) |
 | Registry | `https://<MIRROR_REGISTRY>/v2/` answers 200/401 with TLS verified |
 | Virtualization | `HyperConverged` Available |

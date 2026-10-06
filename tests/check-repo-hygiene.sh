@@ -23,7 +23,7 @@ forbid() {
 }
 
 forbid "FR-J2 one term (bastion)"         '[Jj]ump ?(box|host)'
-forbid "FR-J2 role names cp01-cp03"       '\bmw0[1-3]\b'
+forbid "Node names are mw01-mw03"          '\bcp0[1-3]\b|\bCP0[1-3]_'
 forbid "FR-J2 renamed lab files"          '03-worksheet|04-jumpbox'
 forbid "FR-J7 no .local domain"           'ocp-v\.local'
 forbid "FR-A2 no workers outside appendix" '\bwk0[12]' ':!docs/labs/appendix-a-adding-workers.md'
