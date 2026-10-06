@@ -30,6 +30,18 @@ jobs:
       - name: Render every template from tests/ci.env (AT-01, AT-02, NFR-2)
         run: tests/render-all.sh
 
+  scripts:
+    name: run every script against fake tools
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install harness dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q python3-yaml jq openssl openssh-client
+      - name: Scripts 00-08 in lab order, with negative cases (non-root runner, passwordless sudo)
+        run: tests/run-scripts.sh
+
   docs:
     name: links, field register, repo hygiene
     runs-on: ubuntu-latest

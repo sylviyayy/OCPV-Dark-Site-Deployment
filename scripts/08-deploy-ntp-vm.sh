@@ -23,7 +23,7 @@ mkdir -p "${OUT}"
 VM_NAME=ntp VM_IP="${NTP_VM_IP}" \
   render text "${REPO_ROOT}/manifests/production/ntp-vm/ntp-vm.yaml.template" "${OUT}/ntp.yaml"
 oc apply -f "${OUT}/ntp.yaml"
-if ! oc wait vmi/ntp -n "${NS}" --for=condition=Ready --timeout=1200s; then
+if ! oc wait vm/ntp -n "${NS}" --for=condition=Ready --timeout=1800s; then   # VM, not VMI: see script 07
   oc get vm,vmi,dv,pvc -n "${NS}"
   exit 1
 fi
@@ -52,11 +52,19 @@ fi
 # --- Node time sources: NTP VM first, TIME_SOURCE (or the bastion) second ---
 render text "${REPO_ROOT}/manifests/production/ntp-vm/machineconfig-chrony.yaml.template" "${OUT}/machineconfig-chrony.yaml"
 oc apply -f "${OUT}/machineconfig-chrony.yaml"
-log_info "MachineConfig rolling out: nodes drain and reboot one at a time. With evictionStrategy"
-log_info "None the VM on a rebooting node stops until that node returns (node-local disks)."
-# Give the MCO a moment to mark the pool Updating before waiting for Updated.
-sleep 60
-if ! oc wait mcp/master --for=condition=Updated --timeout=5400s; then
+log_info "MachineConfig rolling out: nodes drain and reboot one at a time."
+# Done means: the pool's desired config includes our MachineConfig, every node runs it
+# (status == spec), and the pool reports Updated. Checking Updated alone can pass before the
+# Machine Config Operator has even started, because the pool was Updated before the change.
+mcp_rolled_out() {
+  local src cur want upd
+  src="$(oc get mcp master -o jsonpath='{.spec.configuration.source[*].name}')"
+  want="$(oc get mcp master -o jsonpath='{.spec.configuration.name}')"
+  cur="$(oc get mcp master -o jsonpath='{.status.configuration.name}')"
+  upd="$(oc get mcp master -o jsonpath='{.status.conditions[?(@.type=="Updated")].status}')"
+  [[ " ${src} " == *" 99-master-chrony-production "* && -n "${want}" && "${cur}" == "${want}" && "${upd}" == "True" ]]
+}
+if ! wait_until 5400 30 "mcp/master rolled out 99-master-chrony-production to every node" mcp_rolled_out; then
   oc get mcp
   oc get nodes
   exit 1

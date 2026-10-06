@@ -38,8 +38,10 @@ check() {
   fi
 }
 
-os_is_rhel9() { grep -q '^ID="rhel"' /etc/os-release && grep -q '^VERSION_ID="9\.' /etc/os-release; }
-os_is_fedora() { grep -q '^ID=fedora' /etc/os-release; }
+# OCPV_OS_RELEASE lets tests/run-scripts.sh supply a RHEL 9 identity; hosts use /etc/os-release.
+OS_RELEASE="${OCPV_OS_RELEASE:-/etc/os-release}"
+os_is_rhel9() { grep -q '^ID="rhel"' "${OS_RELEASE}" && grep -q '^VERSION_ID="9\.' "${OS_RELEASE}"; }
+os_is_fedora() { grep -q '^ID=fedora' "${OS_RELEASE}"; }
 has_cmds() { local c; for c in "$@"; do command -v "$c" || return 1; done; }
 has_rpms() { rpm -q "$@"; }
 pull_secret_ok() { jq -e '.auths | length > 0' "${PULL_SECRET_FILE}"; }

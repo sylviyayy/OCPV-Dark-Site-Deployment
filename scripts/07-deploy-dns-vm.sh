@@ -59,8 +59,11 @@ for vm in "dns-a:${DNS_VM1_IP}" "dns-b:${DNS_VM2_IP}"; do
   oc apply -f "${OUT}/${vm%%:*}.yaml"
 done
 
+# Wait on the VirtualMachine, not its VMI: right after `oc apply` the VMI does not exist yet
+# (the DataVolume is still importing the guest image), and `oc wait` fails at once on a
+# missing object. The VM exists immediately and turns Ready once its VMI is running.
 for vm in dns-a dns-b; do
-  if ! oc wait "vmi/${vm}" -n "${NS}" --for=condition=Ready --timeout=1200s; then
+  if ! oc wait "vm/${vm}" -n "${NS}" --for=condition=Ready --timeout=1800s; then
     oc get vm,vmi,dv,pvc -n "${NS}"
     oc describe datavolume "${vm}-rootdisk" -n "${NS}" | tail -n 20
     exit 1
