@@ -2,9 +2,9 @@
 
 This tutorial walks you through setting up a compact **OpenShift Virtualization** cluster on 3 bare metal nodes in a **disconnected (dark site)** environment. It assumes no prior DNS or NTP server, and no existing Operating System nor network set up on all 3 nodes.
 
-This guide is not for someone looking for a fully automated black-box installer they never read. It is optimized for **learning**, which means taking the long route so you understand each task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
+This guide is not for someone looking for a fully automated black-box installer they never read. It is optimized for **learning** so you understand each task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
 
-> The results of this tutorial should not be viewed as production ready since local storage is used for this lab.
+> The results of this tutorial should not be viewed as production ready.
 > Always validate against relevant Red Hat documentation and your site standards. 
 > Have fun learning!
 
