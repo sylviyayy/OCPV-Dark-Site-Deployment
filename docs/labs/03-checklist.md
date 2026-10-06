@@ -38,7 +38,7 @@ Then apply values into `.env` using the field-by-field guide:
 | `MIRROR_REGISTRY_IP` | registry IP | May equal bastion in tiny labs |
 | `API_VIP` / `INGRESS_VIP` | unused IPs | Not assigned to a NIC permanently |
 | `RENDEZVOUS_IP` | = `CP01_IP` | Must be one control-plane IP |
-| `CP01_*` … `CP03_*` | IP + **real MAC** per data bond/NIC | From XCC inventory or live USB `ip link` |
+| `MW01_*` … `MW03_*` | IP + **real MAC** per data bond/NIC | From XCC inventory or live USB `ip link` |
 | Switch Po / MLAG IDs | from network team | Must match server `bond0` LACP |
 | BMC IPs | per server | For virtual CD |
 | OS disk | RAID1 VD → e.g. `/dev/sda` | `rootDeviceHints` |
