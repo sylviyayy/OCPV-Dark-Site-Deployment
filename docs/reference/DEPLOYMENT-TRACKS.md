@@ -16,7 +16,7 @@ is what the labs build.
 |---|---|
 | Cluster nodes | Three physical servers (Lenovo ThinkSystem), compact: schedulable control-plane nodes |
 | Network | Two switches, MLAG/vPC, one LACP port-channel per node (`bond0`, four members) |
-| Storage | Local RAID1 (OS); VM disks per ADR-05 (hostpath provisioner, or LVMS with data drives) |
+| Storage | Local RAID1 (OS); VM disks per ADR-05 (Lenovo DM via Trident; hostpath provisioner until attached; LVMS for DS) |
 | Bastion | Physical RHEL 9 server (kickstart) — **not** a KVM VM |
 | Staging | Separate connected RHEL 9 host on the low side; never joins the machine network |
 | Installer | Red Hat Agent-based Installer + oc-mirror v2 |
@@ -60,5 +60,5 @@ on SNO is constrained and suits demos only.
 | KVM | No | Yes | No |
 | Nodes | 3 physical (compact) | 3 VMs | 1 physical |
 | HA networking | 2 switches, LACP | libvirt bridges | none |
-| Customer-ready | Yes (lab-grade storage until ADR-05 production option) | No | No |
+| Customer-ready | Yes (lab-grade storage until the DM array is attached, ADR-05) | No | No |
 | Diagram set | 1 + 2 + 3 | Optional | 1 + 3 |

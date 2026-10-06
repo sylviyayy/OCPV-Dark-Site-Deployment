@@ -1,70 +1,84 @@
 # 12 — Integrating the Mirror Registry and OperatorHub
 
-> **Grade:** production-grade. This lab is the single owner of the oc-mirror cluster resources (FR-D9).
+> **Grade:** production-grade. This lab is the single owner of the oc-mirror cluster resources.
 
 ## Goal
 
-Make OperatorHub use only the mirrored catalog, and teach the cluster every mirror mapping
-oc-mirror produced (release, operators, signatures).
+Point OperatorHub only at the mirrored catalogs, switch off what reaches for the internet, and
+give the cluster every mirror mapping oc-mirror produced.
 
 ## Steps
 
 ### 12.1 Disable the default catalog sources
 
-**WHERE** — Bastion (`${BASTION_HOSTNAME}`), RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Bastion, RHEL 9.x, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — The default CatalogSources point at `registry.redhat.io`; in a dark site their pods sit
-in `ImagePullBackOff` and add noise to every operator lookup (FR-G2).
-Consumed by: OperatorHub and OLM. If skipped: four failing catalogs mask real errors in Lab 13.
+**WHY** — The four default CatalogSources point at `registry.redhat.io`; in a dark site their pods
+sit in `ImagePullBackOff` forever and bury real errors in Lab 13.
 
-**EDIT** — `OperatorHub/cluster` → `spec.disableAllDefaultSources` from: unset → to: `true`.
+**EDIT** — `OperatorHub/cluster` → `spec.disableAllDefaultSources`: unset → `true`.
 
-**DO**
+**DO** — `oc patch OperatorHub cluster --type merge -p '{"spec":{"disableAllDefaultSources":true}}'`
 
-```bash
-oc patch OperatorHub cluster --type merge -p '{"spec":{"disableAllDefaultSources":true}}'
-```
+**VERIFY** — `oc get catalogsource -n openshift-marketplace` → `No resources found` (until 12.3).
 
-**VERIFY**
+**FAILS IF** — `redhat-operators` still listed after a minute ← the patch did not apply; re-run it.
 
-```bash
-oc get operatorhub cluster -o jsonpath='{.spec.disableAllDefaultSources}{"\n"}'   # expect: true
-```
+### 12.2 Remove the Cluster Samples Operator's content
 
-**FAILS IF** — `redhat-operators` still listed after a minute ← the patch went to another object; re-run it.
+**WHERE** — Bastion, `installer`
 
-### 12.2 Apply the oc-mirror cluster resources
+**WHY** — Its image streams import from `registry.redhat.io`; in a dark site they fail on every
+retry, and the operator can report itself Degraded. VM workloads do not use them. On a disconnected
+install it may already have set itself to `Removed`; setting it explicitly makes the state a decision,
+not an accident.
 
-**WHERE** — Bastion, RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+**EDIT** — `configs.samples.operator.openshift.io/cluster` → `spec.managementState`: `Managed` → `Removed`.
 
-**WHY** — oc-mirror v2 wrote `ImageDigestMirrorSet`, `ImageTagMirrorSet`, the `CatalogSource` for
-the mirrored `redhat-operator-index`, and release signatures into `${CLUSTER_RESOURCES_DIR}`
-during disk-to-mirror (FR-B5). The install already carries the release mappings
-(`imageDigestSources`); this adds the operator mappings and the catalog.
-Consumed by: OLM in Lab 13 (script 06 reads the CatalogSource name from these files, FR-G1).
-If skipped: script 06 waits for a catalog that does not exist.
+**DO** — `oc patch configs.samples.operator.openshift.io cluster --type merge -p '{"spec":{"managementState":"Removed"}}'`
 
-**EDIT** — No edits in this step.
+**VERIFY** — `oc get configs.samples.operator.openshift.io cluster -o jsonpath='{.status.managementState}{"\n"}'` → `Removed`.
+
+**FAILS IF** — Still `Managed` after a minute ← the patch did not apply; re-run it.
+
+### 12.3 Apply the oc-mirror cluster resources
+
+**WHERE** — Bastion, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+
+**WHY** — Disk-to-mirror (Lab 06 step 6.8) wrote these into `${CLUSTER_RESOURCES_DIR}`:
+
+| File | Effect |
+|---|---|
+| `idms-oc-mirror.yaml`, `itms-oc-mirror.yaml` (when present) | operator image pulls by digest and by tag go to the mirror |
+| `cs-redhat-operator-index-….yaml` (+ `cs-certified-operator-index-…` with `ontap`) | the mirrored catalogs OLM installs from |
+| signature files | release signatures for verified updates |
+
+The install already carries the release mappings (Lab 08). The Machine Config Operator rolls the new
+mirror configuration to every node; wait for it before installing operators.
+*Consumed by:* script 06, which reads the CatalogSource name from these files rather than guessing it.
+*If skipped:* script 06 waits for a catalog that does not exist, then exits 1.
+
+**EDIT** — None.
 
 **DO**
 
 ```bash
 set -a && source .env && set +a
 oc apply -f "${CLUSTER_RESOURCES_DIR}/"
+oc wait mcp --all --for=condition=Updated --timeout=30m
 ```
 
 **VERIFY**
 
 ```bash
-CS="$(./scripts/lib/render.py catalog-source)"; echo "${CS}"                      # expect: cs-redhat-operator-index-v4-22 (verify on 4.22)
-oc get catalogsource -n openshift-marketplace -o name                              # expect: only catalogsource/<CS>
+CS="$(./scripts/lib/render.py catalog-source)"; echo "${CS}"           # expect: cs-redhat-operator-index-v4-22 (verify on 4.22)
 oc get catalogsource "${CS}" -n openshift-marketplace \
-  -o jsonpath='{.status.connectionState.lastObservedState}{"\n"}'                 # expect: READY (within ~2 minutes)
+  -o jsonpath='{.status.connectionState.lastObservedState}{"\n"}'      # expect: READY (within ~2 min)
 oc get packagemanifest kubevirt-hyperconverged -o jsonpath='{.status.catalogSource}{"\n"}'   # expect: <CS>
 ```
 
-**FAILS IF** — The CatalogSource pod is in `ImagePullBackOff` ← the operator index was not mirrored,
-or IDMS/ITMS were not applied; check `oc get imagedigestmirrorset,imagetagmirrorset`.
+**FAILS IF** — CatalogSource pod in `ImagePullBackOff` ← index not mirrored, or IDMS/ITMS not applied
+(`oc get imagedigestmirrorset,imagetagmirrorset`).
 
 ## Next
 

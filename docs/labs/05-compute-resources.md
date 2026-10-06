@@ -1,22 +1,27 @@
 # 05 — Provisioning Compute Resources
 
-> **Grade:** production-grade hardware pattern (dual switches, LACP, RAID1 OS disks). Storage for
-> VMs stays lab-grade until data drives are added (ADR-05).
+> **Grade:** production hardware pattern (two switches, LACP, RAID1 OS disks). VM storage is
+> production-grade once the DM array is attached; until then it is node-local and lab-grade.
 
 ## Goal
 
-Cable, configure firmware and RAID, and confirm the node identity fields (C3, C4) on the
-three Lenovo servers, so the Agent ISO in Lab 10 finds exactly what `.env` describes.
+Cable, configure firmware and RAID, and confirm node identity (C3, C4) on the three servers, so
+the Agent ISO in Lab 10 finds exactly what `.env` describes. Connect the storage array.
 
-## Reference bill of materials
+## Bill of materials
 
-| Role | Model | CPU | RAM | Disks | GPU | Networking |
+| Host | Model | CPU | RAM | Disks | GPU | Networking |
 |---|---|---|---|---|---|---|
-| `mw01` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | 4-port 10GBase-T (OCP slot) + 2-port 10GBase-T (Slot 1) |
+| `mw01` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | 4-port 10GBase-T (OCP) + 2-port 10GBase-T (Slot 1) |
 | `mw02` | ThinkSystem **SR665 V3** | 2× EPYC 9334 32C | 256 GB | 2× 960 GB SSD | — | same |
-| `mw03` | ThinkSystem **SR675 V3** | 2× EPYC 9334 32C | 768 GB | 2× 960 GB SSD | **8× L40S** | 4-port 10GBase-T (OCP slot) + 4-port 10GBase-T (Slot 21) |
+| `mw03` | ThinkSystem **SR675 V3** | 2× EPYC 9334 32C | 768 GB | 2× 960 GB SSD | **8× L40S** | 4-port 10GBase-T (OCP) + 4-port 10GBase-T (Slot 21) |
+| array | ThinkSystem **DM** series (model TBC; DG works the same way) | — | — | — | — | host ports to Switch A and B |
 
-### Bond members: one LACP port-channel per node, split across both switches
+Compact topology: every node is a **master + worker** (hence `mw`), `install-config.yaml` sets
+compute replicas 0. Put GPU-heavy VMs on `mw03` with node labels later; dedicated workers are
+[Appendix A](appendix-a-adding-workers.md).
+
+### Bond members: one LACP port-channel per node across both switches
 
 | `bond0` member | SR665 V3 | SR675 V3 | Switch |
 |---|---|---|---|
@@ -25,121 +30,125 @@ three Lenovo servers, so the Agent ISO in Lab 10 finds exactly what `.env` descr
 | 3 | Slot 1 port 1 | Slot 21 port 1 | A |
 | 4 | Slot 1 port 2 | Slot 21 port 2 | B |
 
-Both switches present the four members as **one** port-channel through MLAG or vPC, so LACP
-negotiates a single 802.3ad bundle. Spare ports stay unplugged or are documented in the checklist.
-
-### Compact topology
-
-Exactly three servers run a **compact** cluster: every node is a control-plane node and
-schedulable for workloads. `install-config.yaml` sets compute replicas **0** (FR-A2); no worker
-hosts exist. Put GPU-heavy VMs on `mw03` with node labels later. Adding dedicated workers is in
-[Appendix A](appendix-a-adding-workers.md).
+The MLAG/vPC pair presents the four ports as **one** port-channel, so LACP forms one 802.3ad bundle
+and survives the loss of a NIC or a switch.
 
 ## Steps
 
 ### 5.1 RAID1 virtual disk for RHCOS
 
-**WHERE** — Each server's XCC → Storage configuration (or UEFI setup)
+**WHERE** — Each server's XCC → Storage
 
 **WHY** — RHCOS installs onto the device named by `rootDeviceHints`; one RAID1 virtual disk over
-both SSDs survives a drive failure. Consumed by: `MWn_ROOT_DEVICE` (C4) → agent-config.
-If skipped: RHCOS lands on one bare SSD, or on the wrong device.
+both SSDs survives a drive failure. *Consumed by:* C4. *If skipped:* RHCOS lands on one bare SSD.
 
-**EDIT** — No edits in this step.
+**EDIT** — None.
 
 **DO** — Create one RAID1 virtual disk over the two 960 GB SSDs; initialise it.
 
-**VERIFY** — XCC shows the virtual disk **Optimal**, size ≈ 894 GiB.
+**VERIFY** — XCC shows the virtual disk **Optimal**, ≈ 894 GiB.
 
-**FAILS IF** — Two separate disks are presented ← RAID not created; the root hint may pick either.
+**FAILS IF** — Two disks presented ← RAID not created; the root hint may pick either.
 
 ### 5.2 UEFI and virtualization
 
 **WHERE** — Each server's XCC → UEFI settings
 
-**WHY** — OpenShift Virtualization runs VMs with KVM, which needs AMD SVM; the Agent ISO is UEFI.
-Consumed by: Lab 13 (`/dev/kvm` check). If skipped: the OpenShift Virtualization operator installs, but every VM fails to start.
+**WHY** — VMs run on KVM, which needs AMD SVM; the Agent ISO boots in UEFI mode.
+*If skipped:* OpenShift Virtualization installs but no VM starts (Lab 13 stops on `/dev/kvm`).
 
-**EDIT** — No edits in this step.
+**EDIT** — None.
 
-**DO** — Boot mode UEFI; Processors → SVM Mode **Enabled**; (IOMMU **Enabled** if GPU passthrough comes later).
+**DO** — Boot mode **UEFI**; Processors → SVM Mode **Enabled**.
 
-**VERIFY** — Settings page shows UEFI and SVM Enabled after a save-and-reboot.
+**VERIFY** — Both settings shown after save and reboot.
 
-**FAILS IF** — `06-deploy-cnv.sh` exits with "/dev/kvm missing" ← SVM still off.
+**FAILS IF** — Script 06 exits "/dev/kvm missing" ← SVM still off.
 
 ### 5.3 XCC address and virtual media
 
-**WHERE** — Each server's XCC, from the admin workstation
+**WHERE** — Each XCC, from the admin workstation
 
-**WHY** — Lab 10 boots the Agent ISO through XCC virtual media; an XCC you cannot reach is a node you cannot install.
-Consumed by: `MWn_BMC_IP` (C5). If skipped: Lab 10 stops at its first step.
+**WHY** — Lab 10 boots the Agent ISO through XCC virtual media; an unreachable XCC, or one without
+the remote-presence licence, is a node you cannot install. *Consumed by:* C5.
 
-**EDIT** — `.env` → `MW01_BMC_IP` … `MW03_BMC_IP` if they differ from what you set in Lab 03.
+**EDIT** — `.env` → `MW01_BMC_IP` … `MW03_BMC_IP` if they changed.
 
-**DO** — Set each XCC's static address; mount the RHEL 9 DVD ISO as virtual media once (used in 5.4).
+**DO** — Set each XCC's static address; open the remote console once and mount the RHEL 9 DVD (used in 5.4).
 
 **VERIFY**
 
 ```bash
 for ip in "${MW01_BMC_IP}" "${MW02_BMC_IP}" "${MW03_BMC_IP}"; do
   timeout 3 bash -c "</dev/tcp/${ip}/443" && echo "reachable ${ip}" || echo "UNREACHABLE ${ip}"
-done
-# expect: reachable <ip> three times (a TCP connect to 443; no TLS trust involved)
+done     # expect: reachable ×3
 ```
 
-**FAILS IF** — `UNREACHABLE` for an address ← the admin workstation cannot route to the BMC network.
+**FAILS IF** — `UNREACHABLE` ← no route to the BMC network. Media menu greyed out ← XCC licence tier.
 
-### 5.4 Confirm NIC names, MACs and the root device on the hardware
+### 5.4 Confirm NIC names, MACs and the root device
 
-**WHERE** — Each server, booted from the RHEL 9 DVD (XCC virtual media) → *Troubleshooting* →
+**WHERE** — Each server booted from the RHEL 9 DVD (XCC virtual media) → *Troubleshooting* →
 *Rescue a Red Hat Enterprise Linux system* → *3) Skip to shell*
 
-**WHY** — RHCOS 4.22 is RHEL 9-based, so the rescue shell names interfaces the way RHCOS will;
-the Agent ISO matches each server by these MACs and binds `bond0` to these names. The
-`/dev/disk/by-path` link is stable across boots, unlike `/dev/sdX`, which virtual media can shift.
-Consumed by: agent-config → `hosts[n].interfaces[]`, bond0 ports, `rootDeviceHints` (C3, C4).
-If skipped: a server matches no `hosts[]` entry and the install waits for 3 hosts forever (Lab 10).
+**WHY** — RHCOS 4.22 is RHEL 9-based, so the rescue shell names interfaces as RHCOS will. The Agent
+ISO matches each server by these MACs and builds `bond0` from these names; `/dev/disk/by-path` is
+stable across boots, unlike `/dev/sdX`, which virtual media can shift. *Consumed by:* C3, C4.
+*If skipped:* a server matches no host entry and the install waits forever (Lab 10).
 
-**EDIT** — `.env` → `MWn_NICS` and `MWn_ROOT_DEVICE` for this node
-from: the values you read from the XCC inventory in Lab 03
-to:   the live values below, if they differ.
+**EDIT** — `.env` → `MWn_NICS`, `MWn_ROOT_DEVICE` — from the XCC-inventory values to the live values, if different.
 
 **DO**
 
 ```bash
-ip -br link                         # names and MACs: pick the 4 cabled bond members
-lsblk -d -o NAME,SIZE,MODEL         # find the ~894 GiB RAID1 virtual disk, e.g. sda
-ls -l /dev/disk/by-path/ | grep -w sda   # replace sda with that NAME; copy the by-path link
+ip -br link                              # names + MACs: pick the 4 cabled bond members
+lsblk -d -o NAME,SIZE,MODEL              # find the ~894 GiB RAID1 virtual disk, e.g. sda
+ls -l /dev/disk/by-path/ | grep -w sda   # replace sda with that NAME; copy its by-path link
 ```
 
-**VERIFY** — Back on the staging host after editing `.env`:
+**VERIFY** — Back on the staging host: `./scripts/lib/validate-env.sh` → `PASS`.
 
-```bash
-./scripts/lib/validate-env.sh      # expect: validate-env: PASS
-```
+**FAILS IF** — Names differ between SR665 V3 and SR675 V3 ← expected (Slot 1 vs Slot 21); that is why C3 is per node.
 
-**FAILS IF** — The four names differ between SR665 V3 and SR675 V3 ← expected (Slot 1 vs Slot 21);
-that is why C3 is per node and never assumed.
+### 5.5 Cable the nodes and configure the port-channels
 
-### 5.5 Cable and configure the port-channels
+**WHERE** — Rack; Switch A and Switch B (network team)
 
-**WHERE** — Rack, then Switch A and Switch B (network team)
+**WHY** — `bond0` runs LACP. A switch port that does not speak LACP is suspended (no network) or
+left individual (no redundancy), depending on switch defaults. *Consumed by:* `bond0` in agent-config.
 
-**WHY** — `bond0` runs LACP (802.3ad). A switch port that does not speak LACP is, depending on
-switch defaults, suspended (no network) or left individual (no redundancy).
-Consumed by: `bond0` in agent-config (FR-D4). If skipped: nodes boot the ISO and never reach the rendezvous node.
+**EDIT** — None.
 
-**EDIT** — No edits in this step.
+**DO** — Cable per the bond table. One port-channel per node across the vPC pair, LACP **active**,
+MTU = `MTU` (B4), machine network untagged. Example:
+[lacp-mlag-switch.conf.example](../../network/sample-switch-config/lacp-mlag-switch.conf.example).
 
-**DO** — Cable per the bond-member table. Configure one port-channel per node across the MLAG/vPC
-pair, LACP mode active, MTU equal to `MTU` (B4), untagged on the machine network. Example syntax:
-[network/sample-switch-config/lacp-mlag-switch.conf.example](../../network/sample-switch-config/lacp-mlag-switch.conf.example).
+**VERIFY** — After Lab 10 boots the nodes: each port-channel shows four bundled members, and script
+05b reports four `MII Status: up` members per node.
 
-**VERIFY** — After Lab 10 boots the nodes, each port-channel shows four bundled members on the
-switches, and Lab 10 step 10.3 shows four `MII Status: up` members per node.
+**FAILS IF** — All four members on one switch ← no switch redundancy; the install still succeeds, so check by hand.
 
-**FAILS IF** — All four members land on one switch ← no switch redundancy; the install still succeeds, which is why this is checked by hand.
+### 5.6 Connect the storage array (when it arrives)
+
+**WHERE** — Rack and switches (storage + network teams)
+
+**WHY** — The DM array serves VM disks over NFS from an SVM data LIF; every node must reach that LIF
+with the bandwidth and redundancy of the node bonds. *Consumed by:* group G, Lab 13 step 13.2.
+*If skipped:* VMs stay on node-local hostpath storage (lab-grade).
+
+**EDIT** — `.env` → G1–G4 and `STORAGE_BACKEND=ontap` once the storage team has created the SVM.
+
+**DO** — Cable the array's host ports to both switches (at least one per controller per switch).
+Have the storage team create an SVM with NFS enabled, a management LIF and an NFS data LIF on the
+machine network (or a routed storage VLAN), and an SVM account with the `vsadmin` role.
+
+**VERIFY** — From the bastion: `ping -c1 "${ONTAP_DATA_IP}"` → one reply; `./scripts/lib/validate-env.sh` → `PASS`.
+
+**FAILS IF** — `[WARN] G2 … outside MACHINE_NETWORK_CIDR` ← nodes need a route or a storage VLAN interface to reach the LIF.
+
+**If the array turns out to be a DS series:** it is block-only (iSCSI/FC/SAS) with no OpenShift CSI
+driver. Present one LUN per node and set `STORAGE_BACKEND=lvms`; VMs then use ReadWriteOnce
+volumes and cannot live-migrate (ADR-05).
 
 ## Next
 

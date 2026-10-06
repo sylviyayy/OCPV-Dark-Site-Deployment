@@ -80,7 +80,7 @@ IP tables: [02-network-design.md](../02-network-design.md)
 
 **WHAT:** Create LUN on SAN; size per Red Hat / partner sizing guide for CoE.
 
-**WHY:** Persistent volumes for OCP-V VM disks via a SAN CSI driver. Out of scope for v2.0, which uses the hostpath provisioner on the RAID1 disk (lab-grade) or LVMS on local data drives (ADR-05).
+**WHY:** Persistent volumes for OCP-V VM disks. For the Lenovo DM/DG array the labs use NFS volumes from an SVM through NetApp Trident instead of LUNs (`STORAGE_BACKEND=ontap`, no masking or multipath on the nodes). Steps 2–4 apply to a block-only DS-series array: one LUN per node, consumed by LVMS (ADR-05).
 
 ### Step 3 — LUN masking
 

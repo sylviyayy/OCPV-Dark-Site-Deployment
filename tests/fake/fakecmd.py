@@ -150,6 +150,8 @@ def jsonpath(state, kind, names, ns, path):
         return "True"
     if "disableAllDefaultSources" in path:
         return str(obj.get("spec", {}).get("disableAllDefaultSources", "")).lower()
+    if "managementState" in path:
+        return str(obj.get("spec", {}).get("managementState", ""))
     if ".spec.configuration.source" in path:
         return " ".join(k.split("/")[2] for k in state["objects"] if k.startswith("MachineConfig/"))
     if "configuration.name" in path:

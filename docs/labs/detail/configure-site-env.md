@@ -66,7 +66,7 @@ commas (`MW01_NICS="…"`).
 | E2 | `DNS_VM_IPS` | Network team: two unused addresses in B1 | two values, comma-separated |
 | E3 | `NTP_VM_IP` | Network team: one unused address in B1 | unique |
 | E4 | `VM_NETWORK_MODEL` | Leave `localnet` (ADR-06) | — |
-| E5 | `STORAGE_BACKEND` | `hpp` unless every node has an empty data disk (then `lvms`, ADR-05) | — |
+| E5 | `STORAGE_BACKEND` | `ontap` once the Lenovo DM/DG array is attached (fill group G); `hpp` until then; `lvms` for a DS-series array or local data drives (ADR-05) | decide before Lab 06: it selects which operators are mirrored |
 
 ## F — Files and directories
 
@@ -76,6 +76,15 @@ commas (`MW01_NICS="…"`).
 | F2 | `SSH_PUBLIC_KEY_FILE` | `ssh-keygen -t ed25519` on the staging host; only the `.pub` crosses the air gap | file exists |
 | F3 | `MIRROR_DIR` | Leave `/opt/ocp-mirror` | `test -O /opt/ocp-mirror && echo owned` |
 | F4 | `INSTALL_DIR` | Leave `${HOME}/ocp-install/${CLUSTER_NAME}` | not inside the repo |
+
+## G — Storage array (only when `STORAGE_BACKEND=ontap`)
+
+| ID | Key | Where the value comes from | Check it yourself |
+|---|---|---|---|
+| G1 | `ONTAP_MGMT_IP` | Storage team: the SVM's management LIF (Trident calls the ONTAP API here) | `ping` from the bastion |
+| G2 | `ONTAP_DATA_IP` | Storage team: the SVM's NFS data LIF, reachable from every node | inside B1, or routed |
+| G3 | `ONTAP_SVM` | Storage team: the SVM name, NFS enabled | — |
+| G4 | `ONTAP_USER` | Storage team: an SVM account with the `vsadmin` role; the password is prompted in Lab 13, never stored | — |
 
 ## Verify
 

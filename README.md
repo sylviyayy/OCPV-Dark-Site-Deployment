@@ -4,7 +4,7 @@ This tutorial walks you through setting up a compact **OpenShift Virtualization*
 
 This guide is not for someone looking for a fully automated black-box installer they never read. It is optimized for **learning**, which means taking the long route so you understand each task required to bootstrap the cluster, the mirror registry, and platform DNS/NTP.
 
-> The results of this tutorial should not be viewed as production ready since local storage is used for this lab.
+> The results of this tutorial should not be viewed as production ready until VM disks move from node-local storage to the Lenovo DM array (Lab 13) and time comes from a reference clock (Lab 07).
 > Always validate against relevant Red Hat documentation and your site standards. 
 > Have fun learning!
 
@@ -15,7 +15,7 @@ Scripts under `scripts/` are helpers. Every lab still tells you **where** you ar
 
 The Agent ISO freezes node identity, the VIPs and the registry mirrors at build time, so these
 values are fixed — and signed by their owners — before anyone cables a server. Short form for
-groups A–C; the full register (groups A–F, with where each value lands and the rule that checks
+groups A–C; the full register (groups A–G, with where each value lands and the rule that checks
 it) is in [Lab 03 — Site Checklist](docs/labs/03-checklist.md). `.env.example` lists the same keys
 in the same order, and every script refuses to run until `scripts/lib/validate-env.sh` passes.
 
@@ -67,6 +67,7 @@ flowchart LR
       MW3["mw03 · SR675 V3 · 8× L40S"]
       VMS["VMs on localnet br-ex<br/>dns-a · dns-b · ntp"]
     end
+    SAN[("Lenovo DM array (ONTAP)<br/>NFS via NetApp Trident")]
   end
   XCC["XCC / BMC network<br/>Agent ISO via virtual media"]
   STG -->|mirror to disk| MEDIA -->|sha256sum -c| BAS
@@ -76,6 +77,7 @@ flowchart LR
   SW ---|bond0 802.3ad, 4 ports| MW1
   SW --- MW2
   SW --- MW3
+  SW ---|VM disks, ReadWriteMany| SAN
   XCC -.-> MW1
   XCC -.-> MW2
   XCC -.-> MW3
@@ -98,6 +100,10 @@ A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](h
 |---|---|---|---|---|---|---|
 | 2 | **ThinkSystem SR665 V3** | 2× AMD EPYC 9334 (32C) | 256 GB | 2× 960 GB SSD | — | 1× 4-port 10GBase-T (OCP slot) + 1× 2-port 10GBase-T (Slot 1) |
 | 1 | **ThinkSystem SR675 V3** | 2× AMD EPYC 9334 (32C) | 768 GB | 2× 960 GB SSD | **8× NVIDIA L40S** | 1× 4-port 10GBase-T (OCP slot) + 1× 4-port 10GBase-T (Slot 21) |
+| 1 | **ThinkSystem DM** series storage array (model TBC; DG equivalent) | — | — | VM disks over NFS | — | host ports to both switches |
+
+The local SSDs form one RAID1 OS disk per node, so VM disks live on the array. If it turns out to be
+a block-only **DS** series, the labs switch to LVMS with one LUN per node (ADR-05).
 
 **Roles for the 3-node compact cluster.** Hostnames read `mw` = **m**aster + **w**orker: each node
 runs the control plane (etcd, API server) *and* workloads, so `compute.replicas` is 0.
@@ -127,7 +133,7 @@ host or, in a lab, on the bastion.
 | Cluster node OS | RHCOS (installed by the Agent ISO — you do not Kickstart RHCOS by hand) |
 | Container runtime | **CRI-O** (OpenShift default; not containerd) |
 | Cluster network | **OVN-Kubernetes**; VM network: localnet on `br-ex` via Kubernetes NMState |
-| VM storage | Hostpath provisioner on the RAID1 OS disk (lab-grade); LVMS once data drives exist |
+| VM storage | `STORAGE_BACKEND`: **ontap** — Lenovo DM/DG via NetApp Trident (NFS, live migration); **hpp** — hostpath provisioner until the array is attached (lab-grade); **lvms** — DS-series LUN per node |
 | etcd | Bundled with the OpenShift control plane (not installed manually) |
 
 ## Labs

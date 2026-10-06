@@ -49,9 +49,10 @@ The Agent-based Installer needs no load balancer, bootstrap VM or DHCP on bare m
 ## Storage for OpenShift Virtualization
 
 VM disks are DataVolumes and need a default StorageClass. The reference rack's two SSDs per node
-form the RAID1 OS disk, so v2.0 uses the hostpath provisioner on that disk (node-local,
-ReadWriteOnce, no live migration — lab-grade) and documents LVMS for when data drives are added
-(ADR-05). Production uses a supported CSI driver.
+form the RAID1 OS disk, so VM disks belong on the Lenovo DM array: NFS volumes through NetApp
+Trident, ReadWriteMany, so VMs live-migrate during node drains. Until the array is attached, the
+hostpath provisioner on the OS disk (node-local, ReadWriteOnce, no live migration — lab-grade) keeps
+the labs moving. A block-only DS array uses LVMS with one LUN per node (ADR-05).
 
 ## Security notes
 

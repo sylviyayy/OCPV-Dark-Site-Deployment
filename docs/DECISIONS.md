@@ -1,6 +1,6 @@
 # Architecture decisions (v2.0)
 
-Eight decisions determine which files exist and what they contain; implementing requirements
+Nine decisions determine which files exist and what they contain; implementing requirements
 before them produces rework. Each is recorded as **Context → Decision → Consequences**.
 
 **Status legend.** *Proposed* = the recommended option is implemented on the v2.0 branch and awaits
@@ -13,10 +13,11 @@ or record an amendment; an amendment means the listed files change.
 | ADR-02 | Two machines: low-side staging host, high-side permanent bastion; media + `SHA256SUMS` | Proposed |
 | ADR-03 | mirror registry for Red Hat OpenShift at `hostname:8443`, never by IP; no fallback registry | Proposed |
 | ADR-04 | Nodes boot the Agent ISO via XCC virtual media; helpers boot a `mkksiso` DVD; no network boot | Proposed |
-| ADR-05 | VM storage: hostpath provisioner now; LVMS when data drives are added | Proposed |
+| ADR-05 | VM storage: Lenovo DM/DG (ONTAP) via NetApp Trident NFS; hostpath provisioner until it is attached; LVMS for a DS-series array | Proposed (amended) |
 | ADR-06 | VM network: OVN-K localnet on `br-ex` via an NMState bridge mapping | Proposed |
 | ADR-07 | Steady-state DNS/NTP on VMs; the bastion stays the secondary permanently | Proposed |
 | ADR-08 | `INSTALL_DIR` outside the git working tree; inputs kept as `*.orig` | Proposed |
+| ADR-09 | Node names `mw01`–`mw03` (master + worker), keys `MW01_*`; overrides the PRD's `cp01`–`cp03` | Proposed |
 
 ---
 
@@ -64,14 +65,30 @@ kickstart embedded, from USB or virtual media. Network boot is out of scope
 
 ## ADR-05 — VM storage
 
-**Context.** RAID1 consumes both SSDs per node; LVMS needs an empty block device per node; with no
-StorageClass every DataVolume stays `Pending`.
+**Context.** RAID1 consumes both SSDs per node, so there is no local data disk. With no
+StorageClass every DataVolume stays `Pending`. The site has a Lenovo ThinkSystem storage array,
+model not yet confirmed (most likely **DM**; possibly DG or DS). DM and DG run NetApp ONTAP and serve
+NFS; DS is block-only (iSCSI/FC/SAS) and has no OpenShift CSI driver.
 
-**Decision.** Hostpath provisioner on each node's RAID1 disk for v2.0 (lab-grade, ReadWriteOnce, no live
-migration); LVMS (`STORAGE_BACKEND=lvms`) once data drives exist.
+**Decision.** `STORAGE_BACKEND` selects one of three paths, all implemented in
+`scripts/06b-configure-storage.sh`:
 
-**Consequences.** `scripts/06b-configure-storage.sh`; VMs use `evictionStrategy: None`; risk: a full
-pool fills `/var` on the etcd disk — mitigate with a dedicated partition or quota.
+| Backend | When | Why |
+|---|---|---|
+| `ontap` (target) | DM or DG array | NetApp Trident from the certified catalog; `ontap-nas` gives ReadWriteMany volumes, so VMs **live-migrate** during node drains (MachineConfig rollouts, upgrades) |
+| `hpp` (interim) | until the array is attached | ships with OpenShift Virtualization; node-local ReadWriteOnce, no live migration, shares the etcd disk — lab-grade |
+| `lvms` | DS array (one LUN per node) or added local drives | node-local ReadWriteOnce; production-grade local storage without live migration |
+
+NFS (`ontap-nas`) rather than iSCSI (`ontap-san`): no multipath or iSCSI initiator configuration on
+the nodes, and RWX Filesystem volumes are what live migration needs. Re-evaluate `ontap-san` only if
+VM disk latency measured on the array demands it.
+
+**Consequences.** Register group G (`ONTAP_*`, required only for `ontap`); the SVM password is
+prompted, never stored. `VM_STORAGE_CLASS` and `VM_EVICTION_STRATEGY` (`LiveMigrate` on `ontap`,
+`None` otherwise) are derived. Switching backend re-mirrors (the profile adds the operator) and
+06b demotes the previous default; existing VM disks are not moved. **Verify on 4.22:** Trident
+package name, channel and install mode in the certified catalog; whether Trident's own images and CSI
+sidecars are covered by the mirrored bundle; HPP pool path requirements; LVMS on multipath LUNs.
 
 ## ADR-06 — VM network
 
@@ -104,12 +121,26 @@ before `openshift-install` consumes them. Same logic as an out-of-tree build.
 
 ---
 
+## ADR-09 — Node names
+
+**Context.** The PRD names the nodes `cp01`–`cp03` (control plane). In a compact cluster every node
+is a master **and** a worker, and the site already labels the servers `mw01`–`mw03`. Two
+conventions in one repository produced pages that disagreed.
+
+**Decision.** `mw01`–`mw03` everywhere; register keys `MW01_*`–`MW03_*`. `tests/check-repo-hygiene.sh`
+fails on any `cp01`–`cp03` or `CP0n_` so the drift cannot return.
+
+**Consequences.** Overrides PRD §1 group C and FR-J2's naming. Dedicated workers, if ever added,
+get their own prefix (Appendix A).
+
+---
+
 ## Open questions for the maintainer
 
 | # | Question | Recommendation (implemented) | What changes otherwise |
 |---|---|---|---|
 | Q1 | Is the bastion a permanent site-services host or a transient laptop? | Permanent physical RHEL 9 host | ADR-07 loses its fallback |
-| Q2 | Storage: hostpath provisioner now, or add data drives for LVMS? | Hostpath provisioner for v2.0, LVMS documented | Lab 13 content and the BOM |
+| Q2 | Which Lenovo array model (DM, DG or DS), and its SVM/LIF details? | DM assumed: `ontap` target, `hpp` until attached | DS → `lvms` with one LUN per node, no live migration |
 | Q3 | VM network: localnet on `br-ex`, or a Linux bridge on spare ports? | localnet | Cabling, NNCP content, two new register keys |
 | Q4 | Registry port: 8443, or a site-mandated 443? | 8443 | `MIRROR_REGISTRY_PORT` only |
 | Q5 | Keep SAN and greenfield material as non-normative reference, or delete it? | Keep under `docs/reference/` | Maintenance volume |

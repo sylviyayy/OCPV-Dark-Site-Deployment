@@ -168,6 +168,7 @@ echo "== Lab 12-15: platform, services, validation"
 step "Lab 12: disable default catalog sources" 0 -- oc patch OperatorHub cluster --type merge -p '{"spec":{"disableAllDefaultSources":true}}'
 step "Lab 12: samples operator Removed" 0 -- oc patch configs.samples.operator.openshift.io cluster --type merge -p '{"spec":{"managementState":"Removed"}}'
 step "Lab 12: apply cluster-resources" 0 -- oc apply -f "${CLUSTER_RESOURCES_DIR}/"
+step "Lab 12: wait for the mirror config rollout" 0 -- oc wait mcp --all --for=condition=Updated --timeout=30m
 step "06 operators" 0 -- "${S}/06-deploy-cnv.sh"
 step "06b storage" 0 -- "${S}/06b-configure-storage.sh"
 step "07 DNS VMs" 0 -- "${S}/07-deploy-dns-vm.sh"

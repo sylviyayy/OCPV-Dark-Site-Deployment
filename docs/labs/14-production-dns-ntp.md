@@ -1,112 +1,106 @@
 # 14 — Production DNS and NTP on OCP-V
 
 > **Grade:** production-shaped service design (two anti-affine DNS VMs, one NTP VM, permanent
-> bastion fallback) on lab-grade storage (node-local disks: a VM is down while its node reboots).
+> bastion fallback). Availability during node maintenance follows `STORAGE_BACKEND`: with `ontap`
+> the VMs live-migrate; with `hpp` or `lvms` a VM is down while its node reboots.
 
 ## Goal
 
-Run the site's steady-state DNS and NTP as VMs on OpenShift Virtualization, cut the nodes over
-to them, and **keep the bastion serving** as the secondary.
+Run the site's steady-state DNS and NTP as VMs, cut the nodes over to them, and **keep the bastion
+serving** as the secondary.
 
 ## Why the bastion stays on
 
-A cluster whose only resolver lives inside it has locked the spare key inside the car: after a
-site-wide power loss, nodes need `registry.<domain>` and time before the VMs that serve them can
-start. The bastion is the key in your pocket (ADR-07). Disabling `chronyd` there would also stop
-the bastion disciplining its own clock.
+After a site-wide power loss, nodes need `registry.<domain>` and time **before** the VMs that serve
+them can start. A cluster whose only resolver runs inside it has locked the spare key inside the
+car; the bastion is the key in your pocket (ADR-07).
 
 ## Steps
 
 ### 14.1 Deploy the two DNS VMs
 
-**WHERE** — Bastion (`${BASTION_HOSTNAME}`), RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Bastion, RHEL 9.x, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — Script 07 maps an OVN-K **localnet** network (`vmnet`) onto `br-ex` with an NMState
-policy, so VMs reach the machine network over the existing LACP bond (FR-H5); the old manifest named
-a Linux bridge nothing built, so VMs booted on an island and nothing reported an error. It renders
-two VMs from one template (FR-H4) with cloud-init in **Secrets** (FR-H1), a static address in a
-network-config Secret (FR-H2), BIND from the bastion's DVD repo (FR-H3), forward and reverse zones
-with `recursion no` (FR-H13), no passwords (FR-H10), a digest-pinned guest image pulled with the
-registry CA and credentials (FR-H7), and required anti-affinity so one node loss leaves one resolver (FR-H8).
-Consumed by: 14.2 and every node's resolver. If skipped: the cut-over in 14.2 refuses to run.
+**WHY** — Script 07, in order:
 
-**EDIT** — No edits in this step.
+1. **Network** — an NMState policy maps the OVN-K localnet `vmnet` onto `br-ex`, so VMs reach the
+   machine network over the existing LACP bond; it waits until the policy is Available on every node.
+2. **Image access** — the registry CA (ConfigMap) and mirror credentials (Secret, via stdin) let the
+   CDI importer pull the digest-pinned guest image over verified TLS.
+3. **VMs** — renders `dns-a` and `dns-b` from one template: cloud-init in Secrets, static IP matched
+   to the NIC by MAC, BIND from the bastion's DVD repo, forward and reverse zones generated from `.env`,
+   `recursion no`, no passwords; **required** anti-affinity so one node loss leaves one resolver;
+   `evictionStrategy` `LiveMigrate` on `ontap`, `None` otherwise (a node-local disk cannot migrate,
+   and `LiveMigrate` there would block the node drain forever).
+4. **Proof** — waits for each VM Ready, checks they landed on different nodes, then queries both for
+   A, wildcard and PTR records and compares them with `.env`.
 
-**DO**
+*Consumed by:* 14.2. *If skipped:* 14.2 refuses to cut over.
 
-```bash
-./scripts/07-deploy-dns-vm.sh
-```
+**EDIT** — None.
 
-**VERIFY** (AT-10, run from the bastion)
+**DO** — `./scripts/07-deploy-dns-vm.sh`
+
+**VERIFY** (AT-10) — Last line `PASS: dns-a (…) and dns-b (…) serve .env records`. By hand:
 
 ```bash
 set -a && source .env && set +a
-for ip in "${DNS_VM_IPS%%,*}" "${DNS_VM_IPS##*,}"; do
-  test "$(dig +short @"${ip}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}")" = "${API_VIP}" && echo "PASS ${ip} A" || echo "FAIL ${ip} A"
-  test "$(dig +short @"${ip}" -x "${MW01_IP}")" = "${MW01_HOSTNAME}.${BASE_DOMAIN}." && echo "PASS ${ip} PTR" || echo "FAIL ${ip} PTR"
-done
-oc get vmi -n infrastructure -o custom-columns=NAME:.metadata.name,NODE:.status.nodeName   # expect: dns-a and dns-b on different nodes
+dig +short @"${DNS_VM_IPS%%,*}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}"     # expect: API_VIP
+dig +short @"${DNS_VM_IPS##*,}" -x "${MW01_IP}"                          # expect: <MW01_HOSTNAME>.<BASE_DOMAIN>.
+oc get vmi -n infrastructure -o custom-columns=NAME:.metadata.name,NODE:.status.nodeName   # expect: different nodes
 ```
 
-**FAILS IF** — The VMI is Ready but no answer ← cloud-init failed: `virtctl console dns-a -n infrastructure`,
-then `sudo cloud-init status --long`; a common cause is the DVD repo (Lab 06 step 6.5).
+**FAILS IF** — VM Ready but no answer ← cloud-init failed: `virtctl console dns-a -n infrastructure`,
+then `sudo cloud-init status --long` (usual cause: DVD repo, Lab 06 step 6.5); DataVolume stuck
+`ImportInProgress` ← guest image not mirrored or CA wrong; `both run on mwNN` ← anti-affinity not honoured.
 
 ### 14.2 Deploy the NTP VM and cut the nodes over
 
-**WHERE** — Bastion, RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Bastion, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — Script 08 starts the NTP VM (time from `TIME_SOURCE`, or the bastion's orphan clock),
-checks it with the `chronyd -Q` probe, then — only once both DNS VMs answer (FR-H9) — sets every
-node's resolvers through an NMState `dns-resolver` policy: `dns-a`, `dns-b`, then the bastion. On the
-baremetal platform NetworkManager and the node-local CoreDNS own `resolv.conf`, so overwriting the
-file with a MachineConfig is the wrong mechanism (the old one also encoded line breaks as `%0E`,
-FR-H6). Finally a MachineConfig sets node chrony to the NTP VM, then `TIME_SOURCE`. Nodes drain and
-reboot one at a time; with `evictionStrategy: None` the VM on a rebooting node simply stops until
-its node returns, because a node-local disk cannot live-migrate (FR-H9).
-Consumed by: every node. If skipped: nodes keep using only the bastion, which still works.
+**WHY** — Script 08, in order:
 
-**EDIT** — No edits in this step.
+1. Starts the NTP VM (upstream `TIME_SOURCE`, or the bastion when orphan) and probes it with `chronyd -Q`.
+2. Refuses to continue unless **both** DNS VMs answer.
+3. Sets every node's resolvers through an NMState `dns-resolver` policy: `dns-a`, `dns-b`, then the
+   bastion. NetworkManager owns `resolv.conf` on RHCOS, so writing the file directly is the wrong mechanism.
+4. Applies MachineConfig `99-master-chrony-production`: node chrony uses the NTP VM **and**
+   `TIME_SOURCE` (or the bastion) and selects the better one; the second keeps time flowing while
+   the NTP VM's node reboots. Nodes drain and reboot **one at a time**; the script waits until every node runs the
+   new rendered config (up to 90 min), not just until the pool says Updated.
 
-**DO**
+*Consumed by:* every node. *If skipped:* nodes keep using only the bastion — which works, with no redundancy.
 
-```bash
-./scripts/08-deploy-ntp-vm.sh
-```
+**EDIT** — None.
+
+**DO** — `./scripts/08-deploy-ntp-vm.sh`
 
 **VERIFY**
 
 ```bash
-chronyd -Q "server ${NTP_VM_IP} iburst"                                          # expect: offset |x| < 1 s
-oc get nncp -o jsonpath='{range .items[*]}{.metadata.name} {.status.conditions[?(@.type=="Available")].status}{"\n"}{end}'
-# expect: dns-cutover True, vmnet-bridge-mapping True
-oc get mcp master -o jsonpath='{.status.conditions[?(@.type=="Updated")].status}{"\n"}'          # expect: True
-oc debug "node/${MW01_HOSTNAME}" --quiet -- chroot /host cat /var/run/NetworkManager/resolv.conf
-# expect: nameserver lines for both DNS VMs, then BASTION_IP (verify path on 4.22)
+chronyd -Q "server ${NTP_VM_IP} iburst"               # expect: offset |x| < 1 s
+oc get nnce | grep dns-cutover                        # expect: one line per node, Available
+oc get mcp master -o jsonpath='{.status.conditions[?(@.type=="Updated")].status}{"\n"}'   # expect: True
+oc debug "node/${MW01_HOSTNAME}" --quiet -- chroot /host chronyc -n sources
+# expect: NTP_VM_IP and TIME_SOURCE (or BASTION_IP) both listed; one marked ^* (selected), the other ^+ or ^-
 ```
 
-**FAILS IF** — `mcp/master` stays `Updating` ← a node cannot drain; check `oc get pods -A -o wide`
-on that node for a pod with a PodDisruptionBudget of zero.
+**FAILS IF** — `mcp/master` stuck `Updating` ← a pod blocks the drain; `oc get nodes` shows the
+`SchedulingDisabled` node, `oc get pdb -A` the blocking budget. With `hpp`/`lvms`, check that no VM
+carries `evictionStrategy: LiveMigrate`.
 
 ### 14.3 Keep the bastion services running
 
-**WHERE** — Bastion, RHEL 9.x, as `installer`
+**WHERE** — Bastion, `installer`
 
-**WHY** — The bastion is now the **secondary** resolver and time source and the only one available
-during a cold start (FR-H12). Consumed by: the cold-start drill in Lab 15. If skipped (services
-stopped): a site-wide power loss leaves nodes waiting for DNS VMs that need DNS to start.
+**WHY** — The bastion is now the secondary resolver and time source, and the only one during a
+cold start. Do **not** `systemctl disable dnsmasq chronyd`.
 
-**EDIT** — No edits in this step. Do **not** run `systemctl disable dnsmasq chronyd`.
+**EDIT** — None.
 
-**DO**
+**DO / VERIFY** — `systemctl is-enabled dnsmasq chronyd; systemctl is-active dnsmasq chronyd` → `enabled` ×2, `active` ×2.
 
-```bash
-systemctl is-enabled dnsmasq chronyd
-```
-
-**VERIFY** — Output: `enabled` twice; `systemctl is-active dnsmasq chronyd` → `active` twice.
-
-**FAILS IF** — `disabled` ← re-enable: `sudo systemctl enable --now dnsmasq chronyd`.
+**FAILS IF** — `disabled` ← `sudo systemctl enable --now dnsmasq chronyd`.
 
 ## Next
 

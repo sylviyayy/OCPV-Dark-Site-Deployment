@@ -1,79 +1,71 @@
 # 07 — Bootstrapping MVP DNS and NTP
 
-> **Grade:** depends on `TIME_SOURCE`. With a reference clock (an IP) this is production-grade
-> infrastructure. With `orphan` it is **lab-grade**: see the callout below.
+> **Grade:** set by `TIME_SOURCE`. A reference clock (an IP) makes this production-grade; `orphan`
+> makes time **lab-grade** (see below). DNS is production-grade either way.
 
 ## Goal
 
-Start DNS and NTP on the bastion so the Agent ISO, the nodes and the installer can resolve the
-registry, API and ingress names and agree on time — and keep them running for the life of the site.
+Serve DNS and NTP from the bastion, so the installer and the nodes can resolve the registry, API
+and ingress names and agree on time — and keep both running for the life of the site (ADR-07).
 
-> **Lab-grade time when `TIME_SOURCE=orphan`.** `local stratum 10 orphan` makes the cluster agree
-> with **itself**, not with UTC. That is enough for etcd and TLS between members, but audit logs,
-> certificate validity and SIEM correlation need time traceable to UTC, and many financial-services
-> and government sites mandate it. For production, set `TIME_SOURCE` to a reference clock (a GPS- or
-> PTP-disciplined NTP appliance) and re-run this lab (FR-F3).
+> **`TIME_SOURCE=orphan` is lab-grade time.** The cluster agrees with the bastion, not with UTC.
+> etcd and TLS between members only need agreement; audit logs, certificate validity and SIEM
+> correlation need UTC, and regulated sites mandate it. For production, set `TIME_SOURCE` to a
+> GPS- or PTP-disciplined NTP appliance and re-run this lab.
 
 ## Steps
 
 ### 7.1 Configure and start dnsmasq and chronyd
 
-**WHERE** — Bastion (`${BASTION_HOSTNAME}`), RHEL 9.x, as `installer` with `sudo`, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Bastion, RHEL 9.x, `installer` with `sudo`, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — The Agent ISO resolves `registry.<domain>` to pull the release payload, and every node
-resolves `api` and `api-int`; without an answer, discovery stalls at the first image pull. dnsmasq
-`host-record` lines publish an A **and** a PTR record per host, and one `address=/apps.<cluster>.<domain>/`
-line answers every ingress name. chronyd serves `TIME_SOURCE` (or its own orphan clock) to the machine
-network; etcd members and TLS validation fail on skew. dnsmasq binds `127.0.0.1` too, so the bastion
-resolves through itself (FR-E5, FR-F1). Consumed by: agent-config `dns-resolver` and
-`additionalNTPSources` (Lab 08), and every node after Lab 14 as the secondary.
-If skipped: the Agent ISO cannot resolve the registry at Lab 10, and the install never starts.
+**WHY** — Every name the install needs comes from here:
 
-**EDIT** — No edits in this step. (Preview without changing anything: `./scripts/02-bootstrap-dns-ntp.sh --print-config`.)
+| Record | Who needs it |
+|---|---|
+| `registry.<domain>` | Agent ISO and nodes, to pull the release payload |
+| `api`, `api-int.<cluster>.<domain>` → `API_VIP` | nodes and `oc` |
+| `*.apps.<cluster>.<domain>` → `INGRESS_VIP` (one `address=` line) | console, OAuth, routes |
+| A **and** PTR per host (`host-record`) | node hostname checks, certificates, logs |
 
-**DO**
+chronyd serves `TIME_SOURCE` (or its own orphan clock at stratum 10) to `MACHINE_NETWORK_CIDR`;
+skew breaks etcd and TLS. dnsmasq also listens on `127.0.0.1`, so the bastion resolves through itself.
+*Consumed by:* agent-config `dns-resolver` and `additionalNTPSources` (Lab 08); every node as
+secondary after Lab 14. *If skipped:* the Agent ISO cannot resolve the registry and the install never starts.
 
-```bash
-sudo ./scripts/02-bootstrap-dns-ntp.sh
-```
+**EDIT** — None. Preview without changing anything: `./scripts/02-bootstrap-dns-ntp.sh --print-config`.
 
-**VERIFY** — The script runs these itself; to repeat them by hand:
+**DO** — `sudo ./scripts/02-bootstrap-dns-ntp.sh`
+
+**VERIFY** — The script compares each answer with `.env` and exits 1 on any mismatch. By hand:
 
 ```bash
 set -a && source .env && set +a
 C="${CLUSTER_NAME}.${BASE_DOMAIN}"
-test "$(dig +short @"${BASTION_IP}" "api.${C}")" = "${API_VIP}" && echo PASS || echo FAIL                          # expect: PASS
-test "$(dig +short @"${BASTION_IP}" "console-openshift-console.apps.${C}")" = "${INGRESS_VIP}" && echo PASS || echo FAIL  # expect: PASS
-test "$(dig +short @"${BASTION_IP}" "${MIRROR_REGISTRY_HOSTNAME}")" = "${MIRROR_REGISTRY_IP}" && echo PASS || echo FAIL  # expect: PASS
-test "$(dig +short @"${BASTION_IP}" -x "${MW01_IP}")" = "${MW01_HOSTNAME}.${BASE_DOMAIN}." && echo PASS || echo FAIL   # expect: PASS
-chronyd -Q "server ${BASTION_IP} iburst"     # expect: "System clock wrong by <x> seconds", |x| < 1
+dig +short @"${BASTION_IP}" "api.${C}"                                # expect: API_VIP
+dig +short @"${BASTION_IP}" "console-openshift-console.apps.${C}"     # expect: INGRESS_VIP
+dig +short @"${BASTION_IP}" -x "${MW01_IP}"                           # expect: <MW01_HOSTNAME>.<BASE_DOMAIN>.
+chronyd -Q "server ${BASTION_IP} iburst"                              # expect: "System clock wrong by x seconds", |x| < 1
 ```
 
-`chronyd -Q` is a client-side probe: it measures the offset without touching your clock and
-needs nothing configured on the server. `chronyc -h <remote> tracking` is refused unless the
-server sets `cmdallow`, so it fails even when NTP is healthy — a check that always fails teaches
-you to ignore checks (FR-F2).
+`chronyd -Q` measures the offset as a client without touching your clock. Do not use
+`chronyc -h <host> tracking`: the server refuses it unless `cmdallow` is set, so it fails while NTP is healthy.
 
-**FAILS IF** — `dig` returns nothing ← dnsmasq is not running (`systemctl status dnsmasq`) or
-the firewall blocks 53; the probe prints no offset ← UDP 123 blocked.
+**FAILS IF** — `dig` returns nothing ← dnsmasq not running or UDP/TCP 53 blocked; no offset printed ← UDP 123 blocked.
 
 ### 7.2 Prove the whole high side
 
-**WHERE** — Bastion, RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Bastion, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — One run asserts the pinned OS, the packages, the absence of an internet route, the
-clients, every DNS answer, time and the registry — the state Lab 08 assumes. Consumed by: Lab 08.
-If skipped: a gap here becomes a stalled ISO build there.
+**WHY** — One run asserts everything Lab 08 assumes: RHEL 9, the DVD packages, **no** internet
+route, clients matching `OCP_VERSION`, every DNS answer, time, and the registry over verified TLS.
+*If skipped:* a gap here surfaces as a stalled ISO build in Lab 08.
 
-**EDIT** — No edits in this step.
+**EDIT** — None.
 
-**DO**
+**DO** — `./scripts/00-prerequisites-check.sh --bastion`
 
-```bash
-./scripts/00-prerequisites-check.sh --bastion
-```
-
-**VERIFY** — Last line: `Results: N passed, 0 failed` (exit 0).
+**VERIFY** — Last line `Results: N passed, 0 failed`.
 
 **FAILS IF** — `no route to the internet` fails ← the machine network routes out; fix before going on.
 

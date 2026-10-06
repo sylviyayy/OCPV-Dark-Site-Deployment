@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-A3** — `scripts/lib/validate-env.sh` enforces the field-register Rule column before every script; `.env.example` is rejected with one message per offending key
 - **FR-B6** — `mirror/imageset-profiles.yaml`: default set adds `kubernetes-nmstate-operator`, `lvms-operator` joins when `STORAGE_BACKEND=lvms`, and the former `imageset-ocpv-coe.yaml` is the selectable `coe` profile; the RHEL guest image is pinned by digest
 - **FR-D1** — `imageDigestSources` rendered into `install-config.yaml` from oc-mirror's `idms-oc-mirror.yaml`
-- **FR-D4** — per-node `bond0` (802.3ad, four members, `MTU`) in `agent-config.yaml` from `CPn_NICS`
+- **FR-D4** — per-node `bond0` (802.3ad, four members, `MTU`) in `agent-config.yaml` from `MWn_NICS`
 - **FR-D6** — `additionalNTPSources` in `agent-config.yaml` (`TIME_SOURCE`, or the bastion when orphan)
 - **FR-D7** — `scripts/05a-create-agent-iso.sh` (Lab 08, keeps `*.orig` inputs) and `scripts/05b-wait-install.sh` (Lab 10, asserts 3 Ready nodes and 4 bond members up)
 - **FR-E4** — kickstarts become `kickstart/*.cfg.template`; `scripts/render-kickstart.sh` fills IPs, `BASTION_IFNAME`, domain and `/etc/hosts` from `.env`
@@ -31,7 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-H13** — BIND serves a reverse zone for `MACHINE_NETWORK_CIDR`; `recursion no` is documented
 - **FR-I5** — `.github/workflows/lint.yml`: `shellcheck -S warning`, render-and-parse of every template from `tests/ci.env` (with `named-checkconf -z` on the rendered zones), relative-link and anchor check, field-register order check, placeholder/terminology/pinning searches, gitleaks secret scan
 - **FR-J6** — interim Mermaid architecture diagram in `README.md` replaces the `<insert architecture diagram>` placeholder (parses with Mermaid 11)
-- `docs/DECISIONS.md` records ADR-01 to ADR-08 and open questions Q1–Q6 with their recommended options (PRD Phase 0)
+- `docs/DECISIONS.md` records ADR-01 to ADR-08 and open questions Q1–Q6 with their recommended options (PRD Phase 0); ADR-05 amended for the Lenovo DM/DG array (Trident `ontap-nas` target, hostpath provisioner interim, LVMS for a DS array); ADR-09 records the `mw01`–`mw03` node names
+- `00-prerequisites-check.sh --post-install` asserts the Cluster Samples Operator is `Removed`
+- Lab 12 waits for every MachineConfigPool to finish rolling out the mirror configuration before Lab 13 installs operators
 - Pre-defined field register: short form (groups A–C) at the top of `README.md`, full form in Lab 03; CI proves `.env.example`, README and Lab 03 match the register in `scripts/lib/render.py`
 - Labs follow the step contract WHERE / WHY / EDIT / DO / VERIFY / FAILS IF, and each lab states whether its result is lab-grade or production-grade
 - `docs/labs/appendix-a-adding-workers.md` and `docs/labs/appendix-b-network-boot.md`
@@ -47,6 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.cursor/rules/prd-v2-execution.mdc`: execution rules for agents (requirement IDs in commits, verify-on-4.22 TODOs, local CI before commit)
 
 ### Changed
+- Labs 01–16 tightened: every WHY states what the step does, the mechanism behind it, what consumes the result and what breaks if it is skipped; every VERIFY shows the expected value; storage steps cover `ontap`, `hpp` and `lvms`
+- Lab 14 states that node chrony uses the NTP VM and `TIME_SOURCE` together and selects the better source, instead of expecting the NTP VM to be selected
+- README, Lab 05, `network/ip-addressing-plan.csv` and the reference pages show the Lenovo DM array and its SVM LIFs
 - oc-mirror runs with `--cache-dir ${MIRROR_DIR}/cache` on both sides, so its layer cache lands on the sized mirror filesystem instead of `~/.oc-mirror`
 - `HyperConverged` sets `enableCommonBootImageImport: false`: automatic golden-image import pulls from `registry.redhat.io` and fails forever in a dark site
 - Lab 12 sets the Cluster Samples Operator to `Removed` (its image streams pull from `registry.redhat.io`)
@@ -67,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-C4** — Lab 06 trusts the registry CA on the bastion (`update-ca-trust`); every VERIFY and script checks TLS without `-k`
 - **FR-C5** — `scripts/04 install-registry` refuses to start as non-root; `load` refuses root
 - **FR-D2** — `pullSecret` is the merged `${AUTH_FILE}` (Red Hat pull secret plus mirror-registry entry); `install-config/README.md` (was `mirror-config.yaml.template`) reverses the old "not the mirror-registry credentials" note
-- **FR-D5** — `rootDeviceHints.deviceName` comes from `CPn_ROOT_DEVICE` (`/dev/disk/by-path/…`), never `/dev/sda`
+- **FR-D5** — `rootDeviceHints.deviceName` comes from `MWn_ROOT_DEVICE` (`/dev/disk/by-path/…`), never `/dev/sda`
 - **FR-D8** — `agent-config.yaml` `metadata.name` follows `CLUSTER_NAME`
 - **FR-D9** — scripts 05a/05b no longer apply oc-mirror cluster-resources; Lab 12 is the single owner
 - **FR-E2** — helper hosts boot a `mkksiso`-built RHEL 9 DVD with the kickstart embedded (USB or XCC virtual media, zero keystrokes) instead of `dd` plus a typed `inst.ks=hd:sdb1`

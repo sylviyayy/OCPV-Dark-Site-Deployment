@@ -42,7 +42,7 @@
 | Operators | `kubevirt-hyperconverged` (stable), `kubernetes-nmstate-operator` (stable) |
 | Catalog | Mirrored `redhat-operator-index:v4.22`; name read from oc-mirror output |
 | Nodes | `/dev/kvm` on all three (AMD SVM on) |
-| Storage | Default StorageClass: hostpath provisioner (lab-grade) or LVMS with data drives (ADR-05) |
+| Storage | Default StorageClass: `ontap-nas` via Trident on the Lenovo DM array; hostpath provisioner until attached (lab-grade); LVMS for a DS array (ADR-05) |
 | Networking | OVN pod network; OVN-K localnet `vmnet` on `br-ex` for service VMs (ADR-06) |
 
 ## Node count guidance

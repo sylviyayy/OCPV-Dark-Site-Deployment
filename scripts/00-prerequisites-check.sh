@@ -78,6 +78,9 @@ nncp_available() {
 mcp_updated() {
   [[ "$(oc get mcp master -o jsonpath='{.status.conditions[?(@.type=="Updated")].status}')" == "True" ]]
 }
+samples_removed() {        # its image streams point at registry.redhat.io (Lab 12)
+  [[ "$(oc get configs.samples.operator.openshift.io cluster -o jsonpath='{.spec.managementState}')" == "Removed" ]]
+}
 only_mirrored_catalogs() {  # FR-G2: no default catalog sources pointing at registry.redhat.io
   local names
   names="$(oc get catalogsource -n openshift-marketplace -o jsonpath='{.items[*].metadata.name}')"
@@ -132,6 +135,7 @@ case "${MODE}" in
     check "API answers and all nodes Ready" nodes_ready
     check "all ClusterOperators Available and not Degraded" cos_healthy
     check "only mirrored CatalogSources" only_mirrored_catalogs
+    check "Cluster Samples Operator Removed" samples_removed
     echo "--- Production DNS (both VMs) ---"
     for ip in "${DNS_VM1_IP}" "${DNS_VM2_IP}"; do
       check "${ip}: api -> ${API_VIP}" expect_dns "${ip}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${API_VIP}"

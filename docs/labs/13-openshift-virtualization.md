@@ -1,84 +1,94 @@
 # 13 — Installing OpenShift Virtualization
 
-> **Grade:** lab-grade storage. The hostpath provisioner keeps VM disks on each node's RAID1
-> RHCOS disk: node-local, ReadWriteOnce, no live migration, and it shares the disk with etcd.
-> Production adds data drives (LVMS) or a SAN CSI driver (ADR-05).
+> **Grade:** set by `STORAGE_BACKEND`. `ontap` (Lenovo DM/DG) is production-grade shared storage.
+> `hpp` is **interim, lab-grade**: VM disks share each node's RAID1 OS disk with etcd, and cannot
+> live-migrate. `lvms` is production-grade local storage without live migration (ADR-05).
 
 ## Goal
 
-Install OpenShift Virtualization and Kubernetes NMState from the mirrored catalog, prove KVM on
-every node, and give the cluster a default StorageClass so DataVolumes can bind.
+Install OpenShift Virtualization, Kubernetes NMState and the storage operator from the mirrored
+catalogs, prove KVM on every node, and give the cluster exactly one default StorageClass.
+
+| `STORAGE_BACKEND` | Hardware | StorageClass | Access | VM on node drain |
+|---|---|---|---|---|
+| `ontap` (target) | Lenovo DM or DG array, NFS via NetApp Trident | `ontap-nas` | ReadWriteMany | **live-migrates** |
+| `hpp` (interim) | directory on each node's OS disk | `hostpath-csi` | ReadWriteOnce, node-local | stops until the node returns |
+| `lvms` | one empty disk per node, or one DS-series LUN per node | `lvms-vg1` | ReadWriteOnce, node-local | stops until the node returns |
+
+Switching later (for example `hpp` → `ontap` when the array arrives) is supported: re-mirror (Lab 06),
+re-run 13.1 and 13.2; script 06b demotes the old default. Existing VM disks stay where they are.
 
 ## Steps
 
 ### 13.1 Install the operators
 
-**WHERE** — Bastion (`${BASTION_HOSTNAME}`), RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Bastion, RHEL 9.x, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — Script 06 subscribes to `kubevirt-hyperconverged` and `kubernetes-nmstate-operator` from
-the CatalogSource whose name it reads from oc-mirror's output (oc-mirror v2 derives it from the
-catalog image and tag, so a hard-coded name never resolves, FR-G1). Every wait ends in exit 1 with
-diagnostics instead of falling through (FR-G4). The `HyperConverged` spec is left at defaults: no
-host-passthrough CPU (it pins a VM to one CPU model) and no live-migration tuning (there is no live
-migration on node-local disks, FR-G5). NMState is needed for the localnet bridge mapping and the DNS
-cut-over in Lab 14. On a compact cluster all three nodes run VMs, so all three must expose `/dev/kvm`.
-Consumed by: 13.2 and Lab 14. If skipped: no VM can be defined.
+**WHY** — Script 06 subscribes, from the mirrored catalogs, to:
 
-**EDIT** — No edits in this step.
+- `kubevirt-hyperconverged` — OpenShift Virtualization. One non-default: `enableCommonBootImageImport: false`,
+  because the golden-image import pulls from `registry.redhat.io` and retries forever; VMs here use
+  the digest-pinned guest image from the mirror.
+- `kubernetes-nmstate-operator` — the localnet bridge mapping and the DNS cut-over in Lab 14.
+- `trident-operator` (`ontap`, certified catalog) or `lvms-operator` (`lvms`); nothing extra for `hpp`.
 
-**DO**
+Each wait ends in exit 1 with diagnostics, never a silent fall-through. Last, it proves `/dev/kvm` on
+every node: on a compact cluster all three run VMs.
+*Consumed by:* 13.2 and Lab 14. *If skipped:* no VM can be defined.
 
-```bash
-./scripts/06-deploy-cnv.sh
-```
+**EDIT** — None.
+
+**DO** — `./scripts/06-deploy-cnv.sh`
 
 **VERIFY**
 
 ```bash
-oc get csv -n openshift-cnv -o jsonpath='{range .items[*]}{.metadata.name} {.status.phase}{"\n"}{end}'   # expect: kubevirt-hyperconverged-operator… Succeeded
 oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv \
-  -o jsonpath='{.status.conditions[?(@.type=="Available")].status}{"\n"}'                            # expect: True
-oc get nodes -o jsonpath='{range .items[*]}{.metadata.name} {.status.allocatable.devices\.kubevirt\.io/kvm}{"\n"}{end}'   # expect: three lines, each with a non-zero count
+  -o jsonpath='{.status.conditions[?(@.type=="Available")].status}{"\n"}'     # expect: True
+oc get csv -A --no-headers | grep -E 'kubevirt-hyperconverged|kubernetes-nmstate' | awk '{print $NF}'   # expect: Succeeded ×2
 ```
 
-**FAILS IF** — "/dev/kvm missing on: mwNN" ← SVM disabled in UEFI (Lab 05 step 5.2);
-Subscription never resolves ← Lab 12 not applied.
+**FAILS IF** — `/dev/kvm missing on: mwNN` ← SVM off in UEFI (Lab 05 step 5.2);
+`CatalogSource … READY` times out ← Lab 12 not done, or `ontap` chosen after mirroring (re-run Lab 06).
 
-### 13.2 Give the cluster a default StorageClass
+### 13.2 Give the cluster one default StorageClass
 
-**WHERE** — Bastion, RHEL 9.x, as `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Bastion, `installer`, cwd `~/OCPV-Dark-Site-Deployment`; for `ontap`, the SVM password to hand
 
-**WHY** — Every VM root disk is a DataVolume, and a DataVolume with no StorageClass stays `Pending`
-forever (FR-G3). With `STORAGE_BACKEND=hpp`, script 06b creates the HostPathProvisioner, a
-`hostpath-csi` StorageClass marked default, and proves it by binding a 1 GiB test DataVolume.
-Consumed by: the DNS and NTP VM DataVolumes in Lab 14 (`storageClassName`).
-If skipped: both DNS VMs wait for disks that never arrive.
+**WHY** — Every VM disk is a DataVolume; with no default StorageClass it stays `Pending` forever.
+Script 06b, by backend:
 
-**EDIT** — No edits in this step. (LVMS: set `STORAGE_BACKEND=lvms` in `.env` before Lab 06 so the
-operator is mirrored, and add an empty data disk to each node.)
+- **`ontap`** — prompts the SVM password into Secret `ontap-svm-credentials` (stdin only, never stored
+  in `.env` or argv); installs Trident with AutoSupport silenced (nothing to send it to); registers an
+  `ontap-nas` backend on the SVM's data LIF with `autoExportPolicy` restricted to `MACHINE_NETWORK_CIDR`,
+  so Trident maintains the NFS export rules; sets the StorageProfile to ReadWriteMany Filesystem,
+  which live migration needs.
+- **`hpp`** — creates a HostPathProvisioner pool at `/var/hpvolumes` on each node.
+- **`lvms`** — creates an LVMCluster over every empty disk on each node.
 
-**DO**
+It then demotes any other default, asserts exactly one, and binds a 1 GiB test DataVolume (AT-09).
+*Consumed by:* the DNS and NTP VM disks in Lab 14.
+
+**EDIT** — None (backend chosen by `STORAGE_BACKEND`, group G for `ontap`).
+
+**DO** — `./scripts/06b-configure-storage.sh`
+
+**VERIFY** — Last line `PASS: default StorageClass <name>; a 1 GiB DataVolume reached Succeeded`, and:
 
 ```bash
-./scripts/06b-configure-storage.sh
+oc get sc | grep -c '(default)'          # expect: 1
 ```
 
-**VERIFY** (AT-09)
-
-```bash
-oc get storageclass -o jsonpath='{range .items[?(@.metadata.annotations.storageclass\.kubernetes\.io/is-default-class=="true")]}{.metadata.name}{"\n"}{end}'
-# expect: hostpath-csi   (lvms-vg1 with LVMS)
-```
-
-The script's last line is `PASS: … a 1 GiB DataVolume reached Succeeded`.
-
-**FAILS IF** — The test DataVolume stays `Pending` ← the HostPathProvisioner is not `Available`; read its status in the script's output.
+**FAILS IF** — `ONTAP backend Bound` times out ← wrong G1/G3, wrong password, or management LIF
+unreachable (the script prints Trident's message); Trident pods `ImagePullBackOff` ← its images are
+not in the mirror (TODO verify list in ADR-05); `LVMCluster Ready` times out ← no empty disk or LUN
+on some node; test DataVolume `Pending` ← provisioner not Available.
 
 ### GPU node (later)
 
-`mw03` (SR675 V3, 8× L40S) needs the NVIDIA GPU Operator, which is not in the default ImageSet
-(a v2.0 non-goal). Add `gpu-operator-certified` to a profile in `mirror/imageset-profiles.yaml` and
-re-mirror when you need it.
+`mw03` (8× L40S) needs the NVIDIA GPU Operator, which is out of scope for v2.0. Add
+`gpu-operator-certified` from the certified catalog to a profile in `mirror/imageset-profiles.yaml`
+and re-mirror when you need it.
 
 ## Next
 

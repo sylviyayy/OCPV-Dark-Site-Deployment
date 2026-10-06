@@ -1,24 +1,19 @@
 # 03 — Site Checklist
 
-> **Grade:** production-grade discipline. The values are yours; the rules that check them are
-> the same for a lab and a customer site.
+> **Grade:** production discipline: the same rules check a lab and a customer site.
 
 ## Goal
 
-Decide and sign the 31 pre-defined fields (plus group G when a storage array backs the VMs), write them to `.env`, and prove them with
-`validate-env.sh` — before anyone cables a server.
+Decide and sign the pre-defined fields, write them to `.env`, and prove them with `validate-env.sh`
+before anyone cables a server.
 
-## Why these fields are fixed first
+## Why fix these first
 
 The Agent ISO freezes node identity (MAC → IP → hostname → role), the VIPs and the registry
-mirrors into its Ignition at build time. Change one afterwards and you rebuild the ISO and
-re-boot every node; change `CLUSTER_NAME` or `BASE_DOMAIN` after install and you reinstall.
-Treat this table as the **bill of materials**: a production line does not start with parts
-unordered.
-
-`.env.example` lists the same keys in the same order, and `scripts/lib/validate-env.sh`
-enforces the **Rule** column before any script proceeds. You edit `.env` only; every other file
-is generated from it (rule E2).
+mirrors at build time. Change one later and you rebuild the ISO and re-boot every node; change
+`CLUSTER_NAME` or `BASE_DOMAIN` after install and you reinstall. Treat the register as the **bill
+of materials**: a production line does not start with parts unordered. You edit `.env` only;
+every other file is generated from it.
 
 ## Field register
 
@@ -66,119 +61,92 @@ is generated from it (rule E2).
 end (`MIRROR_REGISTRY`, `MIRROR_ARCHIVE_DIR`, `IMAGESET_CONFIG`, `AUTH_FILE`, `REGISTRY_CA_FILE`,
 `CLUSTER_RESOURCES_DIR`) is checked against its formula and must not be edited.
 
-How to obtain each value: [field-by-field guide](detail/configure-site-env.md).
+Where each value comes from: [field-by-field guide](detail/configure-site-env.md). Group G applies only
+when `STORAGE_BACKEND=ontap`; leave its sample values while the array is not yet specified.
 
 ## Steps
 
 ### 3.1 Create `.env`
 
-**WHERE** — Staging host (low side), RHEL 9.x, as your user, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Staging host (low side), RHEL 9.x, your user, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — Every script reads `.env` and nothing else for site facts, so one file drives the
-kickstarts, DNS records, `install-config.yaml`, `agent-config.yaml` and the VM manifests.
-Consumed by: `scripts/lib/common.sh:load_env`. If skipped: every script exits 1 with
-"`.env` not found" — there is no fallback to sample values.
+**WHY** — Every script reads site facts from `.env` and nowhere else; there is no fallback to
+sample values. *If skipped:* every script exits with "`.env` not found".
 
-**EDIT** — No edits in this step.
+**EDIT** — None.
 
-**DO**
+**DO / VERIFY**
 
 ```bash
-cp .env.example .env
+cp .env.example .env && head -n1 .env      # expect: ENV_SCHEMA_VERSION=2
 ```
 
-**VERIFY**
+**FAILS IF** — First line differs ← an old v1 `.env`; start again from `.env.example`.
 
-```bash
-head -n1 .env      # expect: ENV_SCHEMA_VERSION=2
-```
+### 3.2 Fill groups A–G
 
-**FAILS IF** — First line differs ← you copied a v1 `.env`; start again from `.env.example`.
+**WHERE** — Staging host, your user, cwd `~/OCPV-Dark-Site-Deployment`
 
-### 3.2 Fill groups A–F
+**WHY** — The samples are deliberately rejected (all-zero MACs, `…` disk paths, `4.22.z`, a
+documentation domain), so nothing reaches an ISO until a person decides it. *Consumed by:*
+`scripts/lib/render.py` (column **Lands in**).
 
-**WHERE** — Staging host (low side), RHEL 9.x, as your user, cwd `~/OCPV-Dark-Site-Deployment`
-
-**WHY** — The sample values are deliberately rejected (all-zero MACs, `…` root devices,
-`4.22.z`, a documentation domain), so nothing reaches an ISO until a person has decided it.
-Consumed by: `scripts/lib/render.py` (see the **Lands in** column).
-If skipped: Lab 03 step 3.3 prints one `[FAIL]` line per undecided key.
-
-**EDIT** — `.env` → every key in groups A–F, top to bottom, with `vim .env`. The node identity
-fields follow this worked example (C3; repeat for `MW02_NICS`, `MW03_NICS`):
+**EDIT** — `.env` → every key, top to bottom (`vim .env`). Node identity follows this pattern
+(repeat for `MW02_NICS`, `MW03_NICS`):
 
 ```text
-WHERE:    Staging host, RHEL 9.x, as your user, cwd ~/OCPV-Dark-Site-Deployment
-WHY:      The Agent ISO matches each server by the MACs of its NICs, then applies that
-          host's bond, static IP and role. Consumed by: agent-config.yaml → hosts[n].interfaces[].
-          If skipped: the server boots the ISO but matches no hosts[] entry, and
-          `openshift-install agent wait-for` waits for 3 hosts forever (Lab 10).
 EDIT:     .env → MW01_NICS
           from: MW01_NICS="ens1f0=00:00:00:00:00:00,ens1f1=00:00:00:00:00:00,..."
-          to:   MW01_NICS="<ifname>=<MAC>,..."   (4 pairs, read from the XCC hardware inventory)
-DO:       ./scripts/03-generate-install-config.sh            (in Lab 08)
-VERIFY:   grep -c macAddress "${INSTALL_DIR}/agent-config.yaml"   →  expect: 12
-          grep -c 00:50:56 "${INSTALL_DIR}/agent-config.yaml"     →  expect: 0
-FAILS IF: "waiting for hosts" never advances ← a MAC typo or a non-bond NIC listed
+          to:   MW01_NICS="<ifname>=<MAC>,..."   (the 4 bond members, from the XCC inventory)
+WHY:      The Agent ISO matches each server by these MACs, then applies its bond, IP and role.
+          If wrong: the server boots the ISO, matches no host, and the install waits forever (Lab 10).
+VERIFY:   in Lab 08 — grep -c macAddress agent-config.yaml → 12; grep -c 00:50:56 → 0
 ```
 
-C3 and C4 come from the XCC inventory now and are **confirmed** on the hardware in Lab 05
-step 5.4, which tells you to edit them if the live names differ.
+C3 and C4 are confirmed on the hardware in Lab 05 step 5.4. Group G can keep its samples until
+the array is specified; set `STORAGE_BACKEND=ontap` only when it is.
 
-**DO**
+**DO** — `vim .env`
 
-```bash
-vim .env
-```
+**VERIFY** — Step 3.3.
 
-**VERIFY** — the next step.
-
-**FAILS IF** — You leave a group "for later" ← the ISO built in Lab 08 carries the sample.
+**FAILS IF** — A group is left "for later" ← the Lab 08 ISO carries the sample.
 
 ### 3.3 Prove the register
 
-**WHERE** — Staging host (low side), RHEL 9.x, as your user, cwd `~/OCPV-Dark-Site-Deployment`
+**WHERE** — Staging host, your user, cwd `~/OCPV-Dark-Site-Deployment`
 
-**WHY** — A bad value today surfaces 60–90 minutes into an install as a stalled bootstrap;
-the validator moves that failure to second zero, the way a pre-flight checklist catches a
-missing fuel cap on the ground. Consumed by: every script, which runs the same check first.
-If skipped: the first script you run stops with the same messages.
+**WHY** — A bad value otherwise surfaces 60–90 minutes into an install as a stalled bootstrap; the
+validator moves that failure to second zero, like a pre-flight checklist catching a missing fuel
+cap on the ground. Every script runs the same check first.
 
-**EDIT** — No edits in this step (fix any `[FAIL]` key in `.env` and re-run).
+**EDIT** — Fix each `[FAIL]` key in `.env`, then re-run.
 
-**DO**
-
-```bash
-./scripts/lib/validate-env.sh
-./scripts/00-prerequisites-check.sh --staging
-```
-
-**VERIFY**
+**DO / VERIFY**
 
 ```bash
-./scripts/lib/validate-env.sh && echo PASS     # expect: validate-env: PASS ... then PASS
-# 00 --staging expect: "Results: N passed, 0 failed"
+./scripts/lib/validate-env.sh                     # expect: validate-env: PASS
+./scripts/00-prerequisites-check.sh --staging     # expect: Results: N passed, 0 failed
 ```
 
-**FAILS IF** — `[FAIL] C3 MW01_NICS: still holds the sample MAC` ← C3 not filled;
-`[WARN] E1 TIME_SOURCE: orphan` is a warning, not a failure: it labels the run lab-grade.
+**FAILS IF** — `[FAIL] C3 MW01_NICS: still holds the sample MAC` ← C3 not filled.
+`[WARN] E1 TIME_SOURCE: orphan` is a warning: it labels the run lab-grade.
 
 ### 3.4 Sign off
 
-**WHERE** — Printed checklist or ticket, signed by each owner in the **Owner** column
+**WHERE** — Printed checklist or ticket
 
-**WHY** — Hardware, network and DNS owners each hold facts you cannot verify alone (MLAG pairing,
-routed ranges, domain ownership). Consumed by: change control. If skipped: a disagreement
-surfaces after cabling, when changing a value means rebuilding the ISO.
+**WHY** — Hardware, network, DNS and storage owners each hold facts you cannot verify alone (MLAG
+pairing, routed ranges, domain ownership, SVM and LIFs). Disagreement found after cabling costs an ISO rebuild.
 
-**EDIT** — No edits in this step.
+**EDIT** — None.
 
-**DO** — Record: switch port-channel and MLAG/vPC IDs per node (four members each, two per switch),
-the BMC network, and a signature per owner.
+**DO** — Record per node the port-channel / vPC ID (four members, two per switch) and the BMC
+network; collect one signature per owner in the **Owner** column.
 
-**VERIFY** — Every owner in the register has signed; `validate-env.sh` still passes on the signed `.env`.
+**VERIFY** — Every owner signed; `validate-env.sh` still passes on the signed `.env`.
 
-**FAILS IF** — An owner signs a different value than `.env` holds ← re-run 3.3 after correcting.
+**FAILS IF** — A signed value differs from `.env` ← correct `.env`, re-run 3.3.
 
 ## Next
 
