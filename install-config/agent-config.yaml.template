@@ -1,144 +1,22 @@
-apiVersion: v1alpha1
+# agent-config.yaml skeleton, loaded as data by scripts/lib/render.py (FR-A1).
+# The renderer builds hosts[] from .env because envsubst cannot emit a list: one entry
+# per control-plane node, each with its four bond members (FR-D4).
+#
+# Field                                   <- source (field register ID)
+#   metadata.name                         <- CLUSTER_NAME (A1, FR-D8)
+#   rendezvousIP                          <- RENDEZVOUS_IP (C6)
+#   additionalNTPSources[0]               <- TIME_SOURCE, or BASTION_IP when TIME_SOURCE=orphan (E1, FR-D6)
+#   hosts[n].hostname                     <- CPn_HOSTNAME (C1)
+#   hosts[n].rootDeviceHints.deviceName   <- CPn_ROOT_DEVICE (C4, FR-D5)
+#   hosts[n].interfaces[]                 <- CPn_NICS (C3): the MACs that identify each server
+#   hosts[n].networkConfig (nmstate)      <- bond0 802.3ad over CPn_NICS, MTU (B4), CPn_IP (C2),
+#                                            NETWORK_GATEWAY (B2), resolver BASTION_IP (D1)
+# TODO(verify-4.22): apiVersion v1beta1 per
+#   https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/installing_an_on-premise_cluster_with_the_agent-based_installer/
+apiVersion: v1beta1
 kind: AgentConfig
 metadata:
-  name: ocpv-lab
-rendezvousIP: 10.10.1.11
-hosts:
-  - hostname: cp01
-    role: master
-    rootDeviceHints:
-      deviceName: /dev/sda
-    interfaces:
-      - name: ens192
-        macAddress: "00:50:56:00:00:11"
-    networkConfig:
-      interfaces:
-        - name: ens192
-          type: ethernet
-          state: up
-          ipv4:
-            enabled: true
-            address:
-              - ip: 10.10.1.11
-                prefix-length: 16
-            dhcp: false
-      dns-resolver:
-        config:
-          server:
-            - 10.10.0.5
-      routes:
-        config:
-          - destination: 0.0.0.0/0
-            next-hop-address: 10.10.0.1
-            next-hop-interface: ens192
-  - hostname: cp02
-    role: master
-    rootDeviceHints:
-      deviceName: /dev/sda
-    interfaces:
-      - name: ens192
-        macAddress: "00:50:56:00:00:12"
-    networkConfig:
-      interfaces:
-        - name: ens192
-          type: ethernet
-          state: up
-          ipv4:
-            enabled: true
-            address:
-              - ip: 10.10.1.12
-                prefix-length: 16
-            dhcp: false
-      dns-resolver:
-        config:
-          server:
-            - 10.10.0.5
-      routes:
-        config:
-          - destination: 0.0.0.0/0
-            next-hop-address: 10.10.0.1
-            next-hop-interface: ens192
-  - hostname: cp03
-    role: master
-    rootDeviceHints:
-      deviceName: /dev/sda
-    interfaces:
-      - name: ens192
-        macAddress: "00:50:56:00:00:13"
-    networkConfig:
-      interfaces:
-        - name: ens192
-          type: ethernet
-          state: up
-          ipv4:
-            enabled: true
-            address:
-              - ip: 10.10.1.13
-                prefix-length: 16
-            dhcp: false
-      dns-resolver:
-        config:
-          server:
-            - 10.10.0.5
-      routes:
-        config:
-          - destination: 0.0.0.0/0
-            next-hop-address: 10.10.0.1
-            next-hop-interface: ens192
-  - hostname: wk01
-    role: worker
-    rootDeviceHints:
-      deviceName: /dev/sda
-    interfaces:
-      - name: ens192
-        macAddress: "00:50:56:00:00:21"
-    networkConfig:
-      interfaces:
-        - name: ens192
-          type: ethernet
-          state: up
-          ipv4:
-            enabled: true
-            address:
-              - ip: 10.10.2.21
-                prefix-length: 16
-            dhcp: false
-      dns-resolver:
-        config:
-          server:
-            - 10.10.0.5
-      routes:
-        config:
-          - destination: 0.0.0.0/0
-            next-hop-address: 10.10.0.1
-            next-hop-interface: ens192
-  - hostname: wk02
-    role: worker
-    rootDeviceHints:
-      deviceName: /dev/sda
-    interfaces:
-      - name: ens192
-        macAddress: "00:50:56:00:00:22"
-    networkConfig:
-      interfaces:
-        - name: ens192
-          type: ethernet
-          state: up
-          ipv4:
-            enabled: true
-            address:
-              - ip: 10.10.2.22
-                prefix-length: 16
-            dhcp: false
-      dns-resolver:
-        config:
-          server:
-            - 10.10.0.5
-      routes:
-        config:
-          - destination: 0.0.0.0/0
-            next-hop-address: 10.10.0.1
-            next-hop-interface: ens192
-
-# Optional: bonds, VLANs, proxy — edit nmstate per host before install.
-# Docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/kubernetes_nmstate/
+  name: ""
+rendezvousIP: ""
+additionalNTPSources: []
+hosts: []
