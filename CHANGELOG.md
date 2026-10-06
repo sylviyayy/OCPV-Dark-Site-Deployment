@@ -40,6 +40,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Labs 03 and `detail/configure-site-env.md` require the mirror registry to be on a separate host when the bastion will be disconnected
 
 ### Fixed
+- `scripts/lib/common.sh` resolved `REPO_ROOT` to `scripts/` instead of the repository root, so `load_env` never found `.env` and every numbered script exited at start-up
+- Rewrote `scripts/02-bootstrap-dns-ntp.sh` (bastion temporary DNS/NTP). It now listens on `127.0.0.1` and `BASTION_IP`, serves A and PTR records via `host-record=` plus a version-independent `apps` wildcard, and restarts services so re-runs apply changes. It adds pre-flight checks (bastion IP present, port 53 free, valid IPs), `--set-time` (UTC), `--verify` with a real NTP query, and `--dry-run`. Tested with dnsmasq 2.91 and chrony 4.5
+- Bastion NTP checks in Lab 07, `docs/03`, `docs/05` and `scripts/00-prerequisites-check.sh` used `chronyc -h <remote>`, which chronyd refuses by default. They now use `02 --verify` or a `chronyd -Q` probe
 - `kickstart/ks-bastion.cfg` no longer lists `openshift-clients`, which is not on the RHEL DVD and halted the Kickstart. The duplicate `nmstate` entry is also removed
 - `docs/01-architecture-overview.md` no longer says the staging machine downloads RHCOS images. RHCOS ships inside the mirrored release payload
 - `docs/03-kickstart-procedure.md` now specifies the RHEL Binary DVD (not the Boot ISO) and drops the non-existent `openshift-client` package

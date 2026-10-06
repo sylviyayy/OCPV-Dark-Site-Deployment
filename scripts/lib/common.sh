@@ -2,8 +2,10 @@
 # Common functions for OCP-V dark site deployment scripts
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# This file lives in scripts/lib/, so the repo root is two levels up. BASH_SOURCE[0]
+# is this file even when sourced; do not overwrite the caller's SCRIPT_DIR.
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${LIB_DIR}/../.." && pwd)"
 
 load_env() {
   if [[ -f "${REPO_ROOT}/.env" ]]; then

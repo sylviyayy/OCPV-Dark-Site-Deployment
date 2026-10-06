@@ -139,8 +139,7 @@ sudo ./scripts/02-bootstrap-dns-ntp.sh
 Verify:
 
 ```bash
-dig @10.10.0.5 registry.ocp-v.local
-chronyc -h 10.10.0.5 tracking
+sudo ./scripts/02-bootstrap-dns-ntp.sh --verify
 ```
 
 ## Step 7 — Distribute /etc/hosts to all future nodes

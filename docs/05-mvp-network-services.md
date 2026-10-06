@@ -21,7 +21,7 @@ In a dark site, these services **do not exist** until you create them. The basti
 │  │  dnsmasq    │  │  chronyd         │  │
 │  │  :53        │  │  :123            │  │
 │  │  DNS only   │  │  local stratum   │  │
-│  │  (no DHCP)  │  │  (orphan mode)   │  │
+│  │  (no DHCP)  │  │  (stratum 10)    │  │
 │  └─────────────┘  └──────────────────┘  │
 │                                         │
 │  /etc/dnsmasq.d/ocp-v.conf              │
@@ -45,41 +45,53 @@ sudo ./scripts/02-bootstrap-dns-ntp.sh
 
 ### What the script does
 
-1. Installs `dnsmasq` and `chrony`
-2. Generates `/etc/dnsmasq.d/ocp-v.conf` from `.env` variables
-3. Configures chronyd in **orphan mode** (acts as authoritative time source with no upstream)
+1. Checks that `BASTION_IP` is on this host and port 53 is free
+2. Installs `dnsmasq`, `chrony` and `bind-utils` if missing
+3. Generates `/etc/dnsmasq.d/ocp-v.conf` and `/etc/chrony.conf` from `.env` variables
 4. Opens firewall ports 53 and 123
-5. Starts and enables both services
+5. Restarts and enables both services, then verifies them
+
+Run `./scripts/02-bootstrap-dns-ntp.sh --dry-run` to see the exact files.
 
 ## DNS Records (dnsmasq)
 
-The script generates A records for all infrastructure and cluster hosts:
+The script generates A **and PTR** records for all infrastructure and cluster hosts:
 
 ```
-# /etc/dnsmasq.d/ocp-v.conf
-address=/bastion.ocp-v.local/10.10.0.5
-address=/registry.ocp-v.local/10.10.0.10
-address=/api.ocpv-lab.ocp-v.local/10.10.0.100
-address=/api-int.ocpv-lab.ocp-v.local/10.10.0.100
-address=/*.apps.ocpv-lab.ocp-v.local/10.10.0.101
-address=/cp01.ocp-v.local/10.10.1.11
+# /etc/dnsmasq.d/ocp-v.conf (excerpt)
+listen-address=127.0.0.1,10.10.0.5
+bind-interfaces
+no-resolv
+no-hosts
+local=/ocp-v.local/
+address=/apps.ocpv-lab.ocp-v.local/10.10.0.101
+host-record=bastion.ocp-v.local,10.10.0.5
+host-record=registry.ocp-v.local,10.10.0.10
+host-record=api.ocpv-lab.ocp-v.local,10.10.0.100
+host-record=api-int.ocpv-lab.ocp-v.local,10.10.0.100
+host-record=cp01.ocp-v.local,10.10.1.11
 ...
 ```
 
-Wildcard `*.apps` is supported by dnsmasq for ingress resolution.
+`address=/apps.<cluster>.<domain>/` matches `apps.<cluster>.<domain>` and every name
+below it. That is the `*.apps` wildcard, written without a `*` because wildcard syntax
+differs across dnsmasq versions.
 
-## NTP Configuration (chronyd orphan mode)
+## NTP Configuration (local clock, no upstream)
 
 ```ini
-# /etc/chrony.conf (relevant section)
-local stratum 10 orphan
+# /etc/chrony.conf
+local stratum 10
 allow 10.10.0.0/16
-bindaddress 10.10.0.5
 makestep 1.0 3
 rtcsync
+driftfile /var/lib/chrony/drift
+logdir /var/log/chrony
 ```
 
-**Orphan mode** means chronyd acts as the time source even without upstream NTP servers. All cluster nodes sync to the bastion. Clock drift is acceptable during install as long as all nodes agree.
+`local stratum 10` makes chronyd serve its own clock with no upstream NTP servers. All
+cluster nodes sync to the bastion. Drift from true UTC is acceptable during install, as
+long as all nodes agree. Stratum 10 is deliberately high, so any later real source wins.
 
 ## Verification
 
@@ -91,9 +103,12 @@ dig @10.10.0.5 registry.ocp-v.local +short
 dig @10.10.0.5 api.ocpv-lab.ocp-v.local +short
 # Expected: 10.10.0.100
 
-# NTP
-chronyc -h 10.10.0.5 tracking
-# Expected: Reference ID shows bastion IP, stratum 10
+# Everything at once, on the bastion
+sudo ./scripts/02-bootstrap-dns-ntp.sh --verify
+
+# NTP from another host (chronyc -h does not work remotely)
+sudo chronyd -Q -t 10 'port 0' 'cmdport 0' 'pidfile /run/chronyd-q.pid' 'server 10.10.0.5 iburst'
+# Expected: "System clock wrong by <offset> seconds (ignored)"
 
 # From a cluster node
 chronyc sources

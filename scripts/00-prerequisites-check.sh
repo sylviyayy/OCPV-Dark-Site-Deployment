@@ -64,8 +64,7 @@ else
   echo "--- Network (if in dark site) ---"
   check "Bastion reachable" ping -c1 -W2 "${BASTION_IP}"
   check "Registry reachable" ping -c1 -W2 "${MIRROR_REGISTRY_IP}"
-  check "Bastion DNS" dig "@${BASTION_IP}" "registry.${BASE_DOMAIN}" +short
-  check "Bastion NTP" chronyc -h "${BASTION_IP}" tracking
+  check "Bastion DNS + NTP (02 --verify)" "${SCRIPT_DIR}/02-bootstrap-dns-ntp.sh" --verify
 fi
 
 echo
