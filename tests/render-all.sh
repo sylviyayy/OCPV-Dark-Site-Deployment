@@ -131,9 +131,9 @@ msgs="$(OCPV_ENV_FILE="${REPO}/.env.example" "${REPO}/scripts/lib/validate-env.s
 rc=$?
 set -e
 [[ ${rc} -eq 1 ]] || die "validate-env.sh exited ${rc} on .env.example, expected 1"
-for key in MW01_NICS MW02_NICS MW03_NICS BASE_DOMAIN PULL_SECRET_FILE; do
+for key in OCP_VERSION MW01_NICS MW02_NICS MW03_NICS PULL_SECRET_FILE; do
   [[ "$(grep -c "\[FAIL\] .. ${key}:" <<<"${msgs}")" == "1" ]] || die "expected exactly one message for ${key}"
 done
-pass "exit 1 with one message per offending key (sample MACs, domain, missing file)"
+pass "exit 1 with one message per offending key (version, sample MACs, missing file)"
 
 echo "All render checks passed."

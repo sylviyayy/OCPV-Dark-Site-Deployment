@@ -37,7 +37,8 @@ KINDS = {  # resource names as typed on the command line -> kind
     "datavolume": "DataVolume", "hostpathprovisioner": "HostPathProvisioner", "lvmcluster": "LVMCluster",
     "storageprofile": "StorageProfile", "tridentbackendconfig": "TridentBackendConfig", "tbc": "TridentBackendConfig",
     "tridentorchestrator": "TridentOrchestrator", "operatorhub": "OperatorHub", "namespace": "Namespace",
-    "configs.samples.operator.openshift.io": "Config",
+    "configs.samples.operator.openshift.io": "Config", "packagemanifest": "PackageManifest",
+    "operatorgroup": "OperatorGroup",
 }
 
 
@@ -79,7 +80,16 @@ def find(state, kind, name, ns=None):
         return find(state, "StorageClass", name)
     if kind == "ClusterServiceVersion":  # OLM creates the CSV once a Subscription resolves
         sub = name.rsplit(".v", 1)[0]
+        groups = [k for k in state["objects"] if k.startswith(f"OperatorGroup/{ns}/")]
+        if ns == "openshift-operators":
+            groups.append("global-operators")  # ships with every cluster
+        if len(groups) != 1:  # OLM: TooManyOperatorGroups / no OperatorGroup -> never installs
+            return None
         return find(state, "Subscription", sub, ns)
+    if kind == "PackageManifest":  # served from the mirrored catalog: present iff mirrored
+        isc = pathlib.Path(ENV.get("IMAGESET_CONFIG", "/nonexistent"))
+        mirrored = isc.is_file() and re.search(rf"name: {re.escape(name)}$", isc.read_text(), re.M)
+        return {"kind": kind, "metadata": {"name": name}} if mirrored else None
     for k, obj in state["objects"].items():
         if k.split("/")[0] == kind and k.split("/")[2] == name and (ns is None or k.split("/")[1] in (ns, "-")):
             return obj
@@ -133,6 +143,9 @@ def jsonpath(state, kind, names, ns, path):
         out = [o["metadata"]["name"] for k, o in state["objects"].items() if k.startswith("StorageClass/")
                and (o["metadata"].get("annotations") or {}).get("storageclass.kubernetes.io/is-default-class") == "true"]
         return "\n".join(out)
+    if kind == "OperatorGroup" and ".items[*].metadata.name" in path:
+        found = [k.split("/")[2] for k in state["objects"] if k.startswith(f"OperatorGroup/{ns}/")]
+        return " ".join(found + (["global-operators"] if ns == "openshift-operators" else []))
     if kind == "VirtualMachineInstance" and "nodeName" in path:
         return " ".join(NODES[i % 3] for i, _ in enumerate(names))
     obj = find(state, kind, names[0], ns) if names else None
@@ -165,6 +178,11 @@ def oc_get(state):
     out = opt("-o", "")
     resources = target.split(",")
     names = [a for a in ARGS[2:] if not a.startswith("-") and a not in (ns, out) and "=" not in a]
+    if target == "packagemanifest" and names and out == "":  # `oc get packagemanifest NAME`
+        if not find(state, "PackageManifest", names[0]):
+            die(f'Error from server (NotFound): packagemanifests.packages.operators.coreos.com "{names[0]}" not found')
+        print(f"{names[0]}   Red Hat Operators   1d")
+        return
     if len(resources) > 1 or out in ("wide", "yaml") or out == "" and "--no-headers" not in ARGS and target not in ("nodes", "co"):
         print(f"(fake listing of {target})")
         return
@@ -412,6 +430,12 @@ def main():
         state = load()
         state["mounted"] = True
         save(state)
+    elif TOOL == "ip":
+        # `ip -o -4 addr show`: the bastion owns BASTION_IP unless a test says otherwise.
+        if "-br" in ARGS:
+            print(f"eno1  UP  {ENV.get('BASTION_IP', '')}/24")
+        elif not ENV.get("FAKE_NO_BASTION_IP"):
+            print(f"2: eno1    inet {ENV.get('BASTION_IP', '')}/24 brd 0.0.0.0 scope global eno1")
     elif TOOL == "systemctl" and ARGS[:1] == ["is-enabled"]:
         print("enabled")
     elif TOOL in ("systemctl", "firewall-cmd", "update-ca-trust", "dnf", "nmstatectl", "mkksiso", "dnsmasq"):

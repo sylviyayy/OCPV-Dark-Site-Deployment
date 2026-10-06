@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Low side (connected RHEL 9 staging host) — Lab 06 steps 6.1-6.2.
 #
-#   ./scripts/01-mirror-preparation.sh [--profile default|coe]       clients, auth, ImageSet
+#   ./scripts/01-mirror-preparation.sh [--profile default|poc|poc,odf|coe]   clients, auth, ImageSet
 #   ./scripts/01-mirror-preparation.sh --mirror-to-disk [--profile]  ... then mirror to disk
 #
 # This host never joins the machine network (ADR-02). Its output crosses the air gap on
@@ -22,7 +22,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --profile) PROFILE="$2"; shift 2 ;;
     --mirror-to-disk) MIRROR_TO_DISK=true; shift ;;
-    *) log_error "usage: $0 [--profile default|coe] [--mirror-to-disk]"; exit 2 ;;
+    *) log_error "usage: $0 [--profile default|poc|poc,odf|coe] [--mirror-to-disk]"; exit 2 ;;
   esac
 done
 

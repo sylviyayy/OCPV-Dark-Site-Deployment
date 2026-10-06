@@ -17,7 +17,7 @@ PRINT_ONLY=false
 [[ "${1:-}" == "--print-config" ]] && PRINT_ONLY=true
 
 load_env
-validate_env
+validate_env --scope services   # site steps run before MACs, disks and the pull secret are known
 [[ "${PRINT_ONLY}" == true ]] || check_root
 
 CLUSTER_DOMAIN="${CLUSTER_NAME}.${BASE_DOMAIN}"
@@ -78,13 +78,32 @@ if [[ "${PRINT_ONLY}" == true ]]; then
   exit 0
 fi
 
-# The bastion has no network repositories: packages come from its kickstart (Lab 04).
+# dnsmasq binds BASTION_IP explicitly (bind-interfaces), so the address must already be on a
+# NIC; otherwise it fails with "cannot assign requested address" and nothing else explains why.
+if ! ip -o -4 addr show | awk '{print $4}' | cut -d/ -f1 | grep -qxF "${BASTION_IP}"; then
+  log_error "BASTION_IP=${BASTION_IP} is not configured on any interface of this host."
+  log_error "Either fix BASTION_IP in .env (group D1), or give the NIC that address, e.g.:"
+  log_error "  nmcli con mod <connection> ipv4.method manual ipv4.addresses ${BASTION_IP}/${MACHINE_NETWORK_CIDR#*/} ipv4.gateway ${NETWORK_GATEWAY} && nmcli con up <connection>"
+  ip -br -4 addr >&2
+  exit 1
+fi
+
+# The kickstart installs these from the DVD (Lab 04). A hand-installed bastion may lack them:
+# install from whatever local repository is configured (the DVD repo from script 04b, or a
+# mounted DVD); a dark site has no CDN, so a timeout here means "no local repo yet".
+missing=()
 for pkg in dnsmasq chrony bind-utils; do
-  if ! rpm -q "${pkg}" &>/dev/null; then
-    log_error "${pkg} is not installed. It ships on the RHEL 9 DVD: re-check Lab 04 or serve the DVD repo (Lab 06 step 6.5) and dnf install ${pkg}"
+  rpm -q "${pkg}" &>/dev/null || missing+=("${pkg}")
+done
+if (( ${#missing[@]} > 0 )); then
+  log_info "Installing ${missing[*]} from the configured local repository"
+  if ! timeout 300 dnf -y install "${missing[@]}"; then
+    log_error "Could not install ${missing[*]}. They are on the RHEL 9 DVD (AppStream/BaseOS). Either:"
+    log_error "  copy the DVD ISO to ${MIRROR_DIR}/rhel9-dvd.iso and run: sudo ./scripts/04b-serve-dvd-repo.sh"
+    log_error "  or mount it: mount -o loop,ro <dvd.iso> /mnt && dnf -y --repofrompath=b,file:///mnt/BaseOS --repofrompath=a,file:///mnt/AppStream --nogpgcheck install ${missing[*]}"
     exit 1
   fi
-done
+fi
 
 dnsmasq_config > /etc/dnsmasq.d/ocp-v.conf
 dnsmasq --test --conf-file=/etc/dnsmasq.conf
@@ -111,6 +130,12 @@ verify "api-int A -> API_VIP" expect_dns "${BASTION_IP}" "api-int.${CLUSTER_DOMA
 verify "*.apps wildcard -> INGRESS_VIP" expect_dns "${BASTION_IP}" "console-openshift-console.apps.${CLUSTER_DOMAIN}" "${INGRESS_VIP}"
 verify "${MW01_HOSTNAME} PTR" expect_ptr "${BASTION_IP}" "${MW01_IP}" "${MW01_HOSTNAME}.${BASE_DOMAIN}"
 verify "chronyd serves time (offset < 1 s)" ntp_offset_ok "${BASTION_IP}"
+if [[ "${TIME_SOURCE}" != "orphan" ]] && ! ntp_offset_ok "${TIME_SOURCE}"; then
+  # Not fatal: chronyd keeps serving its own clock (local stratum 10 orphan) and locks on to
+  # TIME_SOURCE as soon as it answers. Until then the site runs on the bastion's clock (step 7.0).
+  log_warn "TIME_SOURCE ${TIME_SOURCE} does not answer NTP from here (route via ${NETWORK_GATEWAY}? UDP 123 open?)."
+  log_warn "The bastion serves its own clock until it does; check later with: chronyc sources"
+fi
 if (( fails > 0 )); then
   log_error "${fails} check(s) failed"
   exit 1

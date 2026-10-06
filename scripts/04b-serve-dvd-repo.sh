@@ -15,7 +15,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 load_env
-validate_env
+validate_env --scope services   # site steps run before MACs, disks and the pull secret are known
 check_root
 
 ISO="${MIRROR_DIR}/rhel9-dvd.iso"

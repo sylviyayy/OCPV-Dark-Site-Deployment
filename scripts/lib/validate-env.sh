@@ -5,9 +5,9 @@
 # on the ground. The rules themselves live in scripts/lib/render.py (one implementation).
 #
 # Sourced by scripts/lib/common.sh, which gives every script `validate_env`.
-# Run directly for Lab 03:  ./scripts/lib/validate-env.sh [--env-file PATH] [--probe]
+# Run directly for Lab 03:  ./scripts/lib/validate-env.sh [--env-file PATH] [--probe] [--scope S]
 
-# validate_env [--probe] — exit 1 with one message per offending key.
+# validate_env [--probe] [--scope services|kickstart] — exit 1 with one message per offending key.
 validate_env() {
   if ! python3 "${REPO_ROOT}/scripts/lib/render.py" validate "$@"; then
     log_error "Fix the keys above in .env (field register: docs/labs/03-checklist.md), then re-run."
@@ -24,13 +24,15 @@ if [[ "${BASH_SOURCE[0]}" == "${0}" && -z "${VALIDATE_ENV_MAIN:-}" ]]; then
   source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/common.sh"
   env_file=""
   probe=()
+  scope=()
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --env-file) env_file="$2"; shift 2 ;;
       --probe) probe=(--probe); shift ;;
-      *) log_error "usage: $0 [--env-file PATH] [--probe]"; exit 2 ;;
+      --scope) scope=(--scope "$2"); shift 2 ;;
+      *) log_error "usage: $0 [--env-file PATH] [--probe] [--scope services|kickstart]"; exit 2 ;;
     esac
   done
   load_env ${env_file:+"${env_file}"}
-  validate_env "${probe[@]}"
+  validate_env "${probe[@]}" "${scope[@]}"
 fi

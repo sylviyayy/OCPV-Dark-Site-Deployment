@@ -10,12 +10,14 @@ PyYAML (python3-pyyaml, on the RHEL 9 DVD) is imported only by subcommands that 
 or read YAML, so `validate` also runs on a host without it.
 
 Subcommands
-  validate [--probe]             enforce the field-register Rule column (one message per key)
+  validate [--probe] [--scope S] enforce the field-register Rule column (one message per key);
+                                 --scope services|kickstart checks only what the bastion steps need
   install-config OUT             render install-config.yaml   (FR-D1, D2, D3, A2)
   agent-config OUT               render agent-config.yaml     (FR-D4, D5, D6, D8)
   imageset OUT [--profile P]     render the oc-mirror ImageSetConfiguration (FR-B6)
   text TEMPLATE OUT              substitute ${KEY} tokens in a text template
   catalog-source [INDEX]         print the mirrored CatalogSource name for INDEX (FR-G1)
+  operators PROFILE[,PROFILE]    print "package channel namespace mode catalog" per installable entry
   value KEY                      print one .env or derived value
 """
 import argparse
@@ -66,6 +68,21 @@ DERIVED = {
     "CLUSTER_RESOURCES_DIR": lambda e: f"{e['MIRROR_DIR']}/archive/working-dir/cluster-resources",
 }
 FIELD_ID = {key: fid for fid, key in REGISTER}
+# Validation scopes. The bastion's own steps run on site before node MACs, root disks, the pull
+# secret or the release version are known, so they check only the keys they consume; every
+# other script checks the whole register ("all").
+#   services  — scripts/02 (dnsmasq + chronyd) and scripts/04b (DVD repo)
+#   kickstart — scripts/render-kickstart.sh (bastion / registry host install)
+_SERVICES = {
+    "ENV_SCHEMA_VERSION", "CLUSTER_NAME", "BASE_DOMAIN", "MACHINE_NETWORK_CIDR", "NETWORK_GATEWAY",
+    "API_VIP", "INGRESS_VIP", *[f"{n}_HOSTNAME" for n in NODES], *[f"{n}_IP" for n in NODES],
+    "BASTION_HOSTNAME", "BASTION_IP", "MIRROR_REGISTRY_HOSTNAME", "MIRROR_REGISTRY_PORT",
+    "MIRROR_REGISTRY_IP", "TIME_SOURCE", "DNS_VM_IPS", "NTP_VM_IP", "MIRROR_DIR", *DERIVED,
+}
+SCOPES = {
+    "services": _SERVICES,
+    "kickstart": _SERVICES | {"BASTION_IFNAME", "SSH_PUBLIC_KEY_FILE", "INSTALL_DIR"},
+}
 
 RFC1123_LABEL = re.compile(r"^[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?$")
 DNS_NAME = re.compile(r"^(?=.{1,253}$)([a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)(\.[a-z0-9]([-a-z0-9]{0,61}[a-z0-9])?)+$")
@@ -244,7 +261,10 @@ def validate(env, probe=False):
         elif dom == "local" or dom.endswith(".local"):
             r.fail("BASE_DOMAIN", ".local is reserved for multicast DNS (RFC 6762); use a site-owned domain or <name>.internal")
         elif re.search(r"(^|\.)example\.(com|net|org)$", dom):
-            r.fail("BASE_DOMAIN", "example.com/.net/.org are documentation domains (RFC 2606), not site-owned; use your domain or <name>.internal")
+            # Works inside an isolated site, so it is not fatal; but it is baked into every
+            # certificate and name at install time and cannot change afterwards.
+            r.warn("BASE_DOMAIN", f"{dom} is a documentation domain (RFC 2606); fine for a closed POC, "
+                   "but it cannot be changed after install — confirm it before Lab 08")
     ver = re.fullmatch(r"4\.(\d+)\.(\d+)", env.get("OCP_VERSION", ""))
     if env.get("OCP_VERSION") and not ver:
         r.fail("OCP_VERSION", f"'{env['OCP_VERSION']}' is not an exact z-stream such as 4.22.3")
@@ -453,6 +473,12 @@ def validate(env, probe=False):
 def cmd_validate(env, args):
     r = validate(env, probe=args.probe)
     order = ["ENV_SCHEMA_VERSION"] + [k for _, k in REGISTER] + list(DERIVED)
+    deferred = []
+    if args.scope != "all":
+        deferred = sorted((k for k in r.errors if k not in SCOPES[args.scope]),
+                          key=lambda k: order.index(k) if k in order else len(order))
+        r.errors = {k: v for k, v in r.errors.items() if k not in deferred}
+        r.warnings = [(k, m) for k, m in r.warnings if k in SCOPES[args.scope]]
     for key, msg in r.warnings:
         print(f"[WARN] {FIELD_ID.get(key, '--')} {key}: {msg}", file=sys.stderr)
     for key in sorted(r.errors, key=lambda k: order.index(k) if k in order else len(order)):
@@ -461,7 +487,11 @@ def cmd_validate(env, args):
         print(f"validate-env: {len(r.errors)} key(s) violate the field register "
               "(docs/labs/03-checklist.md)", file=sys.stderr)
         return 1
-    print("validate-env: PASS — .env satisfies every field-register rule", file=sys.stderr)
+    if deferred:
+        print(f"validate-env: PASS for scope '{args.scope}'. Not needed yet, fix before Lab 06/08: "
+              f"{', '.join(deferred)}", file=sys.stderr)
+    else:
+        print("validate-env: PASS — .env satisfies every field-register rule", file=sys.stderr)
     return 0
 
 
@@ -659,16 +689,23 @@ def cmd_imageset(env, args):
 
     backend = env_get(env, "STORAGE_BACKEND")
     selected = ["default"] + ([backend] if backend in ("lvms", "ontap") else [])
-    if args.profile != "default":
-        selected.append(args.profile)
+    for extra in args.profile.split(","):   # --profile poc,odf selects several
+        if extra and extra not in selected:
+            selected.append(extra)
     by_catalog = {}  # index name -> packages, in first-seen order
+    seen = set()
     for name in selected:
         if name not in profiles:
             raise Fail(f"unknown ImageSet profile '{name}' (see mirror/imageset-profiles.yaml)")
         index = profiles[name].get("catalog", "redhat-operator-index")
         for pkg in profiles[name]["operators"]:
-            by_catalog.setdefault(index, []).append(
-                {"name": pkg["name"], "channels": [{"name": pkg["channel"].replace("${OCP_MINOR}", minor)}]})
+            if (index, pkg["name"]) in seen:
+                continue
+            seen.add((index, pkg["name"]))
+            entry = {"name": pkg["name"]}
+            if pkg.get("channel"):   # no channel: oc-mirror takes the default channel's head
+                entry["channels"] = [{"name": pkg["channel"].replace("${OCP_MINOR}", minor)}]
+            by_catalog.setdefault(index, []).append(entry)
     isc["mirror"]["operators"] = [{"catalog": f"registry.redhat.io/redhat/{index}:v{minor}", "packages": pkgs}
                                   for index, pkgs in by_catalog.items()]
     isc["mirror"]["additionalImages"] = [{"name": f"registry.redhat.io/rhel9/rhel-guest-image@{digest}"}]
@@ -697,6 +734,24 @@ def cmd_catalog_source(env, args):
     return 0
 
 
+def cmd_operators(env, args):
+    """Installable entries of ImageSet profiles, one per line, for scripts/06c. Entries without a
+    namespace are dependencies: mirrored, then installed by OLM, never subscribed to directly."""
+    profiles = yaml_load(REPO_ROOT / "mirror/imageset-profiles.yaml")
+    minor = derived_value(env, "OCP_MINOR")
+    for name in args.profiles.split(","):
+        if name not in profiles:
+            raise Fail(f"unknown profile '{name}' (see mirror/imageset-profiles.yaml)")
+        index = profiles[name].get("catalog", "redhat-operator-index")
+        for pkg in profiles[name]["operators"]:
+            if not pkg.get("namespace"):
+                continue
+            if pkg.get("mode") not in ("OwnNamespace", "AllNamespaces") or not pkg.get("channel"):
+                raise Fail(f"{name}/{pkg['name']}: an installable entry needs channel and mode OwnNamespace|AllNamespaces")
+            print(pkg["name"], pkg["channel"].replace("${OCP_MINOR}", minor), pkg["namespace"], pkg["mode"], index)
+    return 0
+
+
 def cmd_value(env, args):
     print(derived_value(env, args.key))
     return 0
@@ -707,6 +762,8 @@ def main():
     sub = parser.add_subparsers(dest="cmd", required=True)
     v = sub.add_parser("validate")
     v.add_argument("--probe", action="store_true", help="also ping the VIPs (they must not answer before install)")
+    v.add_argument("--scope", choices=["all", *SCOPES], default="all",
+                   help="check only the keys one stage consumes (services: scripts 02/04b; kickstart: render-kickstart)")
     for name in ("install-config", "agent-config"):
         sub.add_parser(name).add_argument("out")
     i = sub.add_parser("imageset")
@@ -717,10 +774,12 @@ def main():
     t.add_argument("out")
     sub.add_parser("catalog-source").add_argument("index", nargs="?", default="redhat-operator-index")
     sub.add_parser("value").add_argument("key")
+    sub.add_parser("operators").add_argument("profiles")
     args = parser.parse_args()
 
     handlers = {"validate": cmd_validate, "install-config": cmd_install_config, "agent-config": cmd_agent_config,
-                "imageset": cmd_imageset, "text": cmd_text, "catalog-source": cmd_catalog_source, "value": cmd_value}
+                "imageset": cmd_imageset, "text": cmd_text, "catalog-source": cmd_catalog_source, "value": cmd_value,
+                "operators": cmd_operators}
     try:
         return handlers[args.cmd](dict(os.environ), args)
     except Fail as exc:

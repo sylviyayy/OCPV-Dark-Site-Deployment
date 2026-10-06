@@ -20,7 +20,7 @@ case "${ROLE}" in
 esac
 
 load_env
-validate_env
+validate_env --scope kickstart   # site steps run before MACs, disks and the pull secret are known
 require_cmd openssl python3
 
 TEMPLATE="${REPO_ROOT}/kickstart/ks-${ROLE}.cfg.template"

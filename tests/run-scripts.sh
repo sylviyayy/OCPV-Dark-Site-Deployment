@@ -49,7 +49,7 @@ wrap() {  # wrap TOOL DIR — a one-line executable that forwards to the dispatc
   chmod +x "$2/$1"
 }
 for t in oc openshift-install curl skopeo podman dig chronyd ping rpm mount mountpoint \
-         systemctl firewall-cmd update-ca-trust dnf nmstatectl mkksiso dnsmasq; do
+         systemctl firewall-cmd update-ca-trust dnf nmstatectl mkksiso dnsmasq ip; do
   wrap "${t}" "${FAKE_DIR}/bin"
 done
 # Poll loops count elapsed time by their interval, so an instant sleep keeps every timeout
@@ -126,6 +126,7 @@ tree_before="$(git -C "${REPO}" status --porcelain --ignored)"
 
 echo "== Lab 01-03: staging host and field register"
 step "sample .env.example is rejected (AT-02)" 1 -- "${S}/lib/validate-env.sh" --env-file "${REPO}/.env.example"
+step "POC .env.example passes the bastion services scope as shipped" 0 -- "${S}/lib/validate-env.sh" --env-file "${REPO}/.env.example" --scope services
 step "no .env at all: refuse, no fallback (FR-A4)" 1 OCPV_ENV_FILE="${CI_TMP}/missing.env" -- "${S}/lib/validate-env.sh"
 mkdir -p "${MIRROR_DIR}"
 jq -n '{auths: {"registry.redhat.io": {auth: "Y2k6Y2k="}, "cloud.openshift.com": {auth: "Y2k6Y2k="}}}' > "${PULL_SECRET_FILE}"
@@ -154,6 +155,8 @@ step "04 load (disk to mirror)" 0 --stdin 'Corr3ct-Horse\n' -- "${S}/04-mirror-o
 echo "== Lab 07: bastion DNS and NTP"
 step "02 bootstrap DNS/NTP (root)" 0 --root -- "${S}/02-bootstrap-dns-ntp.sh"
 step "02 --print-config" 0 -- "${S}/02-bootstrap-dns-ntp.sh" --print-config
+step "02 refuses when BASTION_IP is on no interface" 1 --root FAKE_NO_BASTION_IP=1 -- "${S}/02-bootstrap-dns-ntp.sh"
+step "02 on day 1 with the POC .env.example (no MACs, no pull secret)" 0 --root OCPV_ENV_FILE="${REPO}/.env.example" -- "${S}/02-bootstrap-dns-ntp.sh"
 step "00 --bastion" 0 -- "${S}/00-prerequisites-check.sh" --bastion
 
 echo "== Lab 08-10: install"
@@ -170,6 +173,12 @@ step "Lab 12: samples operator Removed" 0 -- oc patch configs.samples.operator.o
 step "Lab 12: apply cluster-resources" 0 -- oc apply -f "${CLUSTER_RESOURCES_DIR}/"
 step "Lab 12: wait for the mirror config rollout" 0 -- oc wait mcp --all --for=condition=Updated --timeout=30m
 step "06 operators" 0 -- "${S}/06-deploy-cnv.sh"
+step "06c refuses operators that were never mirrored" 1 -- "${S}/06c-install-operators.sh" poc
+step "01 ImageSet with the POC and ODF profiles" 0 -- "${S}/01-mirror-preparation.sh" --profile poc,odf
+step "ImageSet lists all POC and ODF packages once" 0 -- bash -c 'for p in mtv-operator authorino-operator kernel-module-management openshift-pipelines-operator-rh servicemeshoperator3 serverless-operator local-storage-operator odf-operator ocs-tls-profiles kubevirt-hyperconverged; do [[ $(grep -c "name: ${p}$" "$1") == 1 ]] || { echo "missing or duplicated: ${p}"; exit 1; }; done' _ "${IMAGESET_CONFIG}"
+step "06c installs the POC and ODF operators" 0 -- "${S}/06c-install-operators.sh" poc,odf
+step "06c re-run is idempotent (no second OperatorGroup)" 0 -- "${S}/06c-install-operators.sh" poc,odf
+step "06c without a profile prints usage" 2 -- "${S}/06c-install-operators.sh"
 step "06b storage" 0 -- "${S}/06b-configure-storage.sh"
 step "07 DNS VMs" 0 -- "${S}/07-deploy-dns-vm.sh"
 step "08 NTP VM and cut-over" 0 -- "${S}/08-deploy-ntp-vm.sh"

@@ -33,8 +33,71 @@ ontap:
     - name: trident-operator
       channel: stable
 
-# Partner CoE demo set (formerly mirror/imageset-ocpv-coe.yaml). MTV is deliberately
-# absent: add `mtv-operator` here before mirroring if the customer migrates from VMware.
+# POC operator set (POC sizing sheet). Select with: scripts/01-mirror-preparation.sh --profile poc
+# Package names, channels, namespaces and install modes checked against the OpenShift 4.22
+# documentation sources (openshift-docs enterprise-4.22, forklift, pipelines 1.24, service mesh
+# 3.5, serverless 1.38). Every one is in redhat-operator-index. Before mirroring, confirm each
+# channel still exists:  oc mirror list operators --catalog registry.redhat.io/redhat/redhat-operator-index:v4.22 --package <name> --v2
+# namespace/mode tell scripts/06c-install-operators.sh how to subscribe:
+#   OwnNamespace = OperatorGroup targeting its own namespace; AllNamespaces = cluster-wide.
+#   openshift-operators already has the cluster-wide OperatorGroup, so none is created there.
+poc:
+  operators:
+    - name: mtv-operator                       # Migration Toolkit for Virtualization 2.12 (OCP 4.20-4.22)
+      channel: release-v2.12
+      namespace: openshift-mtv
+      mode: OwnNamespace
+    - name: authorino-operator                 # Red Hat - Authorino (TODO(verify-4.22): channel from RHOAI docs)
+      channel: stable
+      namespace: openshift-operators
+      mode: AllNamespaces
+    - name: kernel-module-management
+      channel: stable
+      namespace: openshift-kmm
+      mode: AllNamespaces
+    - name: openshift-pipelines-operator-rh    # Pipelines 1.24 supports 4.22
+      channel: latest
+      namespace: openshift-operators
+      mode: AllNamespaces
+    - name: servicemeshoperator3
+      channel: stable
+      namespace: openshift-operators
+      mode: AllNamespaces
+    - name: serverless-operator                # use 1.37.1 or later on 4.21+ (Kourier open-files fix)
+      channel: stable
+      namespace: openshift-serverless
+      mode: AllNamespaces
+
+# OpenShift Data Foundation with the Local Storage Operator: only with empty local disks or
+# LUNs on every node (the RAID1 OS disk uses both SSDs on the reference servers), and not
+# needed when the storage array's CSI driver serves VM disks. Select with --profile poc,odf
+# oc-mirror v2 does not resolve dependencies, so every ODF dependency package is listed;
+# a package without a channel mirrors its default channel's head.
+# TODO(verify-4.22): the dependency names come from the odf-dependencies bundle (release-4.22);
+#   odf-external-snapshotter-operator and ocs-tls-profiles are new and unconfirmed downstream.
+odf:
+  operators:
+    - name: local-storage-operator
+      channel: stable
+      namespace: openshift-local-storage
+      mode: OwnNamespace
+    - name: odf-operator
+      channel: stable-${OCP_MINOR}
+      namespace: openshift-storage
+      mode: OwnNamespace
+    - name: odf-dependencies
+    - name: ocs-operator
+    - name: ocs-client-operator
+    - name: mcg-operator
+    - name: odf-csi-addons-operator
+    - name: odf-prometheus-operator
+    - name: rook-ceph-operator
+    - name: cephcsi-operator
+    - name: recipe
+    - name: odf-external-snapshotter-operator
+    - name: ocs-tls-profiles
+
+# Partner CoE demo set (formerly mirror/imageset-ocpv-coe.yaml).
 coe:
   operators:
     - name: local-storage-operator
