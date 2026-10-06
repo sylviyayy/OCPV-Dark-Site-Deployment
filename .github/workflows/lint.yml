@@ -1,0 +1,54 @@
+# Mechanical consistency checks (PRD v2.0 FR-I5). Every S1 in workstreams 7A, 7D and 7H
+# would have failed one of these jobs; CI is cheaper than a rack.
+name: lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shellcheck:
+    name: shellcheck -S warning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: shellcheck --version
+      - run: shellcheck -S warning scripts/*.sh scripts/lib/*.sh tests/*.sh
+
+  render:
+    name: render templates, parse YAML, check zones
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install renderer and zone-check dependencies
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q python3-yaml bind9-utils jq openssl openssh-client
+      - name: Render every template from tests/ci.env (AT-01, AT-02, NFR-2)
+        run: tests/render-all.sh
+
+  docs:
+    name: links, field register, repo hygiene
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Relative Markdown links and anchors (FR-J1)
+        run: python3 tests/check-links.py
+      - name: Field register order in .env.example, README and Lab 03 (PRD §1)
+        run: python3 tests/check-register.py
+      - name: Placeholder, terminology and pinning searches
+        run: tests/check-repo-hygiene.sh
+
+  secrets:
+    name: secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

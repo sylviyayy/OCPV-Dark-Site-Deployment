@@ -9,7 +9,7 @@
 #   operators[0].catalog                     <- redhat-operator-index:v<OCP minor>
 #   operators[0].packages                    <- mirror/imageset-profiles.yaml (default [+ lvms] [+ coe])
 #   additionalImages                         <- RHEL guest image pinned by digest; script 01
-#                                               resolves the digest once (NFR-8, no :latest)
+#                                               resolves the digest once (NFR-8, no floating tag)
 #
 # No `graph: true`: the OpenShift Update Service is a v2.0 non-goal, and the
 # updateService.yaml it adds to cluster-resources needs the OSUS operator to apply (Lab 12).

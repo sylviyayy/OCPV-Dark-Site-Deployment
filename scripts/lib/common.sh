@@ -105,7 +105,7 @@ expect_ptr() {
 }
 
 # ntp_offset_ok SERVER — client-side probe; chronyd -Q prints the offset without touching
-# the clock and needs no cmdallow on the server, unlike `chronyc -h` (FR-F2).
+# the clock and needs no cmdallow on the server, unlike remote chronyc queries (FR-F2).
 ntp_offset_ok() {
   local server=$1 line offset
   line="$(chronyd -Q -t 15 "server ${server} iburst maxsamples 4" 2>&1 | grep -m1 'System clock wrong by')" || return 1

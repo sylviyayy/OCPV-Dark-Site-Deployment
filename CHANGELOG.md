@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-H6** — `dns-vm/nncp-dns-cutover.yaml.template` sets node resolvers (both DNS VMs, then the bastion) through NMState
 - **FR-H8** — two DNS VMs (`dns-a`, `dns-b`) with required pod anti-affinity; all service VMs take time from `TIME_SOURCE` (or the bastion's orphan clock)
 - **FR-H13** — BIND serves a reverse zone for `MACHINE_NETWORK_CIDR`; `recursion no` is documented
+- **FR-I5** — `.github/workflows/lint.yml`: `shellcheck -S warning`, render-and-parse of every template from `tests/ci.env` (with `named-checkconf -z` on the rendered zones), relative-link and anchor check, field-register order check, placeholder/terminology/pinning searches, gitleaks secret scan
 - `scripts/lib/authfile.sh` builds `${AUTH_FILE}`; the registry entry is added on the high side with `podman login --password-stdin`, which also proves password, DNS and CA trust
 - **FR-E4** — kickstarts become `kickstart/*.cfg.template`; `scripts/render-kickstart.sh` fills IPs, `BASTION_IFNAME`, domain and `/etc/hosts` from `.env`
 - Hard Way–style repository front door in `README.md` with hyperlinked labs
@@ -69,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-H9** — VMs set `evictionStrategy: None`; the chrony MachineConfig rolls out only after both DNS VMs answer
 - **FR-H11** — `runStrategy: Always` replaces `running: true`; a dedicated `infrastructure-vm` PriorityClass replaces `system-node-critical`
 - **FR-H12** — script 08 ends with "keep bastion dnsmasq/chronyd running as secondary" instead of disabling them
+- **FR-I2** — every DNS check compares the answer with the `.env` value (`expect_dns`, `expect_ptr`); `dig … +short` alone passed on an empty answer
+- **FR-I3** — `scripts/00-prerequisites-check.sh` modes `--staging`, `--bastion`, `--post-install`, each asserting the pinned OS first and requiring only tools present at that stage
 - `.env.example` rewritten to the v2 field register (§1 order, IDs A1–F4, derived block validated); `NETWORK_CIDR` → `MACHINE_NETWORK_CIDR`, `DNS_VM_IP` → `DNS_VM_IPS`, `OC_MIRROR_WORKDIR` → derived `MIRROR_ARCHIVE_DIR`
 - Prefer RHEL USB / KVM ISO attach over PXE for bastion/registry; document PXE as optional only
 - Quick start examples use `vim` and point at explicit `.env` field list
@@ -94,6 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-D3** — `additionalTrustBundle` is emitted as a literal block with every PEM line indented; the old `str.replace` produced YAML that failed to parse
 - **FR-B1** — script 01 picks the RHEL 9 installer, client and oc-mirror builds from the release's `sha256sum.txt` by pattern and verifies them with `sha256sum -c`; the old `openshift-install.tar.gz`/`oc.tar.gz` names returned 404
 - **FR-E1** — bastion kickstart no longer lists `openshift-clients` (not on the RHEL DVD; Anaconda halted) or a duplicate `nmstate`
+- **FR-I1** — `--post-install` node and ClusterOperator checks are named functions returning one status; the old pipelines swallowed the PASS/FAIL line, lost the counters in a subshell and inverted the logic, so a broken cluster could pass
 - **FR-H1** — VM cloud-init is a `Secret` (`stringData.userdata`) attached with `cloudInitNoCloud.secretRef`; the old ConfigMap was never found and `cloudInitConfigDrive.sources` is not a KubeVirt field
 - Kickstart firewall rules use the declarative `firewall` command; `firewall-cmd` inside a chrooted `%post` under `set -e` failed (firewalld not running) and aborted the rest of `%post` (audit finding beyond the PRD)
 

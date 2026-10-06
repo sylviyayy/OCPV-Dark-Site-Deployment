@@ -7,7 +7,7 @@
 
 `scripts/01-mirror-preparation.sh` renders `${IMAGESET_CONFIG}` from both files and `.env`:
 one exact z-stream, the operators every lab installs, and the RHEL guest image pinned by
-digest (resolved once with `skopeo`; no `:latest` reaches the ImageSet).
+digest (resolved once with `skopeo`; no floating tag reaches the ImageSet).
 
 ## Flow (ADR-02: two machines, media in between)
 

@@ -7,7 +7,7 @@
 # One endpoint, one port, one CA (ADR-03): mirror registry for Red Hat OpenShift, addressed
 # as ${MIRROR_REGISTRY_HOSTNAME}:${MIRROR_REGISTRY_PORT} (default 8443), never by IP, because
 # the certificate it issues names the host. There is no fallback registry: the former
-# docker.io/library/registry:2 path cannot be pulled in a dark site (FR-C2).
+# Docker Hub registry image cannot be pulled in a dark site (FR-C2).
 #
 # Official: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/
 set -euo pipefail
