@@ -107,8 +107,9 @@ load_archive() {
 
   # FR-B5: --from reads the archive; --workspace alone would try to pull from Red Hat.
   log_info "Loading ${#archives[@]} archive(s) into docker://${MIRROR_REGISTRY}"
+  # --cache-dir: the archive is unpacked into the cache before upload; keep it on MIRROR_DIR.
   oc mirror -c "${IMAGESET_CONFIG}" --from "file://${MIRROR_ARCHIVE_DIR}" \
-    "docker://${MIRROR_REGISTRY}" --v2 --authfile "${AUTH_FILE}"
+    "docker://${MIRROR_REGISTRY}" --v2 --authfile "${AUTH_FILE}" --cache-dir "${MIRROR_DIR}/cache"
 
   # TODO(verify-4.22): cluster-resources location for oc-mirror v2 disk-to-mirror.
   if [[ ! -f "${CLUSTER_RESOURCES_DIR}/idms-oc-mirror.yaml" ]] \

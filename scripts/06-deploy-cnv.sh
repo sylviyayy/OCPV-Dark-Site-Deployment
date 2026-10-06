@@ -74,15 +74,17 @@ EOF
 # --- OpenShift Virtualization ---
 install_operator openshift-cnv kubevirt-hyperconverged stable
 
-# FR-G5: no withHostPassthroughCPU (pins VMs to one CPU model) and no live-migration tuning
-# (node-local RWO disks cannot live-migrate, ADR-05). Defaults are explained in Lab 13.
+# Only one non-default setting (FR-G5): automatic import of Red Hat golden OS images is off,
+# because it pulls from registry.redhat.io and in a dark site retries and fails forever. VMs
+# here use the digest-pinned guest image from the mirror instead (Lab 14).
 oc apply -f - <<'EOF'
 apiVersion: hco.kubevirt.io/v1beta1
 kind: HyperConverged
 metadata:
   name: kubevirt-hyperconverged
   namespace: openshift-cnv
-spec: {}
+spec:
+  enableCommonBootImageImport: false
 EOF
 hco_available() {
   [[ "$(oc get hyperconverged kubevirt-hyperconverged -n openshift-cnv \

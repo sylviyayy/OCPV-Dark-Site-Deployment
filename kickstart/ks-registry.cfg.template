@@ -18,8 +18,15 @@ timezone UTC --utc
 network --bootproto=static --device=link --ip=${MIRROR_REGISTRY_IP} --netmask=${MACHINE_NETWORK_NETMASK} --gateway=${NETWORK_GATEWAY} --nameserver=${BASTION_IP} --hostname=${MIRROR_REGISTRY_HOSTNAME} --onboot=on --activate
 
 # WARNING: wipes every disk the installer can see except the install medium.
+# Explicit layout instead of autopart, which can cap / at ~70 GiB: / holds /opt/ocp-mirror
+# (mirror archive + oc-mirror cache + DVD) and, when co-located, the registry's image storage.
+zerombr
 clearpart --all --initlabel
-autopart --type=lvm --nohome
+reqpart --add-boot
+part pv.01 --size=1 --grow
+volgroup vg_sys pv.01
+logvol swap --vgname=vg_sys --name=swap --size=4096
+logvol / --vgname=vg_sys --name=root --fstype=xfs --size=20480 --grow
 
 # Opens only SSH and the registry port; the registry listens on MIRROR_REGISTRY_PORT (FR-C1).
 firewall --enabled --ssh --port=${MIRROR_REGISTRY_PORT}:tcp

@@ -51,9 +51,6 @@ address=/apps.${CLUSTER_DOMAIN}/${INGRESS_VIP}
 host-record=dns-a.${BASE_DOMAIN},${DNS_VM1_IP}
 host-record=dns-b.${BASE_DOMAIN},${DNS_VM2_IP}
 host-record=ntp.${BASE_DOMAIN},${NTP_VM_IP}
-
-log-queries
-log-facility=/var/log/dnsmasq.log
 EOF
 }
 

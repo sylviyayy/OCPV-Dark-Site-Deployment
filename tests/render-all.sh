@@ -90,6 +90,23 @@ if grep -rnE '\$\{[A-Z_]+\}|<[A-Z][A-Z0-9_]{2,}>|00:50:56|\bens192\b|:latest\b|-
 fi
 pass "no placeholder, sample MAC, ens192, :latest or --plaintext in rendered output"
 
+echo "== Cluster pull secret: mirror entry present, telemetry entry dropped (FR-D2)"
+python3 - "${CI_TMP}/out1/install-config.yaml" "${MIRROR_REGISTRY}" <<'PY2'
+import json, sys, yaml
+auths = json.loads(yaml.safe_load(open(sys.argv[1]))["pullSecret"])["auths"]
+assert sys.argv[2] in auths, "mirror registry missing from pullSecret"
+assert "cloud.openshift.com" not in auths, "cloud.openshift.com must not reach the cluster"
+print("  [PASS] pullSecret has", ", ".join(sorted(auths)))
+PY2
+
+echo "== Kickstart syntax (Red Hat ksvalidator, RHEL 9)"
+if command -v ksvalidator >/dev/null; then
+  for ks in ks-bastion ks-registry; do ksvalidator -v RHEL9 "${CI_TMP}/out1/${ks}.cfg" >/dev/null; done
+  pass "ksvalidator accepts both rendered kickstarts"
+else
+  echo "  [SKIP] ksvalidator not installed (pip install pykickstart)"
+fi
+
 echo "== MAC set equals .env (AT-01)"
 want="$(for n in MW01 MW02 MW03; do v="${n}_NICS"; tr ',' '\n' <<<"${!v}" | cut -d= -f2; done | sort)"
 got="$(grep -oE 'macAddress: [0-9a-f:]+' "${CI_TMP}/out1/agent-config.yaml" | awk '{print $2}' | sort)"

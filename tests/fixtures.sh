@@ -6,7 +6,8 @@
 make_fixtures() {
   mkdir -p "${MIRROR_DIR}" "${CLUSTER_RESOURCES_DIR}"
   # Dummy credentials, built at run time so nothing credential-shaped is committed.
-  jq -n --arg a "$(printf 'ci:ci' | base64)" '{auths: {"registry.redhat.io": {auth: $a}}}' > "${PULL_SECRET_FILE}"
+  jq -n --arg a "$(printf 'ci:ci' | base64)" \
+    '{auths: {"registry.redhat.io": {auth: $a}, "cloud.openshift.com": {auth: $a}}}' > "${PULL_SECRET_FILE}"
   rm -f "${SSH_PUBLIC_KEY_FILE%.pub}" "${SSH_PUBLIC_KEY_FILE}"
   ssh-keygen -q -t ed25519 -N '' -C ci@bastion -f "${SSH_PUBLIC_KEY_FILE%.pub}"
   # stderr only carries openssl's key-generation progress; failures still exit non-zero.

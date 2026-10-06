@@ -12,7 +12,8 @@ source "${SCRIPT_DIR}/lib/common.sh"
 load_env
 validate_env --probe   # B5/B6: the VIPs must not answer ping before install
 refuse_root
-require_cmd openshift-install
+# openshift-install validates each host's static networkConfig with nmstatectl.
+require_cmd openshift-install nmstatectl
 
 for f in install-config.yaml agent-config.yaml; do
   if [[ ! -f "${INSTALL_DIR}/${f}" ]]; then

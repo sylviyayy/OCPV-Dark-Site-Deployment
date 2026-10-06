@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > Each bullet below names the PRD v2.0 requirement it implements (NFR-9).
 
 ### Added
+- `tests/run-scripts.sh` and `tests/fake/fakecmd.py`: every script runs in lab order against fakes of `oc`, `openshift-install`, `podman`, `curl`, `dig`, `chronyd` and others, with negative cases; new CI job `scripts`. CI also runs Red Hat's `ksvalidator` on both rendered kickstarts
 - **FR-A1** — `scripts/lib/render.py` renders `install-config.yaml` and `agent-config.yaml` into `${INSTALL_DIR}` as data structures (host list, bond ports, PEM bundle); templates are YAML skeletons
 - **FR-A3** — `scripts/lib/validate-env.sh` enforces the field-register Rule column before every script; `.env.example` is rejected with one message per offending key
 - **FR-B6** — `mirror/imageset-profiles.yaml`: default set adds `kubernetes-nmstate-operator`, `lvms-operator` joins when `STORAGE_BACKEND=lvms`, and the former `imageset-ocpv-coe.yaml` is the selectable `coe` profile; the RHEL guest image is pinned by digest
@@ -45,6 +46,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.cursor/rules/prd-v2-execution.mdc`: execution rules for agents (requirement IDs in commits, verify-on-4.22 TODOs, local CI before commit)
 
 ### Changed
+- oc-mirror runs with `--cache-dir ${MIRROR_DIR}/cache` on both sides, so its layer cache lands on the sized mirror filesystem instead of `~/.oc-mirror`
+- `HyperConverged` sets `enableCommonBootImageImport: false`: automatic golden-image import pulls from `registry.redhat.io` and fails forever in a dark site
+- Lab 12 sets the Cluster Samples Operator to `Removed` (its image streams pull from `registry.redhat.io`)
+- The cluster `pullSecret` omits `cloud.openshift.com` (Telemetry/Insights cannot reach Red Hat from a dark site); `${AUTH_FILE}` keeps it
+- Script 05a requires `nmstatectl`, which `openshift-install` uses to validate static host networking
+- Bastion dnsmasq no longer logs every query to `/var/log/dnsmasq.log`; use `journalctl -u dnsmasq`
 - **FR-A2** — compact topology end to end: `compute.replicas: 0`; worker hosts `wk01`/`wk02` removed from templates, scripts, IP plan, kickstarts and zone data
 - **FR-A4** — `load_env` no longer falls back to `.env.example`, exports values with `set -a`, and refuses a v1 `.env`
 - **FR-B2** — script 01 requires only `curl jq tar sha256sum skopeo python3` up front and checks `oc`/`oc-mirror` after downloading them
@@ -110,6 +117,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `.env` keys `NETWORK_INTERFACE`, `NETWORK_NETMASK`, `CPn_MAC`, `WK01_*`, `WK02_*`, `DNS_SERVER`, `NTP_SERVER`, `OPERATOR_CATALOG`, `CNV_*`, `SSH_USER`, `INSTALL_USER`
 
 ### Fixed
+- Scripts 07/08 waited on `vmi/<name>` seconds after applying the VM; the VMI does not exist while the DataVolume imports, so `oc wait` failed at once. They wait on `vm/<name>` for `Ready` (found by `tests/run-scripts.sh`)
+- Script 08 could report the chrony MachineConfig rolled out before the Machine Config Operator started; it now requires the pool's desired config to include the MachineConfig, status equal to spec, and `Updated=True`
+- Kickstarts use an explicit disk layout (`/` takes the disk); `autopart` could cap `/` near 70 GiB while `/opt/ocp-mirror` holds the archive, the oc-mirror cache and the DVD
 - **FR-B1** — script 01 picks the RHEL 9 installer, client and oc-mirror builds from the release's `sha256sum.txt` by pattern and verifies them with `sha256sum -c`; the old `openshift-install.tar.gz`/`oc.tar.gz` names returned 404
 - **FR-D3** — `additionalTrustBundle` is emitted as a literal block with every PEM line indented; the old `str.replace` produced YAML that failed to parse
 - **FR-E1** — bastion kickstart no longer lists `openshift-clients` (not on the RHEL DVD; Anaconda halted) or a duplicate `nmstate`

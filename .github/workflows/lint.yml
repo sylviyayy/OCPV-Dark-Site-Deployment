@@ -27,6 +27,7 @@ jobs:
         run: |
           sudo apt-get update -q
           sudo apt-get install -y -q python3-yaml bind9-utils jq openssl openssh-client
+          pip install pykickstart
       - name: Render every template from tests/ci.env (AT-01, AT-02, NFR-2)
         run: tests/render-all.sh
 

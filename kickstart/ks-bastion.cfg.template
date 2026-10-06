@@ -18,8 +18,15 @@ timezone UTC --utc
 network --bootproto=static --device=${BASTION_IFNAME} --ip=${BASTION_IP} --netmask=${MACHINE_NETWORK_NETMASK} --gateway=${NETWORK_GATEWAY} --nameserver=${BASTION_IP} --hostname=${BASTION_HOSTNAME}.${BASE_DOMAIN} --onboot=on --activate
 
 # WARNING: wipes every disk the installer can see except the install medium.
+# Explicit layout instead of autopart, which can cap / at ~70 GiB: / holds /opt/ocp-mirror
+# (mirror archive + oc-mirror cache + DVD) and, when co-located, the registry's image storage.
+zerombr
 clearpart --all --initlabel
-autopart --type=lvm --nohome
+reqpart --add-boot
+part pv.01 --size=1 --grow
+volgroup vg_sys pv.01
+logvol swap --vgname=vg_sys --name=swap --size=4096
+logvol / --vgname=vg_sys --name=root --fstype=xfs --size=20480 --grow
 
 # Declarative firewall: firewalld is not running inside %post, so firewall-cmd there fails.
 firewall --enabled --ssh --service=dns,ntp

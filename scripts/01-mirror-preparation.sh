@@ -115,7 +115,9 @@ log_info "PASS: ${IMAGESET_CONFIG} (profile ${PROFILE}, guest image ${RHEL_GUEST
 # --- Step 4: mirror to disk (FR-B4): destination is file://, not a --workspace alone ---
 if [[ "${MIRROR_TO_DISK}" == true ]]; then
   log_info "Mirroring to ${MIRROR_ARCHIVE_DIR} (large download; can take hours)"
-  oc mirror -c "${IMAGESET_CONFIG}" "file://${MIRROR_ARCHIVE_DIR}" --v2 --authfile "${AUTH_FILE}"
+  # --cache-dir keeps oc-mirror's layer cache on the sized mirror filesystem, not in ~/.oc-mirror.
+  oc mirror -c "${IMAGESET_CONFIG}" "file://${MIRROR_ARCHIVE_DIR}" --v2 --authfile "${AUTH_FILE}" \
+    --cache-dir "${MIRROR_DIR}/cache"
   shopt -s nullglob
   archives=("${MIRROR_ARCHIVE_DIR}"/mirror_*.tar)
   if (( ${#archives[@]} == 0 )); then

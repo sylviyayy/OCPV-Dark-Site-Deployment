@@ -557,7 +557,10 @@ def cmd_install_config(env, args):
     ic["networking"]["machineNetwork"][0]["cidr"] = env_get(env, "MACHINE_NETWORK_CIDR")
     ic["platform"]["baremetal"]["apiVIPs"] = [env_get(env, "API_VIP")]
     ic["platform"]["baremetal"]["ingressVIPs"] = [env_get(env, "INGRESS_VIP")]
-    ic["pullSecret"] = json.dumps(auth, separators=(",", ":"))
+    # cloud.openshift.com authorises Telemetry and Insights uploads; a dark site cannot reach
+    # it, so the cluster copy drops it (Red Hat's documented opt-out) and stops retrying.
+    cluster_auth = {"auths": {k: v for k, v in auth["auths"].items() if k != "cloud.openshift.com"}}
+    ic["pullSecret"] = json.dumps(cluster_auth, separators=(",", ":"))
     ic["sshKey"] = derived_value(env, "SSH_PUBLIC_KEY")
     ic["additionalTrustBundle"] = pem.strip() + "\n"
     ic["imageDigestSources"] = idms_sources(env)
