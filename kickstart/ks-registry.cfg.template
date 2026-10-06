@@ -1,0 +1,66 @@
+#version=RHEL9
+# Mirror registry host — only when the registry does not share the bastion (ADR-03).
+# Rendered by scripts/render-kickstart.sh registry; embedded with mkksiso (FR-E2, FR-E4).
+# mirror registry for Red Hat OpenShift generates and serves its own CA, so this host
+# carries no certificate of its own (FR-C3).
+
+cdrom
+text
+reboot
+firstboot --disable
+
+lang en_US.UTF-8
+keyboard us
+timezone UTC --utc
+
+# --device=link takes the first interface with carrier: the field register names only
+# the bastion's NIC, and this host has one cable on the machine network.
+network --bootproto=static --device=link --ip=${MIRROR_REGISTRY_IP} --netmask=${MACHINE_NETWORK_NETMASK} --gateway=${NETWORK_GATEWAY} --nameserver=${BASTION_IP} --hostname=${MIRROR_REGISTRY_HOSTNAME} --onboot=on --activate
+
+# WARNING: wipes every disk the installer can see except the install medium.
+clearpart --all --initlabel
+autopart --type=lvm --nohome
+
+# Opens only SSH and the registry port; the registry listens on MIRROR_REGISTRY_PORT (FR-C1).
+firewall --enabled --ssh --port=${MIRROR_REGISTRY_PORT}:tcp
+
+bootloader
+
+rootpw --lock
+user --name=installer --groups=wheel --iscrypted --password=${KS_PASSWORD_HASH}
+sshkey --username=installer "${SSH_PUBLIC_KEY}"
+
+%packages
+@^minimal-environment
+bind-utils
+chrony
+curl
+firewalld
+jq
+openssl
+podman
+python3-pyyaml
+tar
+%end
+
+%post --log=/root/ks-post.log
+set -eux
+
+cat >> /etc/hosts <<'HOSTS'
+${BASTION_IP}  ${BASTION_HOSTNAME}.${BASE_DOMAIN} ${BASTION_HOSTNAME}
+${MIRROR_REGISTRY_IP}  ${MIRROR_REGISTRY_HOSTNAME}
+HOSTS
+
+# Time from the site reference clock, or from the bastion when TIME_SOURCE=orphan.
+cat > /etc/chrony.conf <<'CHRONY'
+server ${TIME_UPSTREAM} iburst
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+logdir /var/log/chrony
+CHRONY
+systemctl enable chronyd
+
+mkdir -p /opt/ocp-mirror
+chown installer:installer /opt/ocp-mirror
+%end

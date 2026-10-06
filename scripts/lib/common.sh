@@ -16,8 +16,9 @@ log_error() { echo "[ERROR] $(date '+%H:%M:%S') $*" >&2; }
 # load_env [ENV_FILE] — export every .env key (set -a) so child processes such as
 # render.py and openshift-install inherit them. There is deliberately no fallback to
 # .env.example: running on sample values is how sample MACs reach an ISO (FR-A4).
+# OCPV_ENV_FILE selects another register explicitly (CI uses tests/ci.env).
 load_env() {
-  local env_file="${1:-${REPO_ROOT}/.env}"
+  local env_file="${1:-${OCPV_ENV_FILE:-${REPO_ROOT}/.env}}"
   if [[ ! -f "${env_file}" ]]; then
     log_error "${env_file} not found."
     log_error "Create it from the template and fill in the field register (Lab 03):"

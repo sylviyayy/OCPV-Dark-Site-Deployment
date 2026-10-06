@@ -443,7 +443,7 @@ def cmd_validate(env, args):
         print(f"validate-env: {len(r.errors)} key(s) violate the field register "
               "(docs/labs/03-checklist.md)", file=sys.stderr)
         return 1
-    print("validate-env: PASS — .env satisfies every field-register rule")
+    print("validate-env: PASS — .env satisfies every field-register rule", file=sys.stderr)
     return 0
 
 

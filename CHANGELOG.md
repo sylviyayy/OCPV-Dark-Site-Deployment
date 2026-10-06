@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-D4** — per-node `bond0` (802.3ad, four members, `MTU`) in `agent-config.yaml` from `CPn_NICS`
 - **FR-D6** — `additionalNTPSources` in `agent-config.yaml` (`TIME_SOURCE`, or the bastion when orphan)
 - **FR-D7** — `scripts/05a-create-agent-iso.sh` (Lab 08, keeps `*.orig` inputs) and `scripts/05b-wait-install.sh` (Lab 10, asserts 3 Ready nodes and 4 bond members up)
+- **FR-E4** — kickstarts become `kickstart/*.cfg.template`; `scripts/render-kickstart.sh` fills IPs, `BASTION_IFNAME`, domain and `/etc/hosts` from `.env`
 - Hard Way–style repository front door in `README.md` with hyperlinked labs
 - Lenovo CoE compute lab: 2× SR665 V3 + 1× SR675 V3 (L40S), NIC slot layout, compact 3-node roles
 - Labs 01–16 remapped (jumpbox, compute, mirror, agent bootstrap, `oc` access, cleanup)
@@ -35,6 +36,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **FR-D5** — `rootDeviceHints.deviceName` comes from `CPn_ROOT_DEVICE` (`/dev/disk/by-path/…`), never `/dev/sda`
 - **FR-D8** — `agent-config.yaml` `metadata.name` follows `CLUSTER_NAME`
 - **FR-D9** — scripts 05a/05b no longer apply oc-mirror cluster-resources; Lab 12 is the single owner
+- **FR-E2** — helper hosts boot a `mkksiso`-built RHEL 9 DVD with the kickstart embedded (USB or XCC virtual media, zero keystrokes) instead of `dd` plus a typed `inst.ks=hd:sdb1`
+- **FR-E5** — bastion resolver is itself (`--nameserver=${BASTION_IP}`) and dnsmasq listens on `127.0.0.1,${BASTION_IP}`
+- **FR-E6** — the bastion kickstart copies the repo from the install medium in `%post --nochroot` (added with `mkksiso --add`)
+- **FR-E7** — kickstart `bootloader` drops `--location=mbr` and `crashkernel=auto`
+- **FR-E8** — PXE stanzas removed from the primary docs; one appendix points sites that already run network boot at `openshift-install agent create pxe-files`
+- **FR-F1** — dnsmasq uses `host-record` (A + PTR), `address=/apps.<cluster>.<domain>/` for the wildcard, no empty `no-dhcp-interface=`, no worker records
+- **FR-F2** — NTP checks use the client-side probe `chronyd -Q "server <ip> iburst"` and assert the offset is under 1 s; `chronyc -h <remote>` removed
+- Bastion chrony follows `TIME_SOURCE` (reference clock, or labelled lab-grade orphan)
 - `.env.example` rewritten to the v2 field register (§1 order, IDs A1–F4, derived block validated); `NETWORK_CIDR` → `MACHINE_NETWORK_CIDR`, `DNS_VM_IP` → `DNS_VM_IPS`, `OC_MIRROR_WORKDIR` → derived `MIRROR_ARCHIVE_DIR`
 - Prefer RHEL USB / KVM ISO attach over PXE for bastion/registry; document PXE as optional only
 - Quick start examples use `vim` and point at explicit `.env` field list
@@ -55,10 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - `scripts/lib/common.sh` resolved `REPO_ROOT` to `scripts/` (it read `BASH_SOURCE[0]` of itself), so every script exited 1 at `load_env` before doing any work (audit finding beyond the PRD)
 - **FR-D3** — `additionalTrustBundle` is emitted as a literal block with every PEM line indented; the old `str.replace` produced YAML that failed to parse
+- **FR-E1** — bastion kickstart no longer lists `openshift-clients` (not on the RHEL DVD; Anaconda halted) or a duplicate `nmstate`
+- Kickstart firewall rules use the declarative `firewall` command; `firewall-cmd` inside a chrooted `%post` under `set -e` failed (firewalld not running) and aborted the rest of `%post` (audit finding beyond the PRD)
 
 ### Security
 - **FR-K1** — `.gitignore` covers rendered install files, `*.orig`, rendered kickstarts and `auth.json`; the inert `/opt/ocp-mirror/` line is gone
 - **FR-K2** — `MIRROR_REGISTRY_PASSWORD` removed from `.env.example`; scripts prompt with `read -rs`
+- **FR-E3** — kickstarts lock `root` and give `installer` a SHA-512 hash made at render time from a prompted password; no `--plaintext` anywhere
 
 ## [1.0.0] - 2026-09-07
 
