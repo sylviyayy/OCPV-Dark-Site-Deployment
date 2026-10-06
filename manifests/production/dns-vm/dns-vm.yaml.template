@@ -8,7 +8,7 @@
 #   FR-H3  packages come from the bastion's DVD repo (Lab 06 step 6.5)
 #   FR-H7  storage API, registry CA, registry credentials, image pinned by digest
 #   FR-H8  required anti-affinity: the two DNS VMs never share a node
-#   FR-H9  evictionStrategy None: node-local RWO disks cannot live-migrate
+#   FR-H9  evictionStrategy: LiveMigrate on ONTAP (RWX), None on node-local RWO disks
 #   FR-H10 no passwords; SSH key from SSH_PUBLIC_KEY_FILE; root disabled
 #   FR-H11 runStrategy Always; dedicated PriorityClass
 #   FR-H13 forward and reverse zones; recursion no
@@ -176,7 +176,7 @@ spec:
         app: dns-server
         kubevirt.io/domain: ${VM_NAME}
     spec:
-      evictionStrategy: None
+      evictionStrategy: ${VM_EVICTION_STRATEGY}
       priorityClassName: infrastructure-vm
       affinity:
         podAntiAffinity:

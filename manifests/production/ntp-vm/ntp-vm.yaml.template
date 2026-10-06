@@ -109,7 +109,7 @@ spec:
         app: ntp-server
         kubevirt.io/domain: ${VM_NAME}
     spec:
-      evictionStrategy: None
+      evictionStrategy: ${VM_EVICTION_STRATEGY}
       priorityClassName: infrastructure-vm
       domain:
         cpu:

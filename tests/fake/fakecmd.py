@@ -75,6 +75,8 @@ def key(kind, name, ns=None):
 def find(state, kind, name, ns=None):
     if kind == "MachineConfigPool" and name in ("master", "worker"):
         return {"kind": kind, "metadata": {"name": name}}  # exists on every cluster
+    if kind == "StorageProfile":  # CDI creates one per StorageClass
+        return find(state, "StorageClass", name)
     if kind == "ClusterServiceVersion":  # OLM creates the CSV once a Subscription resolves
         sub = name.rsplit(".v", 1)[0]
         return find(state, "Subscription", sub, ns)
@@ -140,6 +142,8 @@ def jsonpath(state, kind, names, ns, path):
         return f"{names[0]}.v0.0.1"
     if "configuration.name" in path or ".spec.configuration.source" in path:
         pass
+    elif kind == "TridentOrchestrator" and ".status.status" in path:
+        return "Installed"
     elif "lastObservedState" in path or ".status.phase" in path or ".status.state" in path:
         return {"DataVolume": "Succeeded", "TridentBackendConfig": "Bound", "LVMCluster": "Ready"}.get(kind, "Succeeded")
     elif "conditions" in path:
@@ -188,7 +192,7 @@ def oc_get(state):
             die(f'Error from server (NotFound): {target} "{names[0] if names else ""}" not found')
         print(value)
         return
-    if kind != "Node" and names and not find(state, kind, names[0], ns):
+    if kind != "Node" and names and not find(state, kind, names[0], ns):  # plain `oc get KIND NAME`
         die(f'Error from server (NotFound): {target} "{names[0]}" not found')
     print(f"(fake {target} {' '.join(names)})")
 

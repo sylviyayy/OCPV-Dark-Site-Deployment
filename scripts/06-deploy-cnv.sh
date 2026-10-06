@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# Install the operators Labs 13-14 need from the mirrored catalog (Lab 13 step 13.1):
-# OpenShift Virtualization, Kubernetes NMState (+ LVM Storage when STORAGE_BACKEND=lvms).
+# Install the operators Labs 13-14 need from the mirrored catalogs (Lab 13 step 13.1):
+# OpenShift Virtualization and Kubernetes NMState, plus the storage operator STORAGE_BACKEND
+# selects: NetApp Trident (ontap, certified catalog) or LVM Storage (lvms).
 #
 # Precondition: Lab 12 applied cluster-resources and disabled the default catalog sources.
 # Official: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/virtualization/installing
@@ -19,23 +20,29 @@ use_kubeconfig
 # FR-G1: oc-mirror v2 names the CatalogSource after catalog image and tag (for example
 # cs-redhat-operator-index-v4-22). Read the name from its output instead of guessing.
 # TODO(verify-4.22): naming per the oc-mirror v2 documentation.
-CATALOG_SOURCE="$(render catalog-source)"
-log_info "Mirrored catalog: ${CATALOG_SOURCE}"
-
-catalog_ready() {
-  [[ "$(oc get catalogsource "${CATALOG_SOURCE}" -n openshift-marketplace \
-        -o jsonpath='{.status.connectionState.lastObservedState}' 2>/dev/null)" == "READY" ]]
+# Polling below sends stderr to /dev/null: while an object is still being created, `oc get`
+# reports NotFound on every poll, and the timeout path prints the real diagnostics instead.
+# wait_catalog INDEX — print the CatalogSource name oc-mirror gave INDEX once it is READY.
+wait_catalog() {
+  local cs
+  cs="$(render catalog-source "$1")"
+  catalog_ready() {
+    [[ "$(oc get catalogsource "${cs}" -n openshift-marketplace \
+          -o jsonpath='{.status.connectionState.lastObservedState}' 2>/dev/null)" == "READY" ]]
+  }
+  if ! wait_until 600 15 "CatalogSource ${cs} READY" catalog_ready >&2; then
+    oc get catalogsource -n openshift-marketplace >&2
+    log_error "Apply ${CLUSTER_RESOURCES_DIR} first (Lab 12)."
+    exit 1
+  fi
+  echo "${cs}"
 }
-if ! wait_until 600 15 "CatalogSource ${CATALOG_SOURCE} READY" catalog_ready; then
-  oc get catalogsource -n openshift-marketplace
-  log_error "Apply ${CLUSTER_RESOURCES_DIR} first (Lab 12)."
-  exit 1
-fi
+CATALOG_SOURCE="$(wait_catalog redhat-operator-index)"
 
-# install_operator NAMESPACE PACKAGE CHANNEL — OperatorGroup + Subscription, then wait for
-# the subscribed CSV to reach Succeeded or exit 1 with diagnostics (FR-G4).
+# install_operator NAMESPACE PACKAGE CHANNEL [SOURCE] — OperatorGroup + Subscription, then wait
+# for the subscribed CSV to reach Succeeded or exit 1 with diagnostics (FR-G4).
 install_operator() {
-  local ns=$1 pkg=$2 channel=$3
+  local ns=$1 pkg=$2 channel=$3 source=${4:-${CATALOG_SOURCE}}
   oc create namespace "${ns}" --dry-run=client -o yaml | oc apply -f -
   oc apply -f - <<EOF
 apiVersion: operators.coreos.com/v1
@@ -55,7 +62,7 @@ metadata:
 spec:
   channel: ${channel}
   name: ${pkg}
-  source: ${CATALOG_SOURCE}
+  source: ${source}
   sourceNamespace: openshift-marketplace
   installPlanApproval: Automatic
 EOF
@@ -111,10 +118,15 @@ if ! wait_until 600 15 "nmstate-handler DaemonSet rolled out" handler_ready; the
   exit 1
 fi
 
-# --- LVM Storage (ADR-05 alternative) ---
-if [[ "${STORAGE_BACKEND}" == "lvms" ]]; then
-  install_operator openshift-storage lvms-operator "stable-${OCP_VERSION%.*}"
-fi
+# --- Storage operator for STORAGE_BACKEND (ADR-05) ---
+case "${STORAGE_BACKEND}" in
+  ontap)
+    # NetApp Trident for a Lenovo DM/DG (ONTAP) array, from the mirrored certified catalog.
+    # TODO(verify-4.22): install mode and channel per the trident-operator bundle.
+    install_operator trident trident-operator stable "$(wait_catalog certified-operator-index)" ;;
+  lvms)
+    install_operator openshift-storage lvms-operator "stable-${OCP_VERSION%.*}" ;;
+esac
 
 # --- /dev/kvm on every node (compact: all three run VMs). FR-G4: fail, do not warn. ---
 missing=()

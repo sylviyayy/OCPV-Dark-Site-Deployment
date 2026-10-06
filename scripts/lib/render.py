@@ -15,7 +15,7 @@ Subcommands
   agent-config OUT               render agent-config.yaml     (FR-D4, D5, D6, D8)
   imageset OUT [--profile P]     render the oc-mirror ImageSetConfiguration (FR-B6)
   text TEMPLATE OUT              substitute ${KEY} tokens in a text template
-  catalog-source                 print the mirrored redhat-operator-index CatalogSource name (FR-G1)
+  catalog-source [INDEX]         print the mirrored CatalogSource name for INDEX (FR-G1)
   value KEY                      print one .env or derived value
 """
 import argparse
@@ -50,7 +50,11 @@ REGISTER = [
     ("E1", "TIME_SOURCE"), ("E2", "DNS_VM_IPS"), ("E3", "NTP_VM_IP"),
     ("E4", "VM_NETWORK_MODEL"), ("E5", "STORAGE_BACKEND"),
     ("F1", "PULL_SECRET_FILE"), ("F2", "SSH_PUBLIC_KEY_FILE"), ("F3", "MIRROR_DIR"), ("F4", "INSTALL_DIR"),
+    ("G1", "ONTAP_MGMT_IP"), ("G2", "ONTAP_DATA_IP"), ("G3", "ONTAP_SVM"), ("G4", "ONTAP_USER"),
 ]
+# Group G describes a NetApp ONTAP array (Lenovo ThinkSystem DM / DG series) and is enforced
+# only when STORAGE_BACKEND=ontap; with hpp or lvms the values are carried but unused.
+ONTAP_KEYS = ("ONTAP_MGMT_IP", "ONTAP_DATA_IP", "ONTAP_SVM", "ONTAP_USER")
 # Derived keys live in .env.example's "do not edit" block; validation proves they still
 # equal their formula, so a hand edit (for example MIRROR_REGISTRY=<ip>:443) is caught.
 DERIVED = {
@@ -223,8 +227,9 @@ def _ip(r, env, key, net=None):
 
 def validate(env, probe=False):
     r = Report()
+    ontap = env.get("STORAGE_BACKEND") == "ontap"
     for _, key in REGISTER:
-        if env.get(key, "") == "":
+        if env.get(key, "") == "" and (ontap or key not in ONTAP_KEYS):
             r.fail(key, "missing or empty")
     if env.get("ENV_SCHEMA_VERSION") != "2":
         r.fail("ENV_SCHEMA_VERSION", "must be 2 (this is a v1 .env: re-create it from .env.example)")
@@ -365,8 +370,19 @@ def validate(env, probe=False):
     _ip(r, env, "NTP_VM_IP", net)
     if env.get("VM_NETWORK_MODEL") and env["VM_NETWORK_MODEL"] not in ("localnet", "linux-bridge"):
         r.fail("VM_NETWORK_MODEL", "must be localnet or linux-bridge (ADR-06)")
-    if env.get("STORAGE_BACKEND") and env["STORAGE_BACKEND"] not in ("hpp", "lvms"):
-        r.fail("STORAGE_BACKEND", "must be hpp or lvms (ADR-05)")
+    if env.get("STORAGE_BACKEND") and env["STORAGE_BACKEND"] not in ("hpp", "lvms", "ontap"):
+        r.fail("STORAGE_BACKEND", "must be hpp, lvms or ontap (ADR-05)")
+
+    # G — ONTAP array (Lenovo DM/DG series), only when it backs VM storage
+    if ontap:
+        for key in ("ONTAP_MGMT_IP", "ONTAP_DATA_IP"):
+            ip = _ip(r, env, key)
+            if ip and net and ip not in net:
+                r.warn(key, f"{ip} is outside MACHINE_NETWORK_CIDR: nodes need a route or a storage VLAN to reach it (Lab 13)")
+        if env.get("ONTAP_SVM") and not re.match(r"^[A-Za-z_][A-Za-z0-9_.-]{0,46}$", env["ONTAP_SVM"]):
+            r.fail("ONTAP_SVM", "is not a valid ONTAP SVM name")
+        if env.get("ONTAP_USER") and not re.match(r"^[A-Za-z0-9_.-]{1,64}$", env["ONTAP_USER"]):
+            r.fail("ONTAP_USER", "is not a valid ONTAP user name")
 
     # F — files and directories
     ps = env.get("PULL_SECRET_FILE", "")
@@ -415,6 +431,8 @@ def validate(env, probe=False):
     seen = {}
     addr_keys = ["NETWORK_GATEWAY", "API_VIP", "INGRESS_VIP", *[f"{n}_IP" for n in NODES],
                  "BASTION_IP", "MIRROR_REGISTRY_IP", "NTP_VM_IP"]
+    if ontap:
+        addr_keys += ["ONTAP_MGMT_IP", "ONTAP_DATA_IP"]
     pairs = [(k, env.get(k, "")) for k in addr_keys] + [("DNS_VM_IPS", ip) for ip in raw_dns]
     for key, ip in pairs:
         if not ip:
@@ -465,7 +483,10 @@ def derived_value(env, key):
         "REVERSE_ZONE": lambda: reverse_zone(env)[0],
         "REGISTRY_RELNAME": lambda: env_get(env, "MIRROR_REGISTRY_HOSTNAME")[: -len("." + env_get(env, "BASE_DOMAIN"))],
         "SSH_PUBLIC_KEY": lambda: read_file(pathlib.Path(env_get(env, "SSH_PUBLIC_KEY_FILE")).expanduser(), "SSH public key").strip(),
-        "VM_STORAGE_CLASS": lambda: {"hpp": "hostpath-csi", "lvms": "lvms-vg1"}[env_get(env, "STORAGE_BACKEND")],
+        "VM_STORAGE_CLASS": lambda: {"hpp": "hostpath-csi", "lvms": "lvms-vg1", "ontap": "ontap-nas"}[env_get(env, "STORAGE_BACKEND")],
+        # ReadWriteMany NFS volumes can live-migrate, so drains move VMs instead of stopping them;
+        # node-local ReadWriteOnce disks cannot, and LiveMigrate would block every drain (FR-H9).
+        "VM_EVICTION_STRATEGY": lambda: "LiveMigrate" if env_get(env, "STORAGE_BACKEND") == "ontap" else "None",
         "RHEL_GUEST_IMAGE_URL": lambda: guest_image_url(env),
         # Both DNS VMs are independent primaries loading identical files (no zone transfer),
         # so the serial is never compared; a constant keeps renders byte-identical (NFR-2).
@@ -636,18 +657,20 @@ def cmd_imageset(env, args):
     channel.update({"name": env_get(env, "OCP_CHANNEL"),
                     "minVersion": env_get(env, "OCP_VERSION"), "maxVersion": env_get(env, "OCP_VERSION")})
 
-    selected = ["default"] + (["lvms"] if env_get(env, "STORAGE_BACKEND") == "lvms" else [])
+    backend = env_get(env, "STORAGE_BACKEND")
+    selected = ["default"] + ([backend] if backend in ("lvms", "ontap") else [])
     if args.profile != "default":
         selected.append(args.profile)
-    packages = []
+    by_catalog = {}  # index name -> packages, in first-seen order
     for name in selected:
         if name not in profiles:
             raise Fail(f"unknown ImageSet profile '{name}' (see mirror/imageset-profiles.yaml)")
+        index = profiles[name].get("catalog", "redhat-operator-index")
         for pkg in profiles[name]["operators"]:
-            packages.append({"name": pkg["name"],
-                             "channels": [{"name": pkg["channel"].replace("${OCP_MINOR}", minor)}]})
-    isc["mirror"]["operators"][0]["catalog"] = f"registry.redhat.io/redhat/redhat-operator-index:v{minor}"
-    isc["mirror"]["operators"][0]["packages"] = packages
+            by_catalog.setdefault(index, []).append(
+                {"name": pkg["name"], "channels": [{"name": pkg["channel"].replace("${OCP_MINOR}", minor)}]})
+    isc["mirror"]["operators"] = [{"catalog": f"registry.redhat.io/redhat/{index}:v{minor}", "packages": pkgs}
+                                  for index, pkgs in by_catalog.items()]
     isc["mirror"]["additionalImages"] = [{"name": f"registry.redhat.io/rhel9/rhel-guest-image@{digest}"}]
 
     text = yaml_dump(isc)
@@ -659,16 +682,17 @@ def cmd_imageset(env, args):
 
 
 # --------------------------------------------------------------------------- lookups
-def cmd_catalog_source(env, _args):
-    """metadata.name of the CatalogSource oc-mirror generated for redhat-operator-index (FR-G1)."""
+def cmd_catalog_source(env, args):
+    """metadata.name of the CatalogSource oc-mirror generated for one catalog index (FR-G1)."""
     yaml = yaml_module()
     found = []
     for path in sorted(pathlib.Path(derived_value(env, "CLUSTER_RESOURCES_DIR")).glob("cs-*.yaml")):
         for doc in yaml.safe_load_all(path.read_text()):
-            if doc and doc.get("kind") == "CatalogSource" and "redhat-operator-index" in doc["spec"].get("image", ""):
+            if doc and doc.get("kind") == "CatalogSource" and f"/{args.index}:" in doc["spec"].get("image", ""):
                 found.append(doc["metadata"]["name"])
     if len(found) != 1:
-        raise Fail(f"expected one redhat-operator-index CatalogSource in cluster-resources, found {found or 'none'}")
+        raise Fail(f"expected one {args.index} CatalogSource in cluster-resources, found {found or 'none'}"
+                   " (was it mirrored? STORAGE_BACKEND decides which catalogs the ImageSet includes)")
     print(found[0])
     return 0
 
@@ -691,7 +715,7 @@ def main():
     t = sub.add_parser("text")
     t.add_argument("template")
     t.add_argument("out")
-    sub.add_parser("catalog-source")
+    sub.add_parser("catalog-source").add_argument("index", nargs="?", default="redhat-operator-index")
     sub.add_parser("value").add_argument("key")
     args = parser.parse_args()
 

@@ -175,6 +175,21 @@ step "08 NTP VM and cut-over" 0 -- "${S}/08-deploy-ntp-vm.sh"
 step "00 --post-install" 0 -- "${S}/00-prerequisites-check.sh" --post-install
 step "00 --post-install with a NotReady node fails (AT-11)" 1 FAKE_NODE_NOTREADY=1 -- "${S}/00-prerequisites-check.sh" --post-install
 
+echo "== Storage array arrives later: switch STORAGE_BACKEND hpp -> ontap (Lenovo DM/DG)"
+sed 's/^STORAGE_BACKEND=.*/STORAGE_BACKEND=ontap/' "${OCPV_ENV_FILE}" > "${CI_TMP}/ci-ontap.env"
+O="OCPV_ENV_FILE=${CI_TMP}/ci-ontap.env"
+step "01 re-render ImageSet with the certified catalog" 0 "${O}" -- "${S}/01-mirror-preparation.sh" --mirror-to-disk
+step "ImageSet now lists trident-operator" 0 -- grep -q trident-operator "${IMAGESET_CONFIG}"
+step "04 load the new archive" 0 --stdin 'Corr3ct-Horse\n' "${O}" -- "${S}/04-mirror-ocp-images.sh" load
+step "Lab 12: apply the new cluster-resources" 0 -- oc apply -f "${CLUSTER_RESOURCES_DIR}/"
+step "06 installs Trident from the certified catalog" 0 "${O}" -- "${S}/06-deploy-cnv.sh"
+step "06b ontap backend (ONTAP password prompt)" 0 --stdin 'ontap-pass\n' "${O}" -- "${S}/06b-configure-storage.sh"
+step "07 DNS VMs re-rendered with LiveMigrate" 0 "${O}" -- "${S}/07-deploy-dns-vm.sh"
+step "rendered VMs use evictionStrategy LiveMigrate" 0 -- grep -q 'evictionStrategy: LiveMigrate' "${INSTALL_DIR}/manifests/dns-a.yaml"
+step "00 --post-install: ontap-nas is the only default" 0 "${O}" -- "${S}/00-prerequisites-check.sh" --post-install
+sed -e 's/^STORAGE_BACKEND=.*/STORAGE_BACKEND=ontap/' -e 's/^ONTAP_SVM=.*/ONTAP_SVM=/' "${OCPV_ENV_FILE}" > "${CI_TMP}/ci-ontap-bad.env"
+step "ontap without G fields is rejected" 1 "OCPV_ENV_FILE=${CI_TMP}/ci-ontap-bad.env" -- "${S}/lib/validate-env.sh"
+
 echo "== Nothing written into the repository (AT-13)"
 tree_after="$(git -C "${REPO}" status --porcelain --ignored)"
 if [[ "${tree_before}" == "${tree_after}" ]]; then

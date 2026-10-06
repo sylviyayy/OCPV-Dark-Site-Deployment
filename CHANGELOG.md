@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 > Each bullet below names the PRD v2.0 requirement it implements (NFR-9).
 
 ### Added
+- `STORAGE_BACKEND=ontap` for a Lenovo ThinkSystem DM or DG array (both NetApp ONTAP): register group G (`ONTAP_MGMT_IP`, `ONTAP_DATA_IP`, `ONTAP_SVM`, `ONTAP_USER`, enforced only for `ontap`); the `ontap` ImageSet profile mirrors `trident-operator` from the certified catalog; script 06 installs it; script 06b creates the credentials Secret (prompted password), `TridentOrchestrator` (autosupport silenced), an `ontap-nas` backend with `autoExportPolicy`, the default `ontap-nas` StorageClass and a ReadWriteMany StorageProfile, and demotes any previous default. VMs use `evictionStrategy: LiveMigrate` on `ontap` and `None` on node-local disks
 - `tests/run-scripts.sh` and `tests/fake/fakecmd.py`: every script runs in lab order against fakes of `oc`, `openshift-install`, `podman`, `curl`, `dig`, `chronyd` and others, with negative cases; new CI job `scripts`. CI also runs Red Hat's `ksvalidator` on both rendered kickstarts
 - **FR-A1** — `scripts/lib/render.py` renders `install-config.yaml` and `agent-config.yaml` into `${INSTALL_DIR}` as data structures (host list, bond ports, PEM bundle); templates are YAML skeletons
 - **FR-A3** — `scripts/lib/validate-env.sh` enforces the field-register Rule column before every script; `.env.example` is rejected with one message per offending key

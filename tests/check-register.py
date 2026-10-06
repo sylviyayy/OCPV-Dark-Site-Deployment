@@ -41,7 +41,7 @@ def table_rows(path):
     rows = []
     for line in path.read_text().splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
-        if len(cells) >= 2 and re.fullmatch(r"[A-F][1-6]", cells[0]):
+        if len(cells) >= 2 and re.fullmatch(r"[A-G][1-6]", cells[0]):
             rows.append((cells[0], re.findall(r"`([A-Z][A-Z0-9_]*)`", cells[1])))
     return rows
 

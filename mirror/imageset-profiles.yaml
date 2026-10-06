@@ -14,11 +14,24 @@ default:
     - name: kubernetes-nmstate-operator
       channel: stable
 
-# ADR-05 alternative: LVM Storage once each node has an empty data drive.
+# A profile may name its catalog index; the default is redhat-operator-index.
+
+# ADR-05 option for a Lenovo DS-series array (block only, no CSI driver): one LUN per node,
+# consumed as a local disk by LVM Storage. Also fits empty local data drives.
 lvms:
   operators:
     - name: lvms-operator
       channel: stable-${OCP_MINOR}
+
+# ADR-05 target for a Lenovo ThinkSystem DM or DG series array (both run NetApp ONTAP): the
+# NetApp Trident CSI driver, a Red Hat-certified operator from the certified catalog.
+# TODO(verify-4.22): package and channel names per the catalog you mirror, e.g.
+#   oc mirror list operators --catalog registry.redhat.io/redhat/certified-operator-index:v4.22 --v2
+ontap:
+  catalog: certified-operator-index
+  operators:
+    - name: trident-operator
+      channel: stable
 
 # Partner CoE demo set (formerly mirror/imageset-ocpv-coe.yaml). MTV is deliberately
 # absent: add `mtv-operator` here before mirroring if the customer migrates from VMware.

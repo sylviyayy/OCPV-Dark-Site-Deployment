@@ -5,7 +5,7 @@
 
 ## Goal
 
-Decide and sign the 31 pre-defined fields, write them to `.env`, and prove them with
+Decide and sign the 31 pre-defined fields (plus group G when a storage array backs the VMs), write them to `.env`, and prove them with
 `validate-env.sh` — before anyone cables a server.
 
 ## Why these fields are fixed first
@@ -50,11 +50,15 @@ is generated from it (rule E2).
 | E2 | `DNS_VM_IPS` | Network | `10.10.0.50,10.10.0.52` | cloud-init network-config; NNCP `dns-resolver` | Two unused IPs | Renamed; now two VMs |
 | E3 | `NTP_VM_IP` | Network | `10.10.0.51` | cloud-init; chrony MachineConfig | Unused | Keep |
 | E4 | `VM_NETWORK_MODEL` | OpenShift lead | `localnet` | NNCP + NetworkAttachmentDefinition | `localnet` or `linux-bridge` (ADR-06) | New |
-| E5 | `STORAGE_BACKEND` | OpenShift lead | `hpp` | Storage script; DataVolume `storageClassName` | `hpp` or `lvms` (ADR-05) | New |
+| E5 | `STORAGE_BACKEND` | OpenShift lead | `hpp` | Storage script; DataVolume `storageClassName`; ImageSet operators | `hpp` (interim, node-local), `ontap` (Lenovo DM/DG array) or `lvms` (DS-array LUN per node) — ADR-05 | New |
 | F1 | `PULL_SECRET_FILE` | OpenShift lead | `/opt/ocp-mirror/pull-secret.json` | oc-mirror auth; merged `pullSecret` | Valid JSON with `auths`; outside repo | Keep |
 | F2 | `SSH_PUBLIC_KEY_FILE` | OpenShift lead | `~/.ssh/id_ed25519.pub` | install-config `sshKey`; kickstart `sshkey`; cloud-init | File exists | New; replaces hard-coded `~/.ssh/id_rsa.pub` |
 | F3 | `MIRROR_DIR` | Infrastructure | `/opt/ocp-mirror` | Clients, archives, auth, CA | Owned by the installer user; free space ≥ 2× archive size | Keep |
 | F4 | `INSTALL_DIR` | OpenShift lead | `~/ocp-install/coe01` | `openshift-install --dir` | Outside the git working tree | New |
+| G1 | `ONTAP_MGMT_IP` | Storage | `10.10.0.30` | Trident backend `managementLIF` | IPv4 SVM management LIF, reachable from every node; enforced only when E5 = `ontap` | New |
+| G2 | `ONTAP_DATA_IP` | Storage | `10.10.0.31` | Trident backend `dataLIF` (NFS) | IPv4 NFS data LIF, reachable from every node (machine network or routed storage VLAN) | New |
+| G3 | `ONTAP_SVM` | Storage | `svm_ocpv` | Trident backend `svm` | Existing SVM with NFS enabled | New |
+| G4 | `ONTAP_USER` | Storage | `vsadmin` | Trident credentials Secret | SVM account with the `vsadmin` role; password prompted, never in `.env` | New |
 
 **Removed from `.env.example`:** `NETWORK_INTERFACE`, `NETWORK_NETMASK` (derived from B1),
 `MWn_MAC`, all `WK01_*`/`WK02_*`, `DNS_SERVER`, `NTP_SERVER`, `MIRROR_REGISTRY_PASSWORD`.
