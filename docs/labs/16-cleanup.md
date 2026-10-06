@@ -6,7 +6,7 @@ Tear down lab state safely when the exercise is finished (or reset for a re-run)
 
 ## WHERE
 
-Jumpbox, BMCs, and optional registry host.
+Bastion, BMCs, and optional registry host.
 
 ## WHY
 
@@ -31,9 +31,9 @@ rm -rf install-config/auth install-config/agent.x86_64.iso \
 2. Re-run Labs 08–10  
 3. Optionally wipe registry data under the registry host’s quay/registry volume  
 
-## DO — jumpbox DNS/NTP
+## DO — bastion DNS/NTP
 
-If production DNS/NTP VMs are gone but jumpbox services were stopped:
+If production DNS/NTP VMs are gone but bastion services were stopped:
 
 ```bash
 sudo ./scripts/02-bootstrap-dns-ntp.sh   # only if you need MVP again

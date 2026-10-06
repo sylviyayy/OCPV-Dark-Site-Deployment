@@ -6,7 +6,7 @@ Apply oc-mirror v2 cluster resources (IDMS/ITMS + CatalogSource) so operators in
 
 ## WHERE
 
-Jumpbox with `KUBECONFIG`.
+Bastion with `KUBECONFIG`.
 
 ```bash
 export KUBECONFIG="${PWD}/install-config/auth/kubeconfig"

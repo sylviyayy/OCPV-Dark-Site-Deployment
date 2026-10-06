@@ -7,7 +7,7 @@ images to disk, then carry them into the dark site.
 
 ## WHERE
 
-Jumpbox **while connected**, or a separate staging Fedora/RHEL VM with internet.  
+Bastion **while connected**, or a separate staging Fedora/RHEL VM with internet.  
 Same machine can later move to the dark VLAN with the USB archive.
 
 ## WHY
@@ -39,7 +39,7 @@ pre-departure checklist.
 **None of this is on a 24-hour clock.** Mirror days ahead. The only artifact that
 expires is the agent ISO, built on site in Lab 08 ([Window A](../BASTION-LIFECYCLE.md#2-the-two-24-hour-windows-and-what-is-not-on-a-clock)).
 
-On the dark-site registry host (or jumpbox if co-located):
+On the dark-site registry host (or bastion if co-located — throwaway labs only):
 
 ```bash
 ./scripts/04-mirror-ocp-images.sh disk-to-mirror

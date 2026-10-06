@@ -2,11 +2,11 @@
 
 ## Goal
 
-Use `oc` / `kubectl` from the jumpbox (and optionally your laptop) against the API VIP.
+Use `oc` / `kubectl` from the bastion (and optionally your laptop) against the API VIP.
 
 ## WHERE
 
-Jumpbox (and any admin workstation that can reach `API_VIP`).
+Bastion (and any admin workstation that can reach `API_VIP`).
 
 ## WHY
 

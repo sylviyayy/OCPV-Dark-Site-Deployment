@@ -6,7 +6,7 @@ Prove the cluster works offline and Virtualization is usable.
 
 ## WHERE
 
-Jumpbox.
+Bastion.
 
 ```bash
 export KUBECONFIG="${PWD}/install-config/auth/kubeconfig"

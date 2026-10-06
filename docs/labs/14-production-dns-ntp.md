@@ -2,11 +2,11 @@
 
 ## Goal
 
-Move DNS/NTP from the jumpbox onto VMs running on OpenShift Virtualization.
+Move DNS/NTP from the bastion onto VMs running on OpenShift Virtualization.
 
 ## WHERE
 
-Jumpbox + cluster.
+Bastion + cluster.
 
 ```bash
 ./scripts/07-deploy-dns-vm.sh
@@ -15,7 +15,7 @@ Jumpbox + cluster.
 
 ## WHY
 
-Jumpbox services were a bootstrap bridge. Steady-state platform DNS/NTP should live on
+Bastion services were a bootstrap bridge. Steady-state platform DNS/NTP should live on
 OCP-V (VMware-exit row 1 — rebuild the function).
 
 These scripts only **deploy** the VMs. They do not switch the nodes over. Switching is

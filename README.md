@@ -49,7 +49,7 @@ A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](h
 | `mw02` | SR665 V3 | Master + worker |
 | `mw03` | SR675 V3 | Master + worker (GPU / heavy VM workloads) |
 
-Plus a **bastion** (jumphost): Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for mirroring, `openshift-install`, and temporary DNS/NTP.
+Plus a **bastion**: Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for mirroring, `openshift-install`, and temporary DNS/NTP.
 
 ### Software / Component Versions
 
@@ -60,7 +60,7 @@ Plus a **bastion** (jumphost): Fedora laptop, RHEL 10 KVM VM, or a small physica
 | Installer | Agent-based Installer (`openshift-install agent`) |
 | Image mirroring | oc-mirror plugin **v2** |
 | Mirror registry | mirror registry for Red Hat OpenShift (or lab registry) |
-| Jumpbox OS | **RHEL 9/10**, **Fedora**, or CentOS Stream equivalent for learning |
+| Bastion OS | **RHEL 9/10**, **Fedora**, or CentOS Stream equivalent for learning |
 | Cluster node OS | RHCOS (installed by the Agent ISO — you do not Kickstart RHCOS by hand) |
 | Container runtime | **CRI-O** (OpenShift default; not containerd) |
 | Cluster network | **OVN-Kubernetes** |
@@ -75,7 +75,7 @@ The USB drive is your only supply line. The agent ISO is the only artifact on a 
 
 ## Labs
 
-This tutorial assumes **three** AMD64 Lenovo servers (above) plus a bastion (jumphost), on the
+This tutorial assumes **three** AMD64 Lenovo servers (above) plus a bastion, on the
 same L2/L3 install network. Adjust hostnames and IPs in the checklist for your site.
 
 * [Prerequisites and Assumptions](docs/labs/01-prerequisites-assumptions.md)

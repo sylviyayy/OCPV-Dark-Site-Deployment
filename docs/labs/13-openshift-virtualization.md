@@ -6,7 +6,7 @@ Install `kubevirt-hyperconverged` from the mirrored catalog and verify KVM (and 
 
 ## WHERE
 
-Jumpbox.
+Bastion.
 
 ```bash
 cd OCPV-Dark-Site-Deployment

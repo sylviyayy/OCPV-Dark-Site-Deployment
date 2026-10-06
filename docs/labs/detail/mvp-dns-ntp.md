@@ -23,7 +23,7 @@ sudo ./scripts/02-bootstrap-dns-ntp.sh
 | **DNS** | Installer and nodes look up `api.<cluster>.<domain>`, `*.apps...`, and the registry hostname |
 | **NTP** | etcd (the cluster’s key-value brain) requires clocks within ~500 ms |
 
-There is no corporate DNS yet (greenfield row 1). The bastion fills the gap **only until** Lab 10.
+There is no corporate DNS yet (greenfield row 1). The bastion fills the gap **only until** [Lab 14](../14-production-dns-ntp.md).
 
 ## WHAT the script does
 
@@ -40,16 +40,19 @@ Preview the hosts file without changing the system:
 
 ## VERIFY
 
+Full beginner procedure (nslookup → bastion → API **and** apps URLs, firewall notes):
+
+→ **[Lab 07 — VERIFY](../07-mvp-dns-ntp.md#verify--dns-with-nslookup-primary-check)**
+
+Short form:
+
 ```bash
-dig @"${BASTION_IP}" "registry.${BASE_DOMAIN}" +short
-# Expect: MIRROR_REGISTRY_IP
-
-dig @"${BASTION_IP}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" +short
-# Expect: API_VIP
-
+nslookup "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${BASTION_IP}"
+nslookup "console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}" "${BASTION_IP}"
 chronyc -h "${BASTION_IP}" tracking
-# Expect: a valid tracking response (stratum from orphan mode)
 ```
+
+Both API and apps must return the VIP addresses. Lab tip: open/disable firewall on the bastion for the install CIDR; production must whitelist only OpenShift node ranges.
 
 ## FAILS IF
 

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Understand the roles of jumpbox, registry, the three Lenovo nodes, VIPs, and the
+Understand the roles of bastion, registry, the three Lenovo nodes, VIPs, and the
 two-stage DNS/NTP story before you fill the worksheet.
 
 ## WHERE
@@ -17,7 +17,7 @@ plan come before Agent config.
 ## Mental model
 
 ```text
-[Jumpbox + optional registry]     temp DNS/NTP, mirror, openshift-install
+[Bastion + optional registry]     temp DNS/NTP, mirror, openshift-install
         |
    install VLAN / flat L2
         |
@@ -41,16 +41,17 @@ plan come before Agent config.
 |---|---|---|
 | Installer | Agent-based | No DHCP, no external LB, no bootstrap VM |
 | Cluster size | 3-node compact | Matches 3 physical servers |
-| Jumpbox boot | USB / KVM ISO | No PXE on empty network |
+| Bastion boot | USB / KVM ISO | No PXE on empty network |
 | Node boot | BMC virtual CD + Agent ISO | Same reason |
-| DNS install phase | Jumpbox dnsmasq | Nothing else exists yet |
+| DNS install phase | Bastion dnsmasq | Nothing else exists yet |
 | DNS steady state | VM on OCP-V | Customer-owned platform services |
 
 ## VERIFY
 
 You can explain in one minute:
 
-- what the jumpbox does vs what `mw01`–`mw03` do  
+- what the bastion does vs what `mw01`–`mw03` do  
+
 - why API/Ingress VIPs are not a physical server  
 - why bastion DNS is temporary  
 

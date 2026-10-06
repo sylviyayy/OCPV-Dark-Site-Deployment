@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `kubernetes-nmstate-operator` in `mirror/imageset-config.yaml.template` (host bridge for DNS/NTP VMs and the DNS cutover NNCP), plus a storage-operator decision note
 - Hard Way–style repository front door in `README.md` with hyperlinked labs
 - Lenovo CoE compute lab: 2× SR665 V3 + 1× SR675 V3 (L40S), NIC slot layout, compact 3-node roles
-- Labs 01–16 remapped (jumpbox, compute, mirror, agent bootstrap, `oc` access, cleanup)
+- Labs 01–16 remapped (bastion, compute, mirror, agent bootstrap, `oc` access, cleanup)
 - Beginner lab series `docs/labs/` (Hard Way–style): USB/KVM path, `vim`, per-field `.env` guide, rationale every step
 - Greenfield partner documentation (`docs/GREENFIELD-README.md`, `docs/greenfield/*`)
 - Deployment tracks (bare metal primary, optional KVM lab appendix)
@@ -24,6 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reference to [eanylin/openshift-lab](https://github.com/eanylin/openshift-lab) for optional KVM practice only
 
 ### Changed
+- Renamed all “jumpbox” wording to **bastion**; lab file `04-jumpbox.md` → `04-bastion.md`
+- Expanded Lab 07 MVP DNS/NTP verification: `nslookup` against bastion for API + apps URLs, firewall lab vs prod notes
 - Prefer RHEL USB / KVM ISO attach over PXE for bastion/registry; document PXE as optional only
 - Quick start examples use `vim` and point at explicit `.env` field list
 - Rewrote brownfield appendix as customer qualification decision aid; fixed false MTV mirror claim

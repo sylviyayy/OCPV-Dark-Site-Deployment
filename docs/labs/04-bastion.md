@@ -2,7 +2,7 @@
 
 ## Goal
 
-Build the **bastion** (jumpbox): the machine that runs mirroring tools (when online),
+Build the **bastion**: the machine that runs mirroring tools (when online),
 `openshift-install`, and temporary DNS/NTP.
 
 ## WHERE
@@ -15,7 +15,8 @@ One of:
 
 ## WHY
 
-The bastion here serves as the temporary DNS/NTP server since we are deploying this OpenShift cluster from scratch (greenfield).
+This tutorial standardizes on the name **bastion**. It is the temporary DNS/NTP server
+since we are deploying this OpenShift cluster from scratch (greenfield).
 
 The bastion is **temporary**. It receives the USB drive, runs DNS/NTP and the installer,
 acts as the **secondary** DNS/NTP during cutover, and is then disconnected. Plan for that
@@ -53,7 +54,7 @@ vim kickstart/ks-bastion.cfg
 ```
 
 If registry is a second host, also prepare `ks-registry-mirror.cfg`.  
-In a small lab, registry may co-locate on the jumpbox.
+In a small lab, registry may co-locate on the bastion.
 
 ## VERIFY
 

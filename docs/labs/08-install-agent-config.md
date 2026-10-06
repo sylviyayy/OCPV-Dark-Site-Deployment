@@ -6,7 +6,7 @@ Create `install-config.yaml`, `agent-config.yaml`, and the Agent discovery ISO.
 
 ## WHERE
 
-Jumpbox.
+Bastion.
 
 ```bash
 cd OCPV-Dark-Site-Deployment

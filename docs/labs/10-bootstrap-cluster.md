@@ -6,7 +6,7 @@ Boot all three Lenovo nodes from the Agent ISO via BMC and wait until install co
 
 ## WHERE
 
-- Jumpbox: `install-config/agent.x86_64.iso`  
+- Bastion: `install-config/agent.x86_64.iso`  
 - Each server XCC: virtual media  
 
 ## WHY
@@ -32,7 +32,7 @@ The Agent ISO embeds Assisted Service; nodes self-register using Lab 08 networki
 
 Boot the `RENDEZVOUS_IP` node first if you want a clearer bootstrap path, then the others.
 
-## DO — wait on jumpbox
+## DO — wait on bastion
 
 ```bash
 export PATH="${MIRROR_DIR}/clients:${PATH}"

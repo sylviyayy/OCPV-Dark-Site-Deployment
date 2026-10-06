@@ -34,7 +34,7 @@ Then apply values into `.env` using the field-by-field guide:
 |---|---|---|
 | `CLUSTER_NAME` / `BASE_DOMAIN` | `coe01` / `lab.example.com` | DNS names |
 | `OCP_VERSION` | `4.22.x` | Pin z-stream from mirror.openshift.com |
-| `BASTION_IP` | jumpbox IP | Temp DNS/NTP + installer |
+| `BASTION_IP` | bastion IP | Temp DNS/NTP + installer |
 | `MIRROR_REGISTRY_IP` | registry IP | **Must differ from `BASTION_IP`** if the bastion will be disconnected after cutover ([Bastion Lifecycle](../BASTION-LIFECYCLE.md)). It may equal the bastion only in throwaway labs |
 | `API_VIP` / `INGRESS_VIP` | unused IPs | Not assigned to a NIC permanently |
 | `RENDEZVOUS_IP` | = `CP01_IP` | Must be one control-plane IP |

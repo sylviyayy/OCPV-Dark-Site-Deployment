@@ -7,7 +7,7 @@ by hand — Agent-based OpenShift does this during bootstrap.
 
 ## WHERE
 
-Reading on the jumpbox. Optional inspection **after** Lab 10 succeeds.
+Reading on the bastion. Optional inspection **after** Lab 10 succeeds.
 
 ## WHY
 
