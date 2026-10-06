@@ -1,0 +1,20 @@
+# Secondary network for the DNS and NTP VMs: OVN-K localnet topology on the "vmnet"
+# bridge mapping (ADR-06, FR-H5). Replaces nad-flat-l2.yaml, whose Linux bridge br-flat
+# was never built: the bridge CNI created it on demand with no uplink, so VMs booted on
+# an island and nothing reported an error.
+# TODO(verify-4.22): field names per
+#   https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/multiple_networks/
+apiVersion: k8s.cni.cncf.io/v1
+kind: NetworkAttachmentDefinition
+metadata:
+  name: vmnet
+  namespace: infrastructure
+spec:
+  config: |-
+    {
+      "cniVersion": "0.3.1",
+      "name": "vmnet",
+      "type": "ovn-k8s-cni-overlay",
+      "topology": "localnet",
+      "netAttachDefName": "infrastructure/vmnet"
+    }

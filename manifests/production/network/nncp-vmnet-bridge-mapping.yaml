@@ -1,0 +1,14 @@
+# OVN-Kubernetes localnet "vmnet" mapped onto br-ex (ADR-06, FR-H5).
+# br-ex already sits on the LACP bond0, so VMs reach the machine network with no extra
+# cabling. The NetworkAttachmentDefinition in nad-vmnet.yaml refers to "vmnet" by name.
+apiVersion: nmstate.io/v1
+kind: NodeNetworkConfigurationPolicy
+metadata:
+  name: vmnet-bridge-mapping
+spec:
+  desiredState:
+    ovn:
+      bridge-mappings:
+        - localnet: vmnet
+          bridge: br-ex
+          state: present

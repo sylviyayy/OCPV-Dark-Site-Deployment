@@ -1,66 +1,95 @@
 #!/usr/bin/env bash
-# Deploy production DNS VM (BIND9) on OpenShift Virtualization
+# Steady-state DNS: two anti-affine authoritative DNS VMs on OpenShift Virtualization
+# (Lab 14 step 14.1; ADR-06, ADR-07; FR-H1..H5, H7, H8, H13).
+#
+# Manifests are rendered by scripts/lib/render.py into ${INSTALL_DIR}/manifests (FR-H4):
+# no sed token chains, so MIRROR_REGISTRY can never corrupt MIRROR_REGISTRY_IP again.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
+# shellcheck source=scripts/lib/common.sh
 source "${SCRIPT_DIR}/lib/common.sh"
 
 load_env
-require_cmd oc
+validate_env
+refuse_root
+require_cmd oc python3 jq dig
+use_kubeconfig
 
-export KUBECONFIG="${REPO_ROOT}/install-config/auth/kubeconfig"
-NAMESPACE="infrastructure"
-MANIFEST_DIR="${REPO_ROOT}/manifests/production/dns-vm"
+if [[ "${VM_NETWORK_MODEL}" != "localnet" ]]; then
+  # ADR-06's linux-bridge alternative needs spare-NIC port names the v2.0 field register
+  # does not define; fail loudly rather than build a bridge with no uplink.
+  log_error "VM_NETWORK_MODEL=${VM_NETWORK_MODEL} is not implemented in v2.0; use localnet (docs/DECISIONS.md ADR-06)"
+  exit 1
+fi
 
-log_info "Deploying DNS VM at ${DNS_VM_IP}"
+NS=infrastructure
+OUT="${INSTALL_DIR}/manifests"
+mkdir -p "${OUT}"
+oc create namespace "${NS}" --dry-run=client -o yaml | oc apply -f -
 
-oc create namespace "${NAMESPACE}" --dry-run=client -o yaml | oc apply -f -
+# --- VM network: localnet "vmnet" on br-ex, plus the PriorityClass (FR-H5, FR-H11) ---
+oc apply -f "${REPO_ROOT}/manifests/production/network/"
+if ! oc wait nncp/vmnet-bridge-mapping --for=condition=Available --timeout=300s; then
+  oc get nncp,nnce
+  exit 1
+fi
 
-# Apply all manifests with variable substitution
-for manifest in "${MANIFEST_DIR}"/*.yaml; do
-  [[ -f "$manifest" ]] || continue
-  log_info "Applying $(basename "$manifest")..."
-  sed \
-    -e "s|DNS_VM_IP|${DNS_VM_IP}|g" \
-    -e "s|BASE_DOMAIN|${BASE_DOMAIN}|g" \
-    -e "s|CLUSTER_NAME|${CLUSTER_NAME}|g" \
-    -e "s|MIRROR_REGISTRY|${MIRROR_REGISTRY}|g" \
-    -e "s|BASTION_IP|${BASTION_IP}|g" \
-    -e "s|MIRROR_REGISTRY_IP|${MIRROR_REGISTRY_IP}|g" \
-    -e "s|API_VIP|${API_VIP}|g" \
-    -e "s|INGRESS_VIP|${INGRESS_VIP}|g" \
-    -e "s|CP01_IP|${CP01_IP}|g" \
-    -e "s|CP02_IP|${CP02_IP}|g" \
-    -e "s|CP03_IP|${CP03_IP}|g" \
-    -e "s|WK01_IP|${WK01_IP}|g" \
-    -e "s|WK02_IP|${WK02_IP}|g" \
-    -e "s|NTP_VM_IP|${NTP_VM_IP}|g" \
-    -e "s|NETWORK_GATEWAY|${NETWORK_GATEWAY}|g" \
-    "$manifest" | oc apply -f -
+# --- What the CDI importer needs to pull the guest image from the mirror (FR-H7) ---
+oc create configmap registry-ca -n "${NS}" --from-file=ca.pem="${REGISTRY_CA_FILE}" \
+  --dry-run=client -o yaml | oc apply -f -
+creds="$(jq -r --arg r "${MIRROR_REGISTRY}" '.auths[$r].auth // empty' "${AUTH_FILE}" | base64 -d)"
+if [[ "${creds}" != *:* ]]; then
+  log_error "${AUTH_FILE} has no credentials for ${MIRROR_REGISTRY} (Lab 06 step 6.8)"
+  exit 1
+fi
+# The credentials reach jq through its environment and oc through stdin, never argv
+# (NFR-4); jq JSON-encodes them, so any character in the password is safe.
+CREDS="${creds}" NS="${NS}" jq -n '{
+  apiVersion: "v1", kind: "Secret", type: "Opaque",
+  metadata: {name: "registry-pull", namespace: env.NS},
+  stringData: {accessKeyId: (env.CREDS | split(":")[0]), secretKey: (env.CREDS | sub("^[^:]*:"; ""))}
+}' | oc apply -f -
+unset creds
+
+# --- Two DNS VMs, rendered from one template ---
+for vm in "dns-a:${DNS_VM1_IP}" "dns-b:${DNS_VM2_IP}"; do
+  VM_NAME="${vm%%:*}" VM_IP="${vm#*:}" \
+    render text "${REPO_ROOT}/manifests/production/dns-vm/dns-vm.yaml.template" "${OUT}/${vm%%:*}.yaml"
+  oc apply -f "${OUT}/${vm%%:*}.yaml"
 done
 
-log_info "Waiting for DNS VM to start..."
-oc wait --for=condition=Ready \
-  --timeout=600s \
-  vmi/dns-server -n "${NAMESPACE}" 2>/dev/null || {
-  log_warn "VM not ready yet. Monitor with: oc get vmi -n ${NAMESPACE} -w"
+# Wait on the VirtualMachine, not its VMI: right after `oc apply` the VMI does not exist yet
+# (the DataVolume is still importing the guest image), and `oc wait` fails at once on a
+# missing object. The VM exists immediately and turns Ready once its VMI is running.
+for vm in dns-a dns-b; do
+  if ! oc wait "vm/${vm}" -n "${NS}" --for=condition=Ready --timeout=1800s; then
+    oc get vm,vmi,dv,pvc -n "${NS}"
+    oc describe datavolume "${vm}-rootdisk" -n "${NS}" | tail -n 20
+    exit 1
+  fi
+done
+nodes="$(oc get vmi dns-a dns-b -n "${NS}" -o jsonpath='{.items[*].status.nodeName}')"
+read -r node_a node_b <<<"${nodes}"
+if [[ "${node_a}" == "${node_b}" ]]; then
+  log_error "dns-a and dns-b both run on ${node_a}; anti-affinity was not honoured (FR-H8)"
+  exit 1
+fi
+
+# --- VERIFY from the bastion: answers match .env (cloud-init needs a few minutes) ---
+answers_ok() {
+  local ip
+  for ip in "${DNS_VM1_IP}" "${DNS_VM2_IP}"; do
+    expect_dns "${ip}" "api.${CLUSTER_NAME}.${BASE_DOMAIN}" "${API_VIP}" || return 1
+    expect_dns "${ip}" "${MIRROR_REGISTRY_HOSTNAME}" "${MIRROR_REGISTRY_IP}" || return 1
+    expect_dns "${ip}" "console-openshift-console.apps.${CLUSTER_NAME}.${BASE_DOMAIN}" "${INGRESS_VIP}" || return 1
+    expect_ptr "${ip}" "${MW01_IP}" "${MW01_HOSTNAME}.${BASE_DOMAIN}" || return 1
+  done
 }
-
-# Verify DNS
-sleep 10
-if dig "@${DNS_VM_IP}" "registry.${BASE_DOMAIN}" +short &>/dev/null; then
-  log_info "DNS VM is serving queries!"
-else
-  log_warn "DNS not responding yet. VM may still be booting."
-  log_warn "Check: oc console vmi/dns-server -n ${NAMESPACE}"
+if ! wait_until 900 20 "both DNS VMs answer A, wildcard and PTR records from .env" answers_ok; then
+  log_error "Check cloud-init in the guest: virtctl console dns-a -n ${NS}; then 'cloud-init status --long'"
+  exit 1
 fi
 
-if [[ "${1:-}" == "--update-zone" ]]; then
-  log_info "Zone update requested — SSH to VM and reload BIND"
-  log_info "  ssh root@${DNS_VM_IP} rndc reload"
-fi
-
-log_info ""
-log_info "=== DNS VM deployed at ${DNS_VM_IP} ==="
-log_info "Next: ./scripts/08-deploy-ntp-vm.sh"
+log_info "PASS: dns-a (${DNS_VM1_IP}, ${node_a}) and dns-b (${DNS_VM2_IP}, ${node_b}) serve .env records"
+log_info "Next (Lab 14 step 14.2): ./scripts/08-deploy-ntp-vm.sh"

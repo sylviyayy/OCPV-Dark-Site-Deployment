@@ -12,6 +12,17 @@ We use [Semantic Versioning](https://semver.org/):
 | **MINOR** (`1.1.0`) | New features, docs, or manifests (backward compatible) |
 | **PATCH** (`1.0.1`) | Bug fixes and clarifications only |
 
+## Gates for v2.0.0
+
+v2.0.0 is breaking (`.env` schema v2, `INSTALL_DIR` outside the repo, script 05 split). Tag it
+only when, in order:
+
+1. **Phase 0** — every ADR in [docs/DECISIONS.md](DECISIONS.md) is marked *Accepted* (or amended).
+2. **CI** — the `lint` workflow is green on `main`.
+3. **Phase 1** — acceptance tests AT-01 to AT-10 pass on reference hardware (AT-01, AT-02 also run in CI).
+4. **Phase 2** — AT-11 to AT-13 pass (failing post-install check, cold-start drill, no secrets in the tree).
+5. **Phase 3** — AT-14: a reader new to v2.0 completes Labs 01–15 with zero undocumented commands.
+
 ## Checklist
 
 ### 1. Finalize changelog

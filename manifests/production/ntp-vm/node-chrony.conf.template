@@ -1,0 +1,9 @@
+# /etc/chrony.conf on every node after the Lab 14 cut-over. Generated from .env
+# (NTP_VM_IP, TIME_SOURCE) by scripts/08-deploy-ntp-vm.sh; do not edit on a node.
+# The second source keeps time flowing while the NTP VM's node reboots (FR-H9).
+server ${NTP_VM_IP} iburst
+server ${TIME_UPSTREAM} iburst
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+logdir /var/log/chrony

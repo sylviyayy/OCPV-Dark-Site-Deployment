@@ -1,70 +1,53 @@
-# Kickstart Files
+# Kickstart templates
 
-RHEL Kickstart configurations for bootstrapping a dark site with no DNS, NTP, or internet.
+Unattended RHEL 9 installs for the two helper hosts, from the RHEL 9 DVD alone.
+Cluster nodes never use these: they boot the Agent ISO through XCC virtual media (ADR-04).
 
-**Preferred boot method: RHEL USB (or KVM ISO attach).**  
-PXE is documented only as an optional advanced path if you already have DHCP/TFTP — it is **not** required and is **not** used for OpenShift cluster nodes.
+| Template | Host | Rendered to |
+|---|---|---|
+| `ks-bastion.cfg.template` | Bastion — permanent DNS/NTP/DVD-repo host, runs `openshift-install` | `${INSTALL_DIR}/kickstart/ks-bastion.cfg` |
+| `ks-registry.cfg.template` | Mirror registry host — only when it does not share the bastion | `${INSTALL_DIR}/kickstart/ks-registry.cfg` |
 
-Beginner walkthrough: [docs/labs/04-bastion-and-registry-usb.md](../docs/labs/04-bastion-and-registry-usb.md)
+Walkthrough: [Lab 04 — Setting up the Bastion](../docs/labs/04-bastion.md) ·
+detail: [bastion-and-registry-usb](../docs/labs/detail/bastion-and-registry-usb.md).
 
-## Files
+## You edit `.env`, never the kickstart
 
-| File | Target Host | IP | Purpose |
-|---|---|---|---|
-| `ks-bastion.cfg` | Bastion | `10.10.0.5` | Installer workstation, MVP DNS/NTP |
-| `ks-registry-mirror.cfg` | Registry | `10.10.0.10` | Local container mirror registry |
-
-## Before Use
-
-Edit with **`vim`** (not `vi`):
-
-```bash
-vim kickstart/ks-bastion.cfg
-vim kickstart/ks-registry-mirror.cfg
-```
-
-1. **Change passwords** — replace `changeme-rootpw` and `changeme-installer`  
-2. **Add your SSH key** — replace the placeholder `ssh-rsa AAAAB3...` key  
-3. **Verify NIC name** — change `ens192` if `ip link` shows a different name  
-4. **Adjust IPs** — must match `BASTION_IP` / `MIRROR_REGISTRY_IP` in `.env`  
-
-## Boot Methods
-
-### USB Boot (preferred)
+`scripts/render-kickstart.sh` fills IPs, `BASTION_IFNAME`, domain, SSH key and `/etc/hosts`
+from `.env`, and prompts for the `installer` password, which it stores only as a SHA-512
+crypt hash (`openssl passwd -6`). `root` is locked. Rendered files carry that hash, so they
+are written outside the repo with mode 600.
 
 ```bash
-# Identify the USB device first — do not wipe the wrong disk
-lsblk
-
-sudo dd if=rhel-9-or-10-x86_64-dvd.iso of=/dev/sdX bs=4M status=progress oflag=sync
-
-# Copy kickstart onto a mountable USB filesystem when available
-sudo cp ks-bastion.cfg /mnt/usb/
-
-# Boot target server from USB; at the boot prompt append, for example:
-#   inst.ks=hd:sdb1:/ks-bastion.cfg
+# Low-side staging host (RHEL 9), as your user
+./scripts/render-kickstart.sh bastion
 ```
 
-On **Fedora / RHEL 10 KVM**, attach the RHEL ISO (and Kickstart file if needed) as virtual CD/USB in virt-manager — still no PXE.
+## One ISO that boots from USB or virtual media
 
-### PXE Boot (optional — not recommended for greenfield)
+`mkksiso` (package `lorax`) rebuilds the DVD with the kickstart embedded and the boot menu
+pointing at it, so the install needs zero keystrokes and no guessing of `inst.ks=hd:sdb1`.
+`--add` also places this repository on the medium; the kickstart copies it to
+`/home/installer/` (FR-E6).
 
-Only if you already operate DHCP + TFTP. This path is **not** used for OpenShift nodes (those boot the Agent ISO via BMC). See historical snippet below only if you need it:
-
+```bash
+sudo dnf install -y lorax
+mkksiso --ks "${INSTALL_DIR}/kickstart/ks-bastion.cfg" --add ~/OCPV-Dark-Site-Deployment \
+  ~/Downloads/rhel-9.x-x86_64-dvd.iso "${INSTALL_DIR}/kickstart/bastion-ks.iso"
 ```
-# /var/lib/tftpboot/pxelinux.cfg/default  (optional advanced)
-DEFAULT linux
-LABEL linux
-  KERNEL vmlinuz
-  APPEND initrd=initrd.img inst.ks=http://10.10.0.5/kickstart/ks-bastion.cfg
-```
 
-## Boot Order
+Write `bastion-ks.iso` to a USB stick (`dd … oflag=sync`) **or** mount it as XCC virtual media.
+Same file, both paths.
 
-1. **Bastion first** — temp DNS/NTP live here  
-2. **Registry second** — load mirrored images  
-3. **OpenShift nodes** — Agent discovery ISO via BMC (**not** Kickstart, **not** PXE)  
+## Boot order
 
-## Post-Kickstart
+1. **Bastion** — every later step resolves names and takes time from it.
+2. **Registry host** (if separate) — Lab 06 installs mirror registry for Red Hat OpenShift on it.
+3. **Cluster nodes** — Agent ISO via XCC virtual media (Lab 10).
 
-Continue with [docs/labs/05-mvp-dns-ntp.md](../docs/labs/05-mvp-dns-ntp.md) or [docs/03-kickstart-procedure.md](../docs/03-kickstart-procedure.md) Step 4.
+Network boot is out of scope; see the [network-boot appendix](../docs/labs/appendix-b-network-boot.md).
+
+## After the install
+
+Continue with [Lab 06 — Mirroring Images](../docs/labs/06-mirroring-images.md) (high-side intake),
+then [Lab 07 — MVP DNS and NTP](../docs/labs/07-mvp-dns-ntp.md).

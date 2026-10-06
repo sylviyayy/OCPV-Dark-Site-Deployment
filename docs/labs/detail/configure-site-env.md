@@ -1,194 +1,100 @@
 # Configure `.env` (field-by-field detail)
 
-> Used from [Lab 03 — Site Checklist](../03-checklist.md).  
-> Tutorial index: [README Labs](../../../README.md#labs).
+> Used from [Lab 03 — Site Checklist](../03-checklist.md). The register there is normative;
+> this page says **where each value comes from** and how to check it before `validate-env.sh` does.
 
-## Goal
-
-Create a site-specific `.env` and change **only** the values that match your lab.
-
-## WHERE
-
-Staging machine (Fedora laptop or RHEL 10 KVM) — same place you will run the mirror later.
+## Before you start
 
 ```bash
-git clone https://github.com/sylviyayy/OCPV-Dark-Site-Deployment.git
-cd OCPV-Dark-Site-Deployment
+cd ~/OCPV-Dark-Site-Deployment
+sudo mkdir -p /opt/ocp-mirror
+sudo chown -R "$USER:$USER" /opt/ocp-mirror      # the whole tree, not just the pull secret (FR-B9)
 cp .env.example .env
 vim .env
 ```
 
-## WHY this lab exists
+In `vim`: `i` to insert, `Esc` then `:wq` to save. No spaces around `=`. Quote values that contain
+commas (`MW01_NICS="…"`).
 
-Every script reads `.env`. If MAC addresses or IPs are still the sample placeholders, the Agent installer will look for servers that do not exist. Editing `.env` once drives Kickstart notes, DNS records, and `agent-config.yaml` generation.
+## A — Cluster identity
 
-## DO — open the file
-
-Inside `vim`:
-
-- Move with arrow keys  
-- Press `i` to insert  
-- Edit the value after `=`  
-- Press `Esc`, then type `:wq` and Enter to save and quit  
-
-Do **not** put spaces around `=`.
-
----
-
-## Fields you almost always must change
-
-Work top to bottom. Leave a field alone only if the sample value is already correct for your site.
-
-### 1) Cluster identity
-
-| Variable | Sample | What to put | Why |
+| ID | Key | Where the value comes from | Check it yourself |
 |---|---|---|---|
-| `CLUSTER_NAME` | `ocpv-lab` | Short name, letters/numbers/hyphen | Becomes part of DNS: `api.<CLUSTER_NAME>.<BASE_DOMAIN>` |
-| `BASE_DOMAIN` | `ocp-v.local` | Your lab DNS domain | All hostnames hang under this |
-| `OCP_VERSION` | `4.22.2` | Exact z-stream from [mirror.openshift.com clients](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/) | Tools and release images must match |
-| `OCP_CHANNEL` | `stable-4.22` | Usually leave as-is for 4.22 | oc-mirror channel |
+| A1 | `CLUSTER_NAME` | Your naming standard; becomes `api.<CLUSTER_NAME>.<BASE_DOMAIN>` | `[[ $CLUSTER_NAME =~ ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$ ]] && echo ok` |
+| A2 | `BASE_DOMAIN` | The DNS owner; a domain the site controls, or `<site>.internal`. Never `.local` (mDNS) and never `example.com` (documentation only) | `echo "$BASE_DOMAIN"` |
+| A3 | `OCP_VERSION` | The newest z-stream in `stable-4.22` at mirror time: `https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/` | `curl -sfI https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/${OCP_VERSION}/sha256sum.txt` (staging host) |
+| A4 | `OCP_CHANNEL` | `stable-` + the minor of A3 | minor matches A3 |
 
-**Example edit:**
+## B — Machine network
+
+| ID | Key | Where the value comes from | Check it yourself |
+|---|---|---|---|
+| B1 | `MACHINE_NETWORK_CIDR` | Network team: the subnet holding every node, VIP, bastion, registry and VM | every IP below falls inside it |
+| B2 | `NETWORK_GATEWAY` | Network team | inside B1 |
+| B3 | `CLUSTER_NETWORK_CIDR`, `SERVICE_NETWORK_CIDR` | Defaults `10.128.0.0/14`, `172.30.0.0/16`; change only if a routed site range overlaps | no overlap with B1, site routes, `100.64.0.0/16`, `100.88.0.0/16` |
+| B4 | `MTU` | Network team: the switch MTU on the machine network, end to end | same value on both switches' port-channels |
+| B5 | `API_VIP` | Network team: one unused address in B1 | `ping -c1 -W1 $API_VIP` gets **no** reply before install |
+| B6 | `INGRESS_VIP` | Network team: a second unused address | same; differs from B5 |
+
+## C — Control-plane nodes
+
+| ID | Key | Where the value comes from | Check it yourself |
+|---|---|---|---|
+| C1 | `MW01_HOSTNAME` … | Short names (`mw01`…); the README role table uses the same names | no dots |
+| C2 | `MW01_IP` … | Network team, inside B1 | unique |
+| C3 | `MW01_NICS` … | XCC → Inventory → Network adapters gives MACs per port; Lab 05 step 5.4 confirms names and MACs in a RHEL 9 rescue shell (`ip -br link`) | exactly 4 `name=MAC` pairs; real MACs |
+| C4 | `MW01_ROOT_DEVICE` … | Lab 05 step 5.4: `ls -l /dev/disk/by-path/` → the link to the RAID1 virtual disk | starts with `/dev/disk/by-path/` |
+| C5 | `MW01_BMC_IP` … | Hardware team: XCC addresses on the management network | reachable from the admin workstation |
+| C6 | `RENDEZVOUS_IP` | Leave `${MW01_IP}` unless `mw01` is unavailable | equals one C2 value |
+
+## D — Bastion and mirror registry
+
+| ID | Key | Where the value comes from | Check it yourself |
+|---|---|---|---|
+| D1 | `BASTION_HOSTNAME`, `BASTION_IP` | Infrastructure team | IP inside B1 |
+| D2 | `BASTION_IFNAME` | The bastion's cabled NIC as RHEL 9 names it: XCC inventory, or `ip -br link` from a rescue shell | not a VMware-style name on bare metal |
+| D3 | `MIRROR_REGISTRY_HOSTNAME` | Leave `registry.${BASE_DOMAIN}` unless policy says otherwise | under `BASE_DOMAIN` |
+| D4 | `MIRROR_REGISTRY_PORT` | `8443` (mirror-registry default) unless site policy mandates `443` | firewall plan agrees |
+| D5 | `MIRROR_REGISTRY_IP` | The registry host. `BASTION_IP` only if the bastion stays for the life of the site: the cluster pulls every image from the registry forever ([Bastion Lifecycle](../../BASTION-LIFECYCLE.md)) | inside B1 |
+| D6 | `MIRROR_REGISTRY_USER` | Leave `init`; the password is chosen at Lab 06 step 6.6 and never stored here | — |
+
+## E — Site services
+
+| ID | Key | Where the value comes from | Check it yourself |
+|---|---|---|---|
+| E1 | `TIME_SOURCE` | Security/site team: the IP of a reference clock (GPS/PTP-disciplined NTP), or `orphan` for a lab | `chronyd -Q "server $TIME_SOURCE iburst"` from the bastion later |
+| E2 | `DNS_VM_IPS` | Network team: two unused addresses in B1 | two values, comma-separated |
+| E3 | `NTP_VM_IP` | Network team: one unused address in B1 | unique |
+| E4 | `VM_NETWORK_MODEL` | Leave `localnet` (ADR-06) | — |
+| E5 | `STORAGE_BACKEND` | `ontap` once the Lenovo DM/DG array is attached (fill group G); `hpp` until then; `lvms` for a DS-series array or local data drives (ADR-05) | decide before Lab 06: it selects which operators are mirrored |
+
+## F — Files and directories
+
+| ID | Key | Where the value comes from | Check it yourself |
+|---|---|---|---|
+| F1 | `PULL_SECRET_FILE` | `console.redhat.com/openshift/install/pull-secret`, saved outside the repo | `jq -e '.auths' "$PULL_SECRET_FILE"` |
+| F2 | `SSH_PUBLIC_KEY_FILE` | `ssh-keygen -t ed25519` on the staging host; only the `.pub` crosses the air gap | file exists |
+| F3 | `MIRROR_DIR` | Leave `/opt/ocp-mirror` | `test -O /opt/ocp-mirror && echo owned` |
+| F4 | `INSTALL_DIR` | Leave `${HOME}/ocp-install/${CLUSTER_NAME}` | not inside the repo |
+
+## G — Storage array (only when `STORAGE_BACKEND=ontap`)
+
+| ID | Key | Where the value comes from | Check it yourself |
+|---|---|---|---|
+| G1 | `ONTAP_MGMT_IP` | Storage team: the SVM's management LIF (Trident calls the ONTAP API here) | `ping` from the bastion |
+| G2 | `ONTAP_DATA_IP` | Storage team: the SVM's NFS data LIF, reachable from every node | inside B1, or routed |
+| G3 | `ONTAP_SVM` | Storage team: the SVM name, NFS enabled | — |
+| G4 | `ONTAP_USER` | Storage team: an SVM account with the `vsadmin` role; the password is prompted in Lab 13, never stored | — |
+
+## Verify
 
 ```bash
-CLUSTER_NAME=coe01
-BASE_DOMAIN=lab.example.com
-OCP_VERSION=4.22.10
-OCP_CHANNEL=stable-4.22
+./scripts/lib/validate-env.sh      # expect: validate-env: PASS — .env satisfies every field-register rule
 ```
 
-### 2) Network basics
-
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `NETWORK_CIDR` | `10.10.0.0/16` | Your install subnet/CIDR | Firewall and chrony `allow` ranges |
-| `NETWORK_GATEWAY` | `10.10.0.1` | Default gateway for nodes | Without it, nodes cannot reach registry/bastion off-subnet |
-| `NETWORK_NETMASK` | `255.255.0.0` | Must match CIDR | Kickstart/static IP helpers |
-| `NETWORK_INTERFACE` | `ens192` | Real NIC name from `ip link` on a node | Wrong name → no network after install |
-
-**How to learn the NIC name (on a temporary live USB or existing OS):**
-
-```bash
-ip -br link
-# pick the data NIC, e.g. ens1f0, eno1, eth0
-```
-
-### 3) Bastion and registry
-
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `BASTION_IP` | `10.10.0.5` | Static IP of helper / installer host | Temp DNS/NTP + `openshift-install` run here |
-| `MIRROR_REGISTRY_IP` | `10.10.0.10` | Static IP of registry host | Cluster pulls images from here |
-| `MIRROR_REGISTRY` | `10.10.0.10:443` | `IP:port` or `hostname:port` | mirror-registry for RH OpenShift uses **443** by default |
-| `MIRROR_REGISTRY_HOSTNAME` | `registry.ocp-v.local` | Hostname nodes will use | Must resolve via bastion DNS |
-| `MIRROR_REGISTRY_USER` | `init` | Registry admin user | Created when registry is installed |
-| `MIRROR_REGISTRY_PASSWORD` | `changeme` | **Change this** | Used to push/pull mirrored images |
-
-If bastion and registry are **one machine**, set both IPs to that machine’s IP and adjust later docs accordingly.
-**Do not do this if the bastion will be disconnected after cutover.** The cluster pulls
-images from the registry for its whole life ([Bastion Lifecycle](../../BASTION-LIFECYCLE.md), hard constraints).
-
-### 4) VIPs (virtual IPs — not a physical server)
-
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `API_VIP` | `10.10.0.100` | Unused IP on the machine network | Clients use this for `oc login` / API |
-| `INGRESS_VIP` | `10.10.0.101` | Different unused IP | `*.apps.<cluster>.<domain>` |
-
-**WHY VIPs:** Agent-based bare metal does not require an external load balancer. These addresses float for API and router.
-
-### 5) Rendezvous IP
-
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `RENDEZVOUS_IP` | `10.10.1.11` | **Must equal one control-plane node IP** (usually `CP01_IP`) | That node temporarily runs Assisted Service during install |
-
-### 6) Control plane and workers — IPs, hostnames, MACs
-
-For **each** node, set IP and **real MAC address**.
-
-| Variable | What to put | Why |
-|---|---|---|
-| `CP01_IP` … `CP03_IP` | Static IPs | Written into `agent-config.yaml` |
-| `CP01_MAC` … `CP03_MAC` | From BMC inventory or `ip link` | Agent matches the physical NIC |
-| `WK01_IP` / `WK02_IP` | Static IPs | Workers host OCP-V VMs |
-| `WK01_MAC` / `WK02_MAC` | Real MACs | Same as above |
-
-**How to get a MAC on bare metal:** BMC inventory, or boot a live USB and run:
-
-```bash
-ip -br link
-# look at the data NIC line, e.g. ens192  UP  aa:bb:cc:dd:ee:ff
-```
-
-Replace samples like `00:50:56:00:00:11` (those are placeholders).
-
-### 7) Production DNS/NTP VM IPs (post-install)
-
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `DNS_VM_IP` | `10.10.0.50` | Free IP for future DNS VM on OCP-V | Pre-create DNS records now |
-| `NTP_VM_IP` | `10.10.0.51` | Free IP for future NTP VM | Same |
-
-You can leave these as samples if they do not collide with real hosts.
-
-### 8) Paths on staging
-
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `MIRROR_DIR` | `/opt/ocp-mirror` | Directory with space for the mirror | Staging workspace |
-| `PULL_SECRET_FILE` | `${MIRROR_DIR}/pull-secret.json` | Where you will copy the pull secret | Scripts look here |
-
-After saving `.env`:
-
-```bash
-sudo mkdir -p /opt/ocp-mirror
-sudo cp ~/Downloads/pull-secret.json /opt/ocp-mirror/pull-secret.json
-# or wherever you saved the pull secret — adjust path
-sudo chown "$USER:$USER" /opt/ocp-mirror/pull-secret.json
-```
-
-### 9) Usually leave alone for first lab
-
-| Variable | Why leave default |
-|---|---|
-| `OPERATOR_CATALOG` | Must stay `.../redhat-operator-index:v4.22` for OCP 4.22 |
-| `CNV_PACKAGE` / `CNV_CHANNEL` | Official Virtualization package on `stable` |
-| `SSH_USER=core` | RHCOS default user after install |
-| `DNS_SERVER` / `NTP_SERVER` | Point at bastion during install via `${BASTION_IP}` |
-
----
-
-## VERIFY
-
-```bash
-# From repo root — does the shell load your values?
-set -a && source .env && set +a
-echo "Cluster: ${CLUSTER_NAME}.${BASE_DOMAIN}"
-echo "OCP: ${OCP_VERSION}"
-echo "Bastion: ${BASTION_IP}  Registry: ${MIRROR_REGISTRY}"
-echo "Rendezvous: ${RENDEZVOUS_IP} (should match CP01: ${CP01_IP})"
-echo "CP01 MAC: ${CP01_MAC}"
-test -f "${PULL_SECRET_FILE}" && echo "Pull secret: OK" || echo "Pull secret: MISSING"
-```
-
-Checklist:
-
-- [ ] `RENDEZVOUS_IP` equals `CP01_IP` (or whichever CP you chose)  
-- [ ] No two hosts share an IP  
-- [ ] Every `*_MAC` is a real interface, not the sample  
-- [ ] `NETWORK_INTERFACE` matches real NIC names (or you will fix per-node later in agent-config)  
-- [ ] Pull secret file exists at `PULL_SECRET_FILE`  
-
-## FAILS IF
-
-| Mistake | Symptom later |
-|---|---|
-| Left sample MACs | Agent ISO boots; zero hosts discovered |
-| `RENDEZVOUS_IP` not a CP IP | Install hangs at bootstrap |
-| Wrong `OCP_VERSION` | Client download 404 from mirror.openshift.com |
-| Pull secret path wrong | Mirror script exits immediately |
+Each failure names its field ID and key, for example
+`[FAIL] C3 MW01_NICS: still holds the sample MAC 00:00:00:00:00:00`.
 
 ## Next
 
-→ [Lab 03 — Site Checklist](../03-checklist.md) · [Lab 06 — Mirroring](../06-mirroring-images.md)
+→ [Lab 03 — Site Checklist](../03-checklist.md) · [Lab 04 — Setting up the Bastion](../04-bastion.md)

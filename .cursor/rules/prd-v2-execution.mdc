@@ -1,0 +1,29 @@
+---
+description: Execution rules for implementing and maintaining the v2.0 requirements (PRD Appendix B)
+alwaysApply: true
+---
+
+# v2.0 execution rules
+
+These extend [changelog.mdc](changelog.mdc) so an agent can change this repository without
+inventing facts. Requirement IDs (`FR-xx`, `NFR-x`, `ADR-0x`, `AT-xx`) refer to the v2.0 PRD;
+decisions are recorded in [docs/DECISIONS.md](../../docs/DECISIONS.md).
+
+1. One requirement per commit where the change is separable; when requirements are coupled in the
+   same files, one commit per workstream that lists **every** requirement ID in its message. The
+   subject starts with the IDs, so `git log --grep 'FR-'` covers every requirement (NFR-9).
+2. Update `CHANGELOG.md` under `[Unreleased]` in the same commit, Keep a Changelog headings, each
+   requirement ID appearing in exactly one bullet.
+3. Follow the phase order: Phase 1 (S1) before Phase 2 (S2) before Phase 3 (S3 and CI); within a
+   phase, data-flow order A → E → B → C → D → G → H.
+4. Never invent Red Hat behaviour. For anything tagged "verify on 4.22", implement against the
+   official 4.22 documentation; if a fact cannot be confirmed, leave
+   `TODO(verify-4.22): <doc URL>` instead of guessing.
+5. Edit `.env.example` and templates only; never hand-edit a rendered file. Rendered files live in
+   `INSTALL_DIR`, outside the repository.
+6. Every lab step you touch carries WHERE / WHY / EDIT / DO / VERIFY / FAILS IF; VERIFY compares a
+   literal expected value.
+7. Run the lint workflow's checks locally before proposing a commit:
+   `shellcheck -S warning scripts/*.sh scripts/lib/*.sh tests/*.sh`, `tests/render-all.sh`,
+   `python3 tests/check-links.py`, `python3 tests/check-register.py`, `tests/check-repo-hygiene.sh`.
+8. Do not delete anything under `docs/reference/greenfield/` until ADR-01 is marked Accepted.

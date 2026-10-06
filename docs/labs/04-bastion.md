@@ -1,77 +1,139 @@
 # 04 — Setting up the Bastion
 
+> **Grade:** production pattern: a physical RHEL 9 bastion that never touches the internet and is the
+> secondary DNS/NTP source after the cut-over (ADR-02, ADR-07). Retiring it later is optional and
+> needs a separate registry host: [Bastion Lifecycle](../BASTION-LIFECYCLE.md).
+
 ## Goal
 
-Build the **bastion**: the machine that runs mirroring tools (when online),
-`openshift-install`, and temporary DNS/NTP.
+Install the bastion (and a separate registry host, if you have one) from the RHEL 9 DVD alone,
+unattended, with every site value taken from `.env`.
 
-## WHERE
+| | Staging host (low side) | Bastion (high side) |
+|---|---|---|
+| Network | internet; **never** the machine network | machine network; **never** the internet |
+| Runs | `scripts/01`, `render-kickstart.sh`, `mkksiso` | `scripts/02`–`08`, `openshift-install`, dnsmasq, chrony, httpd |
+| Lifetime | until the media leave it | life of the site |
 
-One of:
+## Steps
 
-- Fedora laptop on the install VLAN (and internet when mirroring), or  
-- RHEL 9 KVM VM, or  
-- Physical RHEL host installed with **USB + Kickstart** (preferred for rack delivery)
+### 4.1 Render the bastion kickstart
 
-## WHY
+**WHERE** — Staging host (low side), RHEL 9.x, your user, cwd `~/OCPV-Dark-Site-Deployment`
 
-This tutorial standardizes on the name **bastion**. It is the temporary DNS/NTP server
-since we are deploying this OpenShift cluster from scratch (greenfield).
+**WHY** — Renders Anaconda's instructions (address, NIC, domain, packages, disk layout) from
+`.env`, so the bastion agrees with every later DNS record. The `installer` password is prompted and
+stored only as a SHA-512 hash; `root` is locked. `/` gets the whole disk because `/opt/ocp-mirror`
+holds the archive, cache and DVD. *If skipped:* a hand-edited kickstart drifts from `.env`.
 
-The bastion is **temporary**. It receives the USB drive, runs DNS/NTP and the installer,
-acts as the **secondary** DNS/NTP during cutover, and is then disconnected. Plan for that
-from the start, and keep the mirror registry on a separate host:
-[Bastion Lifecycle](../BASTION-LIFECYCLE.md). The drive's contents are listed in the
-[USB Transfer Kit](../USB-TRANSFER-KIT.md).
+**EDIT** — None (values from `.env` B1, B2, D1–D5, F2).
 
-**PXE is not required.** Use USB or KVM virtual CD.
-
-## DO — path A: Fedora / RHEL KVM
+**DO**
 
 ```bash
-sudo dnf install -y git vim jq curl podman
-git clone https://github.com/sylviyayy/OCPV-Dark-Site-Deployment.git
-cd OCPV-Dark-Site-Deployment
-# .env already filled in Lab 03
-sudo mkdir -p /opt/ocp-mirror
-sudo cp /path/to/pull-secret.json /opt/ocp-mirror/pull-secret.json
-sudo chown "$USER:$USER" /opt/ocp-mirror/pull-secret.json
+./scripts/render-kickstart.sh bastion
 ```
 
-Give the VM a static IP = `BASTION_IP` from `.env` on the install network.
-
-## DO — path B: Physical RHEL USB + Kickstart
-
-Follow the detailed USB steps:
-
-→ [bastion-and-registry-usb (detail)](detail/bastion-and-registry-usb.md)
-
-Edit Kickstart first:
+**VERIFY**
 
 ```bash
-vim kickstart/ks-bastion.cfg
-# passwords, ssh key, NIC name, IP = BASTION_IP
+set -a && source .env && set +a
+grep -o -- "--device=[^ ]*" "${INSTALL_DIR}/kickstart/ks-bastion.cfg"   # expect: --device=<BASTION_IFNAME>
+stat -c %a "${INSTALL_DIR}/kickstart/ks-bastion.cfg"                    # expect: 600
 ```
 
-If registry is a second host, also prepare `ks-registry-mirror.cfg`.  
-In a small lab, registry may co-locate on the bastion.
+The script also runs `ksvalidator` (RHEL 9 syntax) and stops on any error.
 
-## VERIFY
+**FAILS IF** — `ksvalidator` errors ← a template edit broke syntax; fix the template, never the rendered file.
+
+### 4.2 Build one ISO for USB or virtual media
+
+**WHERE** — Staging host, your user, cwd `~/OCPV-Dark-Site-Deployment`
+
+**WHY** — `mkksiso` embeds the kickstart in the DVD and points the boot menu at it: zero keystrokes,
+no guessing which device the USB stick will be. `--add` copies this repo (with `.env`) onto the
+medium; the kickstart places it in `/home/installer/`.
+
+**EDIT** — None.
+
+**DO**
 
 ```bash
-hostname
-ip -br a
-ping -c1 "${NETWORK_GATEWAY}"
-which vim git
-test -f /opt/ocp-mirror/pull-secret.json && echo pull-secret-ok
+mkksiso --ks "${INSTALL_DIR}/kickstart/ks-bastion.cfg" --add ~/OCPV-Dark-Site-Deployment \
+  ~/Downloads/rhel-9.x-x86_64-dvd.iso "${INSTALL_DIR}/kickstart/bastion-ks.iso"
 ```
 
-## FAILS IF
+**VERIFY** — `ls -lh "${INSTALL_DIR}/kickstart/bastion-ks.iso"` → a file about the DVD's size.
 
-| Problem | Result |
-|---|---|
-| Bastion not on install VLAN | Cannot serve DNS or reach nodes |
-| No pull secret | Lab 06 fails |
+**FAILS IF** — `mkksiso: command not found` ← `lorax` missing (Lab 01 step 1.2).
+
+### 4.3 Install the bastion
+
+**WHERE** — Bastion server: XCC virtual media, or a USB port
+
+**WHY** — Anaconda installs from the DVD's own repositories; no network repo or internet is needed.
+
+**EDIT** — None.
+
+**DO** — Mount `bastion-ks.iso` as XCC virtual media and boot once from it, or write it to USB:
+
+```bash
+lsblk     # identify the stick; of= must be the whole device, never a real disk
+sudo dd if="${INSTALL_DIR}/kickstart/bastion-ks.iso" of=/dev/sdX bs=4M status=progress oflag=sync
+```
+
+Then log in from the admin workstation: `ssh installer@<BASTION_IP>`.
+
+**VERIFY** — Step 4.4.
+
+**FAILS IF** — Install stops at "Installation source" ← written to a partition (`/dev/sdX1`), not the device.
+
+### 4.4 Verify the bastion
+
+**WHERE** — Bastion, RHEL 9.x, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+
+**WHY** — Falsifies the Lab 01 assumptions on the machine itself before anything depends on it.
+
+**EDIT** — None.
+
+**DO / VERIFY**
+
+```bash
+set -a && source .env && set +a
+grep -q '^VERSION_ID="9\.' /etc/os-release && echo rhel9                                  # expect: rhel9
+ip -br addr show "${BASTION_IFNAME}" | grep -c "${BASTION_IP}/"                            # expect: 1
+rpm -q dnsmasq chrony podman nmstate httpd python3-pyyaml | grep -c 'not installed'        # expect: 0
+curl -m 5 -sS -o /dev/null https://quay.io && echo ONLINE || echo air-gapped               # expect: air-gapped
+df -h / | tail -n1                                                                         # expect: / spans the disk
+```
+
+**FAILS IF** — `ONLINE` ← the machine network routes out; fix routing before any image crosses.
+No address on `BASTION_IFNAME` ← D2 is wrong; fix, re-render, reinstall.
+
+### 4.5 Registry host (only if `MIRROR_REGISTRY_IP` ≠ `BASTION_IP`)
+
+**WHERE** — Staging host, then the registry server
+
+**WHY** — Same unattended install; its firewall opens only SSH and `MIRROR_REGISTRY_PORT`, and it
+carries no certificate of its own (mirror-registry issues its CA in Lab 06).
+
+**EDIT** — None.
+
+**DO**
+
+```bash
+./scripts/render-kickstart.sh registry
+mkksiso --ks "${INSTALL_DIR}/kickstart/ks-registry.cfg" --add ~/OCPV-Dark-Site-Deployment \
+  ~/Downloads/rhel-9.x-x86_64-dvd.iso "${INSTALL_DIR}/kickstart/registry-ks.iso"
+```
+
+Boot it as in 4.3.
+
+**VERIFY** — On the registry host: `sudo firewall-cmd --list-ports` → `8443/tcp`.
+
+**FAILS IF** — Port missing ← installed from an old kickstart.
+
+Detail: [bastion and registry media](detail/bastion-and-registry-usb.md).
 
 ## Next
 

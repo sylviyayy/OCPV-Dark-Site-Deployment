@@ -1,11 +1,29 @@
+# Site values and secrets. Primary defence is ADR-08: generated files and secrets live
+# OUTSIDE the working tree (${INSTALL_DIR}, ${MIRROR_DIR}). These patterns are the
+# second line of defence in case someone points a path back into the repo (FR-K1).
 .env
+pull-secret.json
+auth.json
 *.pem
 *.key
 *.crt
-auth/
-pull-secret.json
-/opt/ocp-mirror/
-oc-mirror-workdir/
+
+# Anything an install could write if INSTALL_DIR were mis-pointed at install-config/
+install-config/*.yaml
+install-config/*.yml
+install-config/.openshift_install*
+install-config/auth/
+install-config/cluster-resources/
+*.orig
+
+# Rendered kickstarts (they carry a password hash); templates are *.cfg.template
+kickstart/*.cfg
+
+# Large binary media
 *.iso
 *.qcow2
+*.tar
+*.tar.gz
+
 .DS_Store
+__pycache__/

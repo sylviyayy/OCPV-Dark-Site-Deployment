@@ -1,0 +1,86 @@
+#version=RHEL9
+# Mirror registry host — only when the registry does not share the bastion (ADR-03).
+# Rendered by scripts/render-kickstart.sh registry; embedded with mkksiso (FR-E2, FR-E4).
+# mirror registry for Red Hat OpenShift generates and serves its own CA, so this host
+# carries no certificate of its own (FR-C3).
+
+cdrom
+text
+reboot
+firstboot --disable
+
+lang en_US.UTF-8
+keyboard us
+timezone UTC --utc
+
+# --device=link takes the first interface with carrier: the field register names only
+# the bastion's NIC, and this host has one cable on the machine network.
+network --bootproto=static --device=link --ip=${MIRROR_REGISTRY_IP} --netmask=${MACHINE_NETWORK_NETMASK} --gateway=${NETWORK_GATEWAY} --nameserver=${BASTION_IP} --hostname=${MIRROR_REGISTRY_HOSTNAME} --onboot=on --activate
+
+# WARNING: wipes every disk the installer can see except the install medium.
+# Explicit layout instead of autopart, which can cap / at ~70 GiB: / holds /opt/ocp-mirror
+# (mirror archive + oc-mirror cache + DVD) and, when co-located, the registry's image storage.
+zerombr
+clearpart --all --initlabel
+reqpart --add-boot
+part pv.01 --size=1 --grow
+volgroup vg_sys pv.01
+logvol swap --vgname=vg_sys --name=swap --size=4096
+logvol / --vgname=vg_sys --name=root --fstype=xfs --size=20480 --grow
+
+# Opens only SSH and the registry port; the registry listens on MIRROR_REGISTRY_PORT (FR-C1).
+firewall --enabled --ssh --port=${MIRROR_REGISTRY_PORT}:tcp
+
+bootloader
+
+rootpw --lock
+user --name=installer --groups=wheel --iscrypted --password=${KS_PASSWORD_HASH}
+sshkey --username=installer "${SSH_PUBLIC_KEY}"
+
+%packages
+@^minimal-environment
+bind-utils
+chrony
+curl
+firewalld
+jq
+openssl
+podman
+python3-pyyaml
+tar
+%end
+
+# Same repo copy as the bastion (FR-E6): script 04 install-registry runs on this host.
+%post --nochroot --log=/mnt/sysroot/root/ks-post-nochroot.log
+for src in /run/install/repo/OCPV-Dark-Site-Deployment /run/install/sources/mount-0000-cdrom/OCPV-Dark-Site-Deployment; do
+  if [ -d "$src" ]; then
+    cp -a "$src" /mnt/sysroot/home/installer/
+    break
+  fi
+done
+%end
+
+%post --log=/root/ks-post.log
+set -eux
+
+cat >> /etc/hosts <<'HOSTS'
+${BASTION_IP}  ${BASTION_HOSTNAME}.${BASE_DOMAIN} ${BASTION_HOSTNAME}
+${MIRROR_REGISTRY_IP}  ${MIRROR_REGISTRY_HOSTNAME}
+HOSTS
+
+# Time from the site reference clock, or from the bastion when TIME_SOURCE=orphan.
+cat > /etc/chrony.conf <<'CHRONY'
+server ${TIME_UPSTREAM} iburst
+driftfile /var/lib/chrony/drift
+makestep 1.0 3
+rtcsync
+logdir /var/log/chrony
+CHRONY
+systemctl enable chronyd
+
+mkdir -p /opt/ocp-mirror
+chown installer:installer /opt/ocp-mirror
+if [ -d /home/installer/OCPV-Dark-Site-Deployment ]; then
+  chown -R installer:installer /home/installer/OCPV-Dark-Site-Deployment
+fi
+%end

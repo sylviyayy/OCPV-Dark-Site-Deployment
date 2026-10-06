@@ -61,15 +61,31 @@ See [docs/RELEASE.md](docs/RELEASE.md) for the full release checklist.
 ## Pull requests
 
 - Fill in the PR template changelog section
-- Keep changes focused — one logical change per PR when possible
-- Test scripts on RHEL 9 where applicable
-- Never commit secrets (`.env`, pull secrets, keys, certificates)
+- Keep changes focused — one logical change per PR when possible; name the requirement IDs
+  (`FR-xx`, `NFR-x`) in the commit subject and the changelog bullet
+- Test scripts on RHEL 9.x per the OS table in [Lab 01](docs/labs/01-prerequisites-assumptions.md)
+- Run the CI checks locally before pushing:
+  `shellcheck -S warning scripts/*.sh scripts/lib/*.sh tests/*.sh`, `tests/render-all.sh`,
+  `python3 tests/check-links.py`, `python3 tests/check-register.py`, `tests/check-repo-hygiene.sh`
+- CI must be green
+- Never commit secrets (`.env`, pull secrets, keys, certificates, kubeconfigs)
 
 ## Documentation
 
-- Numbered guides in `docs/` should stay in execution order
-- Update `README.md` if you add new top-level directories or change the quick-start flow
-- Site-specific values belong in `.env.example`, not hardcoded in scripts
+- `docs/labs/` is normative; `docs/reference/` is background (ADR-01, [docs/DECISIONS.md](docs/DECISIONS.md))
+- Every lab step carries WHERE / WHY / EDIT / DO / VERIFY / FAILS IF: WHY names the mechanism, its
+  consumer and the symptom if skipped; EDIT names file, key, old and new value; VERIFY compares a
+  literal expected value
+- One term per concept: bastion, checklist, control-plane node (`master` only as an API value)
+- Update `README.md` if you add new top-level directories or change the lab list
+
+## Site values and templates
+
+- Site-specific values belong in `.env.example` (field register, in register order) and are rendered
+  into templates by `scripts/lib/render.py`; never hard-code an IP, interface name or domain in a script
+- A new `.env` key needs: a rule in `render.py` (`REGISTER` + `validate`), a row in the Lab 03 register,
+  and a line in `.env.example` — `tests/check-register.py` fails until all three agree
+- Never hand-edit a rendered file; generated files live outside the repo in `INSTALL_DIR` (ADR-08)
 
 ## Questions
 

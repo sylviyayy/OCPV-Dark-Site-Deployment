@@ -1,29 +1,42 @@
+# install-config.yaml skeleton, loaded as data by scripts/lib/render.py (FR-A1).
+# Nothing here is substituted as text: the renderer sets each empty value from .env and
+# writes the result to ${INSTALL_DIR}/install-config.yaml (outside the repo, ADR-08).
+#
+# Field                               <- source (field register ID)
+#   baseDomain                        <- BASE_DOMAIN (A2)
+#   metadata.name                     <- CLUSTER_NAME (A1)
+#   networking.clusterNetwork[0].cidr <- CLUSTER_NETWORK_CIDR (B3)
+#   networking.serviceNetwork[0]      <- SERVICE_NETWORK_CIDR (B3)
+#   networking.machineNetwork[0].cidr <- MACHINE_NETWORK_CIDR (B1)
+#   platform.baremetal.apiVIPs[0]     <- API_VIP (B5)
+#   platform.baremetal.ingressVIPs[0] <- INGRESS_VIP (B6)
+#   pullSecret                        <- ${AUTH_FILE}: pull secret merged with the mirror registry entry (FR-D2)
+#   sshKey                            <- SSH_PUBLIC_KEY_FILE (F2)
+#   additionalTrustBundle             <- ${REGISTRY_CA_FILE}, written as a literal block (FR-D3)
+#   imageDigestSources                <- ${CLUSTER_RESOURCES_DIR}/idms-oc-mirror.yaml (FR-D1)
 apiVersion: v1
-baseDomain: ocp-v.local
+baseDomain: ""
 compute:
   - name: worker
-    replicas: 2
+    replicas: 0   # compact cluster: the three control-plane nodes are schedulable (FR-A2)
 controlPlane:
-  name: master
+  name: master    # API value; prose says "control-plane node"
   replicas: 3
 metadata:
-  name: ocpv-lab
+  name: ""
 networking:
   networkType: OVNKubernetes
   clusterNetwork:
-    - cidr: 10.128.0.0/14
+    - cidr: ""
       hostPrefix: 23
-  serviceNetwork:
-    - 172.30.0.0/16
+  serviceNetwork: []
   machineNetwork:
-    - cidr: 10.10.0.0/16
+    - cidr: ""
 platform:
   baremetal:
-    apiVIPs:
-      - 10.10.0.100
-    ingressVIPs:
-      - 10.10.0.101
-pullSecret: '<PULL_SECRET>'
-sshKey: '<SSH_PUBLIC_KEY>'
-additionalTrustBundle: |
-  <REGISTRY_CA_CERT>
+    apiVIPs: []
+    ingressVIPs: []
+pullSecret: ""
+sshKey: ""
+additionalTrustBundle: ""
+imageDigestSources: []

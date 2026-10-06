@@ -1,0 +1,66 @@
+! =============================================================================
+! LACP port-channels across an MLAG/vPC switch pair — ILLUSTRATIVE ONLY
+! Syntax: Cisco NX-OS vPC style. The network team owns the real configuration.
+!
+! Matches the node side rendered into agent-config.yaml: one bond0 per node,
+! 802.3ad, four members, two on each switch (Lab 05 step 5.5, PRD §4.2).
+! A port that does not speak LACP is suspended or left individual, depending
+! on switch defaults — either way the bond is not what agent-config describes.
+!
+! Values follow .env.example: machine network untagged (native) VLAN 10,
+! MTU 1500 (B4). Replace interface numbers with the cabling plan.
+! =============================================================================
+
+feature lacp
+feature vpc
+
+vlan 10
+  name machine-network
+
+! --- Switch A (repeat on Switch B with its own vPC peer settings) ---------------
+vpc domain 1
+  peer-keepalive destination 192.0.2.2 source 192.0.2.1
+
+interface port-channel1
+  description vPC peer-link
+  switchport mode trunk
+  vpc peer-link
+
+! --- mw01 on Switch A: OCP port 1 + Slot 1 port 1. Switch B carries OCP port 2 +
+! --- Slot 1 port 2 in the same port-channel11 / vpc 11, so LACP sees one 4-port bundle.
+interface port-channel11
+  description mw01 bond0 (802.3ad)
+  switchport mode access
+  switchport access vlan 10
+  mtu 1500
+  vpc 11
+
+interface Ethernet1/11
+  description mw01 OCP-port1
+  switchport mode access
+  switchport access vlan 10
+  channel-group 11 mode active
+
+interface Ethernet1/21
+  description mw01 Slot1-port1
+  switchport mode access
+  switchport access vlan 10
+  channel-group 11 mode active
+
+! --- mw02: port-channel12 / vpc 12, same pattern ----------------------------------
+! --- mw03: port-channel13 / vpc 13; its second adapter is in Slot 21 ---------------
+
+! --- Bastion and registry host: single access ports on the machine network ---------
+interface Ethernet1/5
+  description bastion
+  switchport mode access
+  switchport access vlan 10
+
+interface Ethernet1/6
+  description registry
+  switchport mode access
+  switchport access vlan 10
+
+! Verify after Lab 10 boots the nodes:
+!   show port-channel summary      -> Po11-13 (SU), four members (P) across the pair
+!   show vpc brief                 -> vpc 11-13 up, consistency success

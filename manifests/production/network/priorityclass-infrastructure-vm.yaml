@@ -1,0 +1,11 @@
+# Scheduling priority for the DNS and NTP VMs (FR-H11). Above ordinary workloads so the
+# site's name and time services schedule first after a cold start; far below
+# system-node-critical (2000001000), which ranks kubelet-critical node daemons for
+# preemption and eviction and must not be shared with tenant VMs.
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: infrastructure-vm
+value: 1000000
+globalDefault: false
+description: DNS and NTP VMs on OpenShift Virtualization (Lab 14)

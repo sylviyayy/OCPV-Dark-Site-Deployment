@@ -1,67 +1,82 @@
 # 08 — Generating Install and Agent Configuration
 
+> **Grade:** production-grade. Both files are rendered from `.env`; nothing is hand-edited.
+
 ## Goal
 
-Create `install-config.yaml`, `agent-config.yaml`, and the Agent discovery ISO.
+Render `install-config.yaml` and `agent-config.yaml` into `${INSTALL_DIR}` (outside the repo) and
+build the Agent ISO from them.
 
-## WHERE
+## What gets rendered, and from where
 
-Bastion.
+| File → key | Source | Why it matters |
+|---|---|---|
+| install-config → `controlPlane.replicas: 3`, `compute[0].replicas: 0` | template | compact: masters schedule workloads |
+| install-config → `imageDigestSources` | `${CLUSTER_RESOURCES_DIR}/idms-oc-mirror.yaml` | release pulls go to the mirror |
+| install-config → `pullSecret` | `${AUTH_FILE}` minus `cloud.openshift.com` | mirror credentials; no Telemetry to a host it cannot reach |
+| install-config → `additionalTrustBundle` | `${REGISTRY_CA_FILE}` | nodes trust the mirror's TLS |
+| agent-config → `hosts[n]` | C1–C4 | hostname, 4 MACs, `bond0` 802.3ad, static IP, `rootDeviceHints` |
+| agent-config → `additionalNTPSources` | `TIME_SOURCE`, or `BASTION_IP` when orphan | time before first boot completes |
+
+## Steps
+
+### 8.1 Render the installer inputs
+
+**WHERE** — Bastion, RHEL 9.x, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
+
+**WHY** — These files are the contract between the rack and the installer. `render.py` builds them
+as data, not text substitution, because a host list with four bond ports each has variable length.
+*Consumed by:* 8.2. *If skipped:* 8.2 has no inputs.
+
+**EDIT** — None. A wrong value is fixed in `.env` and re-rendered, never in the output.
+
+**DO** — `./scripts/03-generate-install-config.sh`
+
+**VERIFY**
 
 ```bash
-cd OCPV-Dark-Site-Deployment
 set -a && source .env && set +a
-export PATH="${MIRROR_DIR}/clients:${PATH}"
-./scripts/03-generate-install-config.sh
-vim install-config/install-config.yaml
-vim install-config/agent-config.yaml
+grep -c macAddress "${INSTALL_DIR}/agent-config.yaml"              # expect: 12
+grep -c 'replicas: 0' "${INSTALL_DIR}/install-config.yaml"         # expect: 1
+grep -c cloud.openshift.com "${INSTALL_DIR}/install-config.yaml"   # expect: 0
 ```
 
-## WHY
+**FAILS IF** — "AUTH_FILE has no auths entry for registry…" ← Lab 06 step 6.8 not run;
+"does not map …/ocp-release" ← the release was not mirrored.
 
-Hard Way generates kubeconfigs by hand. Here you generate **Agent** configs: cluster
-identity, registry CA, per-node MAC/IP/DNS (nmstate), and `rendezvousIP`.
+### 8.2 Create the Agent ISO — T-0, the 24-hour clock starts
 
-For the 3-node Lenovo compact lab, ensure all three hosts are listed and roles match
-your compact topology (see Red Hat Agent-based compact cluster notes for 4.22).
+> **[WINDOW A]** The ISO embeds certificates that expire 24 hours after this command; Red Hat
+> recommends booting the nodes within **12 hours**. Build it on site, only when you can boot all
+> three nodes straight away (Lab 10). Never start T-0 at the end of a shift.
 
-## DO — back up and validate (no clock yet)
+**WHERE** — Bastion, `installer`, cwd `~/OCPV-Dark-Site-Deployment`
 
-`openshift-install` consumes (deletes) both YAML files. Back them up first, then validate
-in a throwaway copy. `cluster-manifests` creates no certificates, so it starts no clock.
+**WHY** — `openshift-install agent create image` validates each host's network with `nmstatectl`,
+pulls the release payload from the mirror (TLS trusted in Lab 06 step 6.7), embeds the configuration,
+and **deletes** both inputs; script 05a keeps them as `*.orig` for audit. It first proves neither VIP
+answers ping: a VIP owned by another host breaks the install with no clear error.
+*Consumed by:* XCC virtual media in Lab 10.
+
+**EDIT** — None.
+
+**DO** — `./scripts/05a-create-agent-iso.sh`
+
+**VERIFY** (AT-06)
 
 ```bash
-mkdir -p ~/config-backup
-cp install-config/install-config.yaml install-config/agent-config.yaml ~/config-backup/
-rm -rf /tmp/abi-validate && mkdir /tmp/abi-validate && cp ~/config-backup/*.yaml /tmp/abi-validate/
-openshift-install agent create cluster-manifests --dir=/tmp/abi-validate
+ls "${INSTALL_DIR}/agent.x86_64.iso"                              # expect: the path
+ls "${INSTALL_DIR}"/*.yaml.orig | wc -l                           # expect: 2
+git -C ~/OCPV-Dark-Site-Deployment status --porcelain | wc -l     # expect: 0
 ```
 
-## DO — build ISO (T-0)
+If Window A lapses: restore the two `*.orig` files to their names in `${INSTALL_DIR}`, delete
+`agent.x86_64.iso`, `auth/` and `.openshift_install_state.json`, and re-run 05a. Never mix an ISO
+and an `auth/kubeconfig` from different runs.
 
-> **[WINDOW A] The 24-hour clock starts when this command runs.** The ISO embeds
-> certificates that expire 24 hours after creation, and Red Hat recommends booting within
-> **12 hours**. Build it **on site**, only after the
-> [go/no-go gate](../BASTION-LIFECYCLE.md#phase-4-compose-and-validate-the-install-configuration-no-clock)
-> passes, and only when you can boot the nodes right away (Lab 10).
-> `scripts/05-install-ocp-disconnected.sh` runs this step and then waits for you to boot.
-
-```bash
-openshift-install agent create image --dir=install-config/ --log-level=info
-ls -lh install-config/agent.x86_64.iso
-```
-
-## VERIFY
-
-- [ ] `additionalTrustBundle` is a real cert  
-- [ ] MACs match Lab 03 / 05  
-- [ ] `rendezvousIP` = one CP IP  
-- [ ] `additionalNTPSources` lists `BASTION_IP`  
-- [ ] Configs backed up to `~/config-backup/` (needed to regenerate if Window A lapses)  
-- [ ] ISO file exists  
+**FAILS IF** — `x509: certificate signed by unknown authority` ← CA not trusted (Lab 06 step 6.7);
+`answers ping before install` ← another host owns that VIP; `nmstatectl: command not found` ← `nmstate` RPM missing.
 
 ## Next
 
 → [09 — Certificates, Encryption, and etcd](09-certificates-etcd.md)
-
-**Next after verify:** Lab 09 explains certs/etcd concepts; Lab 10 boots the ISO.

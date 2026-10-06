@@ -1,43 +1,47 @@
 # 09 — Certificates, Encryption, and etcd (what OpenShift creates for you)
 
+> **Grade:** concepts, with one production finding: etcd encryption at rest is **opt-in**.
+
 ## Goal
 
-Understand the Hard Way topics (CA, kubeconfig crypto, etcd) **without** installing them
-by hand — Agent-based OpenShift does this during bootstrap.
-
-## WHERE
-
-Reading on the bastion. Optional inspection **after** Lab 10 succeeds.
-
-## WHY
-
-Kubernetes The Hard Way spends several labs on TLS and etcd so you learn the control
-plane. On OpenShift those components still exist; the installer and operators own them.
-Skipping the *concepts* leaves you blind when `etcd` or cert rotation breaks later.
-
-## What maps from Hard Way → OpenShift
+Map the Kubernetes-the-Hard-Way topics onto what the Agent-based installer creates, so you know
+what exists, who rotates it, and what is **not** on by default.
 
 | Hard Way lab | OpenShift equivalent |
 |---|---|
-| Provision CA / node certs | Cluster bootstrap creates the cluster CA; machine config / operators renew |
-| kubeconfig files | `install-config/auth/kubeconfig` + `oc` login contexts (Lab 11) |
-| Data encryption config | Automatically configured for etcd at rest (platform managed) |
-| Bootstrap etcd | Static pods on control-plane nodes; quorum of 3 on this rack |
-| Control plane components | `kube-apiserver`, `kube-controller-manager`, `kube-scheduler` as static/operand pods |
+| CA and node certificates | Installer creates the cluster CAs; operators rotate certificates |
+| kubeconfig files | `${INSTALL_DIR}/auth/kubeconfig`, then `oc login` contexts (Lab 11) |
+| Data encryption config | **Opt-in:** `apiserver.spec.encryption.type` = `aescbc` or `aesgcm` (verify on 4.22) |
+| Bootstrap etcd | Static pods on the three masters; quorum 2 of 3 |
+| Control plane | `kube-apiserver`, `kube-controller-manager`, `kube-scheduler` as operator-managed static pods |
 | containerd | **CRI-O** on RHCOS |
 
-## DO — after the cluster is up (Lab 10+), inspect
+Assuming encryption at rest is automatic is a false assumption an auditor finds before you do.
+
+## Steps
+
+### 9.1 Inspect etcd and the encryption setting (after Lab 10)
+
+**WHERE** — Bastion, RHEL 9.x, `installer`, cwd `~/OCPV-Dark-Site-Deployment`, after Lab 10
+
+**WHY** — Observing the three etcd members and the encryption type turns the table into evidence.
+*Consumed by:* the site's security sign-off. *If skipped:* encryption stays off without anyone deciding so.
+
+**EDIT** — None. Enabling encryption is a site decision:
+`oc patch apiserver cluster --type merge -p '{"spec":{"encryption":{"type":"aescbc"}}}'`, then wait
+for `oc get kubeapiserver -o jsonpath='{.items[0].status.conditions[?(@.type=="Encrypted")].reason}'` → `EncryptionCompleted`.
+
+**DO / VERIFY**
 
 ```bash
-export KUBECONFIG="${PWD}/install-config/auth/kubeconfig"
-oc get nodes
-oc get pods -n openshift-etcd
-oc get clusteroperators etcd kube-apiserver
+set -a && source .env && set +a
+export KUBECONFIG="${INSTALL_DIR}/auth/kubeconfig"
+oc get pods -n openshift-etcd -l app=etcd --no-headers | grep -c Running         # expect: 3
+oc get apiserver cluster -o jsonpath='{.spec.encryption.type}{"\n"}'              # expect: empty, unless you opted in
 ```
 
-## VERIFY
-
-You can explain: three control-plane nodes ⇒ etcd quorum; why clock skew (Lab 07) matters.
+**FAILS IF** — Fewer than 3 etcd pods Running ← a master is down; quorum survives one loss, not two.
+Clock skew between members breaks etcd — the reason Lab 07 exists.
 
 ## Next
 
