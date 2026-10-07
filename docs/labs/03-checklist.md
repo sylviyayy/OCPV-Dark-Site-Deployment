@@ -24,6 +24,10 @@ Use the partner form (print or edit):
 
 → **[greenfield/01-information-gathering-worksheet.md](../greenfield/01-information-gathering-worksheet.md)**
 
+Validate it with the completion checklist before sign-off:
+
+→ **[greenfield/01a-worksheet-checklist.md](../greenfield/01a-worksheet-checklist.md)**
+
 Then apply values into `.env` using the field-by-field guide:
 
 → **[Field-by-field `.env` guide](detail/configure-site-env.md)**
@@ -62,6 +66,7 @@ echo "Rendezvous ${RENDEZVOUS_IP} vs CP01 ${CP01_IP}"
 echo "MACs: ${CP01_MAC} ${CP02_MAC} ${CP03_MAC}"
 ```
 
+- [ ] [Completion checklist](../greenfield/01a-worksheet-checklist.md) passes (every item ticked or N/A with a reason)  
 - [ ] Worksheet signed by hardware + network (+ storage if SAN)  
 - [ ] No sample MACs left (`00:50:56:…` placeholders gone)  
 - [ ] `RENDEZVOUS_IP` equals a CP IP  

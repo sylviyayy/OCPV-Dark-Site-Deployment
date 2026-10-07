@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `docs/greenfield/01a-worksheet-checklist.md`: completion checklist for the information gathering worksheet. Three review passes (completeness, validity, cross-team consistency) per worksheet section, the inputs later labs need that the form has no row for, secrets hygiene, and a `.env` VERIFY snippet (rendezvous IP, sample/malformed/duplicate MACs and IPs, registry vs bastion, free VIPs). Linked from the worksheet sign-off, `docs/GREENFIELD-README.md`, `docs/greenfield/00-assumptions-and-scope.md` and Lab 03
 - `docs/USB-TRANSFER-KIT.md`: bill of materials for the USB drive. Covers which Red Hat Hybrid Cloud Console downloads are required, optional or not needed (with reasons), why RHCOS and the Virtualization operators come from the mirror archive rather than the Downloads page, the RHEL Binary DVD's three roles, drive layout (XFS, two drives plus a backup) and the pre-departure checklist
 - `docs/BASTION-LIFECYCLE.md`: end-to-end runbook for USB → bastion as temporary DNS/NTP → install → permanent DNS/NTP with the bastion as secondary (make-before-break) → bastion disconnect. Includes the two 24-hour windows (agent ISO shelf life, first certificate rotation), a go/no-go gate before T-0, the bastion evacuation checklist, a risk register and a defect register for this path
 - "Before You Go to the Dark Site" section in `README.md`, and 24-hour window callouts in Labs 06, 08 and 10 and in `docs/00-disconnected-install-task-flow.md`

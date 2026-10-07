@@ -94,6 +94,9 @@ Duplicate one block per node.
 
 ## Sign-off
 
+> **Before signing:** run the [Worksheet Completion Checklist](01a-worksheet-checklist.md).
+> Sign only when every item is ticked or marked N/A with a reason.
+
 | Role | Name | Date | Signature |
 |---|---|---|---|
 | Hardware / rack | | | |

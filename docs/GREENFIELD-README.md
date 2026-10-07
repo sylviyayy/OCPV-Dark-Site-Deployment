@@ -59,10 +59,10 @@ Details: [DEPLOYMENT-TRACKS.md](DEPLOYMENT-TRACKS.md)
 | Step | Document | Diagram? |
 |---|---|---|
 | 1 | [Assumptions and scope](greenfield/00-assumptions-and-scope.md) | — |
-| 2 | [Information gathering worksheet](greenfield/01-information-gathering-worksheet.md) | — |
+| 2 | [Information gathering worksheet](greenfield/01-information-gathering-worksheet.md) + [completion checklist](greenfield/01a-worksheet-checklist.md) | — |
 | 3 | [Deployment tracks](DEPLOYMENT-TRACKS.md) | — |
 
-> **Gate:** Do not proceed to Part 2 until the worksheet is 100% complete.
+> **Gate:** Do not proceed to Part 2 until the worksheet is 100% complete and its [completion checklist](greenfield/01a-worksheet-checklist.md) passes.
 
 ### Part 2 — Physical infrastructure (before OpenShift)
 

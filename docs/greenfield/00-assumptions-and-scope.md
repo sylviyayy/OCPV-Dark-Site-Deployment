@@ -63,4 +63,4 @@ See [05-bootstrap-services.md](05-bootstrap-services.md).
 
 ## Next step
 
-→ Complete [01-information-gathering-worksheet.md](01-information-gathering-worksheet.md) before any cabling.
+→ Complete [01-information-gathering-worksheet.md](01-information-gathering-worksheet.md) and validate it with the [completion checklist](01a-worksheet-checklist.md) before any cabling.
