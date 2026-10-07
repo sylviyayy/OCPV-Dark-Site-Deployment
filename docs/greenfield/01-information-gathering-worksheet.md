@@ -13,7 +13,7 @@ Copy this file or export `network/site-inventory.csv` (create from template) for
 | Customer / site name | |
 | Partner engineer | |
 | Target track | A / B / C |
-| OCP version | 4.22.x |
+| OCP version | 4.21.27 |
 | Cluster name | |
 | Base domain | |
 
