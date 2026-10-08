@@ -29,6 +29,14 @@ Every row below answers four questions:
 | **If missing / wrong** | What breaks |
 | **Stage** | When it first matters |
 
+
+| Customer / site name | |
+| Partner engineer | |
+| Target track | A / B / C |
+| OCP version | 4.21.27 |
+| Cluster name | |
+| Base domain | |
+
 ---
 
 ## 1) Site and cluster identity
@@ -109,7 +117,7 @@ then mark which ones you actually cable into the machine-network bond.
 | DNS (install-time) | Bastion IP | Resolves `api.` / `*.apps.` during bootstrap | etcd / API bootstrap hangs on name lookup | Lab 07 + agent |
 | NTP (install-time) | Bastion IP (`additionalNTPSources`) | Clock sync for certs / etcd | Cert skew; bootstrap failures | Lab 07–10 |
 
-> **Why all ports, not only “port 1 and 2”?** Discovery and LACP care about the **exact**
+> **Why all ports?** Discovery and LACP care about the **exact**
 > MACs you cable. Unused ports still have MACs — record them so nobody later plugs a
 > “spare” into the wrong Po and hijacks the bond. Lab 05 shows the recommended 4-slave
 > bond pattern; unused ports stay documented as spare.
