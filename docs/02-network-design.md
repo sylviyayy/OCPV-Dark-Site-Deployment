@@ -84,7 +84,7 @@ routes:
 
 ## VM Networking on OCP-V
 
-Once OpenShift Virtualization is installed, VMs connect via **OVN** (default in OpenShift 4.22):
+Once OpenShift Virtualization is installed, VMs connect via **OVN** (default in OpenShift 4.21.27):
 
 | Network | Type | Purpose |
 |---|---|---|

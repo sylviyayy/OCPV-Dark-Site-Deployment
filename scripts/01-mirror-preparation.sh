@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Download CLI tools and mirror OCP 4.22 images using oc-mirror plugin v2 (connected staging host)
+# Download CLI tools and mirror OCP 4.21.27 images using oc-mirror plugin v2 (connected staging host)
 #
 # Official references:
-# - https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/
-# - https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/about-installing-oc-mirror-v2
+# - https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/
+# - https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/about-installing-oc-mirror-v2
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,7 +19,7 @@ IMAGESET="${IMAGESET_CONFIG:-${MIRROR_DIR}/imageset-config.yaml}"
 WORKDIR="${OC_MIRROR_WORKDIR:-${MIRROR_DIR}/oc-mirror-workdir}"
 OCP_MINOR="${OCP_VERSION%.*}"
 
-log_info "OCP 4.22 disconnected mirror preparation"
+log_info "OCP 4.21.27 disconnected mirror preparation"
 log_info "Version: ${OCP_VERSION}  Channel: ${OCP_CHANNEL:-stable-${OCP_MINOR}}"
 
 if [[ ! -f "$PULL_SECRET" ]]; then
@@ -57,9 +57,9 @@ fi
 # --- Step 2: Generate ImageSetConfiguration ---
 if [[ ! -f "${IMAGESET}" ]]; then
   sed \
-    -e "s|stable-4.22|${OCP_CHANNEL:-stable-${OCP_MINOR}}|g" \
-    -e "s|4.22.2|${OCP_VERSION}|g" \
-    -e "s|redhat-operator-index:v4.22|redhat-operator-index:v${OCP_MINOR}|g" \
+    -e "s|stable-4.21|${OCP_CHANNEL:-stable-${OCP_MINOR}}|g" \
+    -e "s|4.21.27|${OCP_VERSION}|g" \
+    -e "s|redhat-operator-index:v4.21|redhat-operator-index:v${OCP_MINOR}|g" \
     "${REPO_ROOT}/mirror/imageset-config.yaml.template" > "${IMAGESET}"
   log_info "Generated ${IMAGESET}"
 fi
@@ -87,7 +87,7 @@ log_info "B) Mirror-to-mirror (staging host can reach dark-site registry):"
 log_info "   oc mirror -c ${IMAGESET} --workspace file://${WORKDIR} docker://${MIRROR_REGISTRY} --v2"
 log_info ""
 log_info "Optional: install mirror-registry for Red Hat OpenShift on dark site:"
-log_info "   https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/index"
+log_info "   https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/index"
 log_info "   Download mirror-registry CLI from console.redhat.com → Downloads"
 log_info ""
 log_info "After mirroring, verify cluster-resources were generated:"

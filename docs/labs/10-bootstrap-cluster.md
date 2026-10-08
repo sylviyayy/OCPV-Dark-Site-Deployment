@@ -1,64 +1,77 @@
-# 10 — Bootstrapping the Cluster with the Agent-based Installer
+# 10 — Bootstrapping the Cluster with the Assisted / OVE Offline Agent
 
 ## Goal
 
-Boot all three Lenovo nodes from the Agent ISO via BMC and wait until install completes.
+Boot all three Lenovo nodes (`mw01`–`mw03`) from the **offline OVE agent media**
+(`agent.ove.x86_64`, OpenShift **4.21.27**) via BMC virtual CD and finish the Assisted
+UI / install until the cluster is up.
 
 ## WHERE
 
-- Bastion: `install-config/agent.x86_64.iso`  
+- USB / bastion copy of `agent.ove.x86_64` (~58 GB; see [USB Transfer Kit](../USB-TRANSFER-KIT.md))  
 - Each server XCC: virtual media  
 
 ## WHY
 
 This replaces Hard Way’s separate “bootstrap control plane” and “bootstrap workers” labs.
-The Agent ISO embeds Assisted Service; nodes self-register using Lab 08 networking.
+The OVE offline agent embeds Assisted Service plus the Virtualization-oriented payload;
+nodes self-register. You configure the cluster in the Assisted UI on the rendezvous host
+(or follow the console-exported flow you started when downloading the media).
 
-**Not PXE. Not Kickstart on RHCOS.**
+**Not PXE. Not Kickstart on RHCOS. Not a separate RHCOS installer USB.**
 
-> **[WINDOW A]** Boot every node within **12 hours** of creating the ISO (hard limit 24).
-> If you miss it, regenerate both the ISO **and** `auth/` from your config backup. Never mix
-> artifacts from two runs.
+> **DNS/NTP:** Keep bastion MVP DNS/NTP up (Lab 07) so `api.` / `*.apps.` and clocks work
+> during bootstrap.
 >
 > **[WINDOW B]** After install starts, keep the cluster powered on and the bastion's
 > DNS/NTP unchanged for at least 24 hours (first certificate rotation).
 > See [Bastion Lifecycle §2](../BASTION-LIFECYCLE.md#2-the-two-24-hour-windows-and-what-is-not-on-a-clock).
 
-## DO — BMC on cp01, cp02, cp03
+### Optional alternate: classic `openshift-install agent create image`
 
-1. Map `agent.x86_64.iso` as virtual CD  
+If you are on the advanced oc-mirror path instead of OVE media, use the ISO from Lab 08
+(`agent.x86_64.iso`) and `openshift-install agent wait-for install-complete`. Primary
+hands-on path for this repo is **OVE offline media**.
+
+## DO — BMC on mw01, mw02, mw03
+
+1. Map **`agent.ove.x86_64`** as virtual CD (file is large — prefer HTTP virtual media from
+   bastion if XCC upload is slow; otherwise attach from a locally mounted exFAT stick)  
 2. One-time boot from virtual CD  
-3. Reboot  
+3. Let Assisted proceed; reboot into the installed system when directed  
 
-Boot the `RENDEZVOUS_IP` node first if you want a clearer bootstrap path, then the others.
+Boot the **`RENDEZVOUS_IP`** node first, complete its Assisted steps, then boot the others
+from the **same** media.
 
-## DO — wait on bastion
+## DO — wait / finish install
+
+Use the Assisted UI hosted on the rendezvous node (URL shown on the console after boot),
+or, on the classic ABI path only:
 
 ```bash
 export PATH="${MIRROR_DIR}/clients:${PATH}"
-./scripts/05-install-ocp-disconnected.sh
-# or:
 openshift-install agent wait-for install-complete --dir=install-config/ --log-level=info
 ```
 
 ## VERIFY
 
 ```bash
-export KUBECONFIG="${PWD}/install-config/auth/kubeconfig"
+# After kubeconfig is available (Assisted download or install-config/auth/)
+export KUBECONFIG=/path/to/kubeconfig
 oc get nodes -o wide
 oc get clusterversion
+# Expect OpenShift 4.21.27
 ```
 
 ## FAILS IF
 
 | Problem | Symptom |
 |---|---|
-| Wrong MAC | Nodes boot ISO; not discovered |
-| DNS/NTP down | Bootstrap hangs |
-| Registry empty | Image pulls fail |
+| Wrong MAC / bond | Nodes boot ISO; not discovered or no IP |
+| DNS/NTP down | Bootstrap hangs on names or clocks |
+| Truncated USB copy | Media will not boot or fails mid-stream |
+| FAT32 USB used for copy | Never got the full ~58 GB file onto the stick |
 
 ## Next
 
 → [11 — Configuring `oc` for Remote Access](11-oc-remote-access.md)
-
-**BMC steps:** mount `agent.x86_64.iso` as virtual CD on each XCC (see Goal/DO above).

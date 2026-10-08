@@ -40,7 +40,7 @@ git clone https://github.com/sylviyayy/OCPV-Dark-Site-Deployment.git
 cd OCPV-Dark-Site-Deployment
 cp .env.example .env
 # Edit .env with your site values
-vi .env
+vim .env
 
 # Download and mirror OCP artifacts
 ./scripts/01-mirror-preparation.sh
@@ -132,7 +132,7 @@ On the bastion (`10.10.0.5`):
 ```bash
 cd /home/installer/OCPV-Dark-Site-Deployment
 cp .env.example .env
-vi .env   # confirm IPs match your site
+vim .env   # confirm IPs match your site
 sudo ./scripts/02-bootstrap-dns-ntp.sh
 ```
 

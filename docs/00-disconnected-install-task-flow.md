@@ -1,30 +1,45 @@
-# Disconnected Installation Task Flow (OpenShift 4.22)
+# Disconnected Installation Task Flow (OpenShift 4.21.27)
 
-This document maps the **official Red Hat disconnected installation workflow** to this
-repository's scripts and phases. It aligns with:
+This document maps disconnected installation options to this repository. **Primary
+hands-on path:** Assisted Installer offline OVE media (`agent.ove.x86_64`) for
+**4.21.27** — see [USB Transfer Kit](USB-TRANSFER-KIT.md). The tables below also cover
+the optional oc-mirror + local registry path when you need content beyond the OVE bundle.
 
-- [Disconnected environments (OCP 4.22)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/index)
-- [Agent-based Installer — disconnected mirroring](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/installing_an_on-premise_cluster_with_the_agent-based_installer/understanding-disconnected-installation-mirroring)
-- [Installing OpenShift Virtualization (OCP 4.22)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/virtualization/installing)
+- [Installing without an external registry (OVE / Assisted offline)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/installing_an_on-premise_cluster_with_the_agent-based_installer/installing-ove)
+- [Disconnected environments (OCP 4.21)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/index)
+- [Agent-based Installer — disconnected mirroring](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/installing_an_on-premise_cluster_with_the_agent-based_installer/understanding-disconnected-installation-mirroring)
+- [Installing OpenShift Virtualization (OCP 4.21)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/virtualization/installing)
 
-> **Preferred stack (Red Hat 4.22):** oc-mirror plugin **v2** → Agent-based Installer →
-> IDMS/ITMS cluster resources (not deprecated ICSP).
+> **This repo’s day-1 stack:** Hybrid Cloud Console offline OVE ISO (**4.21.27**) → bastion
+> DNS/NTP → boot nodes. **Optional advanced:** oc-mirror plugin **v2** → IDMS/ITMS (not ICSP).
 
 ## Task checklist
 
 ### Phase 0 — Connected staging (internet required)
 
+#### Primary (OVE offline — this hands-on)
+
+| # | Task | Artifact | Notes |
+|---|---|---|---|
+| 0a | Pin version | `.env` → `OCP_VERSION=4.21.27` | Must match console download |
+| 0b | Reformat USB to **exFAT**, ≥65 GB | Stick label e.g. `OCPV-OVE` | FAT32 cannot hold ~58 GB file |
+| 0c | Console: OpenShift → Resources → Create cluster → **offline/air-gapped** toggle | UI | Toggle appears after you start creating a cluster |
+| 0d | Download OVE offline media | `agent.ove.x86_64` (~58 GB) | OpenShift **4.21.27** Virtualization offline |
+| 0e | Copy repo + secrets onto USB | This git tree, pull secret, SSH pub key | [USB Transfer Kit](USB-TRANSFER-KIT.md) |
+
+#### Optional advanced (oc-mirror + local registry)
+
 | # | Task | Script / artifact | Notes |
 |---|---|---|---|
-| 1 | Decide channel and version | `.env` → `OCP_VERSION`, `OCP_CHANNEL` | Use `stable-4.22`; pin exact z-stream |
+| 1 | Decide channel and version | `.env` → `OCP_VERSION`, `OCP_CHANNEL` | Use `stable-4.21`; pin **4.21.27** |
 | 2 | Download registry pull secret | `pull-secret.json` | [console.redhat.com](https://console.redhat.com/openshift/install/pull-secret) |
-| 3 | Download CLI tools (`oc`, `openshift-install`, `oc-mirror`, `butane`) | `scripts/01-mirror-preparation.sh` | Full list with reasons: [USB Transfer Kit](USB-TRANSFER-KIT.md) |
-| 4 | Download `mirror-registry` | Hybrid Cloud Console Downloads page | **Required** when the bastion will be disconnected: the registry must live on a permanent host |
+| 3 | Download CLI tools (`oc`, `openshift-install`, `oc-mirror`, `butane`) | `scripts/01-mirror-preparation.sh` | [USB Transfer Kit](USB-TRANSFER-KIT.md) §3 |
+| 4 | Download `mirror-registry` | Hybrid Cloud Console Downloads page | Registry host must outlive bastion |
 | 5 | Create ImageSetConfiguration | `mirror/imageset-config.yaml.template` | oc-mirror v2 `mirror.openshift.io/v2alpha1` |
-| 6 | Configure platform release images | ImageSet `mirror.platform` | Set `minVersion`/`maxVersion` to same z-stream |
-| 7 | Configure operators to mirror | ImageSet `mirror.operators` | Include `kubevirt-hyperconverged` for OCP-V |
+| 6 | Configure platform release images | ImageSet `mirror.platform` | Set `minVersion`/`maxVersion` to **4.21.27** |
+| 7 | Configure operators to mirror | ImageSet `mirror.operators` | Include `kubevirt-hyperconverged` if not using OVE media |
 | 8 | Mirror images (m2d or m2m) | `01-mirror-preparation.sh --mirror-to-disk` | Generates IDMS, ITMS, CatalogSource |
-| 9 | Package for transport | USB / NAS | Layout and pre-departure checklist: [USB Transfer Kit](USB-TRANSFER-KIT.md). Nothing here expires in 24 h |
+| 9 | Package for transport | USB / NAS | XFS/ext4 data drive for large mirror tarballs |
 
 ### Phase 1 — Dark site bootstrap (empty network)
 
@@ -47,7 +62,7 @@ repository's scripts and phases. It aligns with:
 | 19 | **agent-config.yaml** — rendezvousIP | `RENDEZVOUS_IP` in `.env` | Must match a control-plane node |
 | 20 | **agent-config.yaml** — node network | nmstate per host | Static IP, DNS, routes |
 | 21 | **agent-config.yaml** — MAC addresses | Per-host `interfaces` | Required for discovery |
-| 22 | Optional: bonds, VLANs, proxy | Edit `agent-config.yaml` | [Kubernetes NMState](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/kubernetes_nmstate/) |
+| 22 | Optional: bonds, VLANs, proxy | Edit `agent-config.yaml` | [Kubernetes NMState](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/kubernetes_nmstate/) |
 
 ### Phase 3 — Install and integrate
 
@@ -82,12 +97,12 @@ These are listed in the enterprise runbook but **not automated** in this repo:
 | Problem | Mitigation |
 |---|---|
 | Inconsistent artifact versions | Pin single z-stream in ImageSet **and** `.env`; use oc-mirror digest-pinned output |
-| Wrong operator catalog channel | Use `redhat-operator-index:v4.22`; verify with `oc mirror list operators --v2` |
+| Wrong operator catalog channel | Use `redhat-operator-index:v4.21`; verify with `oc mirror list operators --v2` |
 | Incorrect install/agent config | Validate MACs, rendezvousIP, nmstate; run `openshift-install agent create cluster-manifests` first |
 | Registry TLS / trust failures | `additionalTrustBundle` in install-config; trust CA on all nodes |
 | Connectivity during install | MVP DNS on bastion; static routes; firewall 6443, 443, registry port |
 | Transient mirror failures | oc-mirror v2 cache — re-run without full re-download |
-| `oc adm release mirror` used | **Deprecated in 4.22** — use oc-mirror v2 only |
+| `oc adm release mirror` used | **Deprecated in 4.21.27** — use oc-mirror v2 only |
 
 ## Optional: aba (community accelerator)
 

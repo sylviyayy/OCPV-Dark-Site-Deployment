@@ -4,9 +4,13 @@
 **new bare-metal OpenShift Virtualization cluster** — new install, nothing inherited
 into this build. The customer may be exiting VMware; that does not exclude them.
 
-This guide is separate from the **software install runbooks** (`03`–`07` in the parent folder).
-Read the greenfield chapters **first** — they explain *where to cable, what to configure on switches
-and SAN, and what information you must collect* before generating an agent ISO.
+This guide assumes a **lean team**: one small crew owns rack, switching, storage masking,
+and OpenShift. There are **no separate network/storage teams** in the worksheets — sections
+are split by **function**. Hardware context is the Lenovo CoE rack in the
+[main README](../README.md) (2× SR665 V3 + 1× SR675 V3, OpenShift **4.21.27** OVE offline).
+
+Read the greenfield chapters **first** — they explain *where to cable, what to configure,
+and what information you must collect* before booting `agent.ove.x86_64`.
 
 ---
 

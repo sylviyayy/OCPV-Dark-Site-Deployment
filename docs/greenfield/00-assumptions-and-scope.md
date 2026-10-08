@@ -7,7 +7,7 @@
 | **Field** | Greenfield (new rack, new network, new DNS) |
 | **Connectivity** | Air-gapped (completely no internet access) during install |
 | **Platform** | Bare metal - the default for **Track A** |
-| **OpenShift** | 4.22, channel `stable-4.22` |
+| **OpenShift** | 4.21.27, channel `stable-4.21` |
 | **Installer** | Agent-based Installer (Red Hat recommended for disconnected) |
 | **Mirroring** | oc-mirror plugin v2, IDMS/ITMS |
 | **Virtualization** | OpenShift Virtualization (`kubevirt-hyperconverged`) |

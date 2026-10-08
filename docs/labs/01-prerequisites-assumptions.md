@@ -21,18 +21,20 @@ assuming VMware DNS still exists. This lab locks scope.
 | Network | Shared install network; start flat L2 unless worksheet says otherwise |
 | Internet on cluster VLAN | None during install |
 | DNS / NTP at day zero | None — you build MVP on the bastion |
-| Installer | Agent-based Installer + oc-mirror v2 |
-| OpenShift | 4.22 (`stable-4.22`) |
+| Installer | Assisted Installer offline OVE media (`agent.ove.x86_64`); optional oc-mirror v2 |
+| OpenShift | **4.21.27** |
 | Hardware | 2× SR665 V3 + 1× SR675 V3 (see [Lab 05](05-compute-resources.md)) |
 | Bastion OS | RHEL 9/10, Fedora, or CentOS Stream for learning |
+| Team shape | Lean crew — no separate network/storage orgs; worksheet is by function |
 
 ## DO — checklist
 
-1. Red Hat account + [pull secret](https://console.redhat.com/openshift/install/pull-secret) → save as `pull-secret.json` (**never commit**)  
-2. RHEL DVD/USB ISO for bastion/registry Kickstart (if installing helpers from USB)  
-3. USB / portable disk large enough for the mirror (often 80–150 GB)  
-4. BMC access to all three Lenovo servers  
-5. Tools on the bastion candidate:
+1. Red Hat account; plan the Hybrid Cloud Console offline OVE download ([USB Transfer Kit](../USB-TRANSFER-KIT.md))  
+2. Pull secret → `pull-secret.json` (**never commit**) if still required for your console path  
+3. **exFAT** USB **≥ 65 GB** for `agent.ove.x86_64` (~58 GB) — reformat off FAT32  
+4. Optional: RHEL DVD for bastion Kickstart (helpers only)  
+5. BMC access to all three Lenovo servers  
+6. Tools on the bastion candidate:
 
 ```bash
 sudo dnf install -y git vim jq curl podman
@@ -55,8 +57,9 @@ cp .env.example .env
 
 | Missing | Later failure |
 |---|---|
-| Pull secret | `oc mirror` cannot authenticate |
-| No BMC plan | Cannot mount Agent ISO |
+| Pull secret (if required) | Auth failures during pull/install steps |
+| No BMC plan | Cannot mount `agent.ove.x86_64` |
+| FAT32 USB only | Cannot copy the ~58 GB OVE media |
 | Assumed enterprise DNS | Wrong lab path — re-read [appendix](../greenfield/appendix-brownfield-contrast.md) |
 
 ## Next

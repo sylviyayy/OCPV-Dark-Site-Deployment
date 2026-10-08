@@ -16,7 +16,7 @@ Beginner walkthrough: [docs/labs/04-bastion-and-registry-usb.md](../docs/labs/04
 
 ## Before Use
 
-Edit with **`vim`** (not `vi`):
+Edit with **`vim`**:
 
 ```bash
 vim kickstart/ks-bastion.cfg

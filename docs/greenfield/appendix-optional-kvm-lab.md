@@ -23,7 +23,7 @@ Excellent step-by-step lab using RHEL KVM:
 
 | Asset | Use in Track B |
 |---|---|
-| `imageset-config-4.22.yaml` | Operator mirror list (see our `mirror/imageset-ocpv-coe.yaml`) |
+| `imageset-config-4.21.27.yaml` | Operator mirror list (see our `mirror/imageset-ocpv-coe.yaml`) |
 | Bastion BIND/chrony steps | Same logic on **physical** bastion in Track A |
 | `mirror-registry install` | Same on physical registry host |
 | `oc mirror --v2` workspace flow | Same commands |

@@ -2,10 +2,9 @@
 
 The tutorial entry point is the repository [README](../../README.md).
 
-Before Lab 06, read the [USB Transfer Kit](../USB-TRANSFER-KIT.md) (what to download,
-and why). Keep the [Bastion Lifecycle](../BASTION-LIFECYCLE.md) open throughout. It marks
-where the 24-hour windows apply and how the bastion hands DNS/NTP to permanent servers
-before it is disconnected.
+Before you travel, read the [USB Transfer Kit](../USB-TRANSFER-KIT.md) (OVE offline ISO
+~58 GB on **exFAT**, ≥65 GB stick, OpenShift **4.21.27**). Keep the
+[Bastion Lifecycle](../BASTION-LIFECYCLE.md) open throughout for DNS/NTP cutover.
 
 Complete labs **in order**:
 

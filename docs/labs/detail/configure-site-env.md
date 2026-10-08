@@ -1,15 +1,17 @@
 # Configure `.env` (field-by-field detail)
 
 > Used from [Lab 03 — Site Checklist](../03-checklist.md).  
-> Tutorial index: [README Labs](../../../README.md#labs).
+> Tutorial index: [README Labs](../../../README.md#labs).  
+> Full rationale tables: [information gathering worksheet](../../greenfield/01-information-gathering-worksheet.md).
 
 ## Goal
 
-Create a site-specific `.env` and change **only** the values that match your lab.
+Create a site-specific `.env` for the **reference Lenovo rack** (2× SR665 V3 + 1× SR675 V3)
+and OpenShift **4.21.27** offline OVE install.
 
 ## WHERE
 
-Staging machine (Fedora laptop or RHEL 10 KVM) — same place you will run the mirror later.
+Staging machine (Fedora laptop or RHEL 10 KVM) — before you travel with the USB.
 
 ```bash
 git clone https://github.com/sylviyayy/OCPV-Dark-Site-Deployment.git
@@ -20,11 +22,11 @@ vim .env
 
 ## WHY this lab exists
 
-Every script reads `.env`. If MAC addresses or IPs are still the sample placeholders, the Agent installer will look for servers that do not exist. Editing `.env` once drives Kickstart notes, DNS records, and `agent-config.yaml` generation.
+Scripts and generated configs read `.env`. Sample MACs/IPs point at machines that do not
+exist. Editing once drives DNS records, Kickstart notes, and (on the optional mirror path)
+`agent-config.yaml` generation.
 
-## DO — open the file
-
-Inside `vim`:
+## DO — open the file with `vim`
 
 - Move with arrow keys  
 - Press `i` to insert  
@@ -37,158 +39,125 @@ Do **not** put spaces around `=`.
 
 ## Fields you almost always must change
 
-Work top to bottom. Leave a field alone only if the sample value is already correct for your site.
-
 ### 1) Cluster identity
 
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `CLUSTER_NAME` | `ocpv-lab` | Short name, letters/numbers/hyphen | Becomes part of DNS: `api.<CLUSTER_NAME>.<BASE_DOMAIN>` |
-| `BASE_DOMAIN` | `ocp-v.local` | Your lab DNS domain | All hostnames hang under this |
-| `OCP_VERSION` | `4.22.2` | Exact z-stream from [mirror.openshift.com clients](https://mirror.openshift.com/pub/openshift-v4/clients/ocp/) | Tools and release images must match |
-| `OCP_CHANNEL` | `stable-4.22` | Usually leave as-is for 4.22 | oc-mirror channel |
-
-**Example edit:**
+| Variable | Sample | What to put | How it is used | If wrong | Stage |
+|---|---|---|---|---|---|
+| `CLUSTER_NAME` | `ocpv-lab` | Short DNS label | `api.<name>.<domain>`, Assisted cluster name | Console/API URLs wrong; DNS rebuild | Lab 07 + install |
+| `BASE_DOMAIN` | `ocp-v.local` | Your lab domain | Suffix for all cluster DNS | Same | Lab 07 + install |
+| `OCP_VERSION` | **`4.21.27`** | Exact z-stream | Must match `agent.ove.x86_64` download | Version skew / support confusion | Console download |
+| `OCP_CHANNEL` | `stable-4.21` | Leave for 4.21 | Optional oc-mirror channel | Mirror path only | Lab 06 (optional) |
 
 ```bash
 CLUSTER_NAME=coe01
 BASE_DOMAIN=lab.example.com
-OCP_VERSION=4.22.10
-OCP_CHANNEL=stable-4.22
+OCP_VERSION=4.21.27
+OCP_CHANNEL=stable-4.21
 ```
 
 ### 2) Network basics
 
-| Variable | Sample | What to put | Why |
-|---|---|---|---|
-| `NETWORK_CIDR` | `10.10.0.0/16` | Your install subnet/CIDR | Firewall and chrony `allow` ranges |
-| `NETWORK_GATEWAY` | `10.10.0.1` | Default gateway for nodes | Without it, nodes cannot reach registry/bastion off-subnet |
-| `NETWORK_NETMASK` | `255.255.0.0` | Must match CIDR | Kickstart/static IP helpers |
-| `NETWORK_INTERFACE` | `ens192` | Real NIC name from `ip link` on a node | Wrong name → no network after install |
+| Variable | Sample | How it is used | If wrong | Stage |
+|---|---|---|---|---|
+| `NETWORK_CIDR` | `10.10.0.0/16` | Firewall allow / chrony `allow` | Bastion blocks node DNS/NTP | Lab 07 |
+| `NETWORK_GATEWAY` | `10.10.0.1` | Default route in nmstate | Nodes cannot reach bastion/peers | Agent network |
+| `NETWORK_NETMASK` | `255.255.0.0` | Must match CIDR | Wrong mask → one-way traffic | Kickstart / nmstate |
+| `NETWORK_INTERFACE` | `ens192` | Hint for first NIC name | Prefer per-port names from live boot in the worksheet | Agent nmstate |
 
-**How to learn the NIC name (on a temporary live USB or existing OS):**
-
-```bash
-ip -br link
-# pick the data NIC, e.g. ens1f0, eno1, eth0
-```
+Learn names after a live boot: `ip -br link`.
 
 ### 3) Bastion and registry
 
-| Variable | Sample | What to put | Why |
+| Variable | How it is used | If wrong | Stage |
 |---|---|---|---|
-| `BASTION_IP` | `10.10.0.5` | Static IP of helper / installer host | Temp DNS/NTP + `openshift-install` run here |
-| `MIRROR_REGISTRY_IP` | `10.10.0.10` | Static IP of registry host | Cluster pulls images from here |
-| `MIRROR_REGISTRY` | `10.10.0.10:443` | `IP:port` or `hostname:port` | mirror-registry for RH OpenShift uses **443** by default |
-| `MIRROR_REGISTRY_HOSTNAME` | `registry.ocp-v.local` | Hostname nodes will use | Must resolve via bastion DNS |
-| `MIRROR_REGISTRY_USER` | `init` | Registry admin user | Created when registry is installed |
-| `MIRROR_REGISTRY_PASSWORD` | `changeme` | **Change this** | Used to push/pull mirrored images |
+| `BASTION_IP` | Temp DNS/NTP; scripts | Bootstrap name/time fail | Lab 04/07 |
+| `MIRROR_REGISTRY_*` | Optional mirror path image pulls | Ignore for OVE-primary day-1; required if you run Lab 06 mirror | Lab 06 / lifecycle |
 
-If bastion and registry are **one machine**, set both IPs to that machine’s IP and adjust later docs accordingly.
-**Do not do this if the bastion will be disconnected after cutover.** The cluster pulls
-images from the registry for its whole life ([Bastion Lifecycle](../../BASTION-LIFECYCLE.md), hard constraints).
+If the bastion will leave the network, never co-locate the only registry on it
+([Bastion Lifecycle](../../BASTION-LIFECYCLE.md)).
 
-### 4) VIPs (virtual IPs — not a physical server)
+### 4) VIPs
 
-| Variable | Sample | What to put | Why |
+| Variable | How it is used | If wrong | Stage |
 |---|---|---|---|
-| `API_VIP` | `10.10.0.100` | Unused IP on the machine network | Clients use this for `oc login` / API |
-| `INGRESS_VIP` | `10.10.0.101` | Different unused IP | `*.apps.<cluster>.<domain>` |
+| `API_VIP` | Target of `api.<cluster>.<domain>` | `oc login` / API broken | Lab 07 DNS + install |
+| `INGRESS_VIP` | Target of `*.apps.<cluster>.<domain>` | Console/routes broken | Lab 07 DNS + install |
 
-**WHY VIPs:** Agent-based bare metal does not require an external load balancer. These addresses float for API and router.
+These are **unused** addresses on the machine network — not tied to one physical NIC.
 
 ### 5) Rendezvous IP
 
-| Variable | Sample | What to put | Why |
+| Variable | How it is used | If wrong | Stage |
 |---|---|---|---|
-| `RENDEZVOUS_IP` | `10.10.1.11` | **Must equal one control-plane node IP** (usually `CP01_IP`) | That node temporarily runs Assisted Service during install |
+| `RENDEZVOUS_IP` | Must equal one compact node IP (`CP01_IP` / mw01 typical) | Assisted Service never anchors | Lab 10 |
 
-### 6) Control plane and workers — IPs, hostnames, MACs
+### 6) Nodes — IPs and **primary** MACs (`.env`)
 
-For **each** node, set IP and **real MAC address**.
+`.env` keeps one **primary install MAC** per node (what discovery matches). The worksheet
+still records **all** physical ports (6 on each SR665, 8 on the SR675).
 
-| Variable | What to put | Why |
-|---|---|---|
-| `CP01_IP` … `CP03_IP` | Static IPs | Written into `agent-config.yaml` |
-| `CP01_MAC` … `CP03_MAC` | From BMC inventory or `ip link` | Agent matches the physical NIC |
-| `WK01_IP` / `WK02_IP` | Static IPs | Workers host OCP-V VMs |
-| `WK01_MAC` / `WK02_MAC` | Real MACs | Same as above |
+| Variable | Maps to | How it is used | If wrong | Stage |
+|---|---|---|---|---|
+| `CP01_IP` / `CP01_MAC` | `mw01` (SR665) | Static IP + discovery MAC | Host missing or wrong identity | Lab 08–10 |
+| `CP02_IP` / `CP02_MAC` | `mw02` (SR665) | Same | Same | Lab 08–10 |
+| `CP03_IP` / `CP03_MAC` | `mw03` (SR675) | Same | Same | Lab 08–10 |
+| `WK01_*` / `WK02_*` | Unused in 3-node compact | Leave or ignore | — | — |
 
-**How to get a MAC on bare metal:** BMC inventory, or boot a live USB and run:
+Get MACs from XCC inventory or live USB: `ip -br link`. Replace `00:50:56:…` samples.
 
-```bash
-ip -br link
-# look at the data NIC line, e.g. ens192  UP  aa:bb:cc:dd:ee:ff
-```
-
-Replace samples like `00:50:56:00:00:11` (those are placeholders).
+Bond slaves and spare ports: fill the **full port tables** in
+[01-information-gathering-worksheet.md](../../greenfield/01-information-gathering-worksheet.md)
+— not only “port 1 and 2.”
 
 ### 7) Production DNS/NTP VM IPs (post-install)
 
-| Variable | Sample | What to put | Why |
+| Variable | How it is used | If wrong | Stage |
 |---|---|---|---|
-| `DNS_VM_IP` | `10.10.0.50` | Free IP for future DNS VM on OCP-V | Pre-create DNS records now |
-| `NTP_VM_IP` | `10.10.0.51` | Free IP for future NTP VM | Same |
+| `DNS_VM_IP` / `NTP_VM_IP` | Lab 14 permanent services | Cutover has no landing IPs | Lab 14 |
 
-You can leave these as samples if they do not collide with real hosts.
+### 8) Paths / pull secret
 
-### 8) Paths on staging
-
-| Variable | Sample | What to put | Why |
+| Variable | How it is used | If wrong | Stage |
 |---|---|---|---|
-| `MIRROR_DIR` | `/opt/ocp-mirror` | Directory with space for the mirror | Staging workspace |
-| `PULL_SECRET_FILE` | `${MIRROR_DIR}/pull-secret.json` | Where you will copy the pull secret | Scripts look here |
-
-After saving `.env`:
-
-```bash
-sudo mkdir -p /opt/ocp-mirror
-sudo cp ~/Downloads/pull-secret.json /opt/ocp-mirror/pull-secret.json
-# or wherever you saved the pull secret — adjust path
-sudo chown "$USER:$USER" /opt/ocp-mirror/pull-secret.json
-```
+| `MIRROR_DIR` / `PULL_SECRET_FILE` | Staging workspace; secret path | Mirror scripts fail; OVE path may still want secret on USB | Pre-departure |
 
 ### 9) Usually leave alone for first lab
 
-| Variable | Why leave default |
+| Variable | Why |
 |---|---|
-| `OPERATOR_CATALOG` | Must stay `.../redhat-operator-index:v4.22` for OCP 4.22 |
-| `CNV_PACKAGE` / `CNV_CHANNEL` | Official Virtualization package on `stable` |
-| `SSH_USER=core` | RHCOS default user after install |
-| `DNS_SERVER` / `NTP_SERVER` | Point at bastion during install via `${BASTION_IP}` |
+| `OPERATOR_CATALOG=...:v4.21` | Matches 4.21 catalogs on optional mirror path |
+| `CNV_PACKAGE` / `CNV_CHANNEL` | OVE media already carries Virtualization; keep for optional scripted install |
+| `SSH_USER=core` | RHCOS default |
+| `DNS_SERVER` / `NTP_SERVER` | Bastion during install |
 
 ---
 
 ## VERIFY
 
 ```bash
-# From repo root — does the shell load your values?
 set -a && source .env && set +a
 echo "Cluster: ${CLUSTER_NAME}.${BASE_DOMAIN}"
 echo "OCP: ${OCP_VERSION}"
 echo "Bastion: ${BASTION_IP}  Registry: ${MIRROR_REGISTRY}"
 echo "Rendezvous: ${RENDEZVOUS_IP} (should match CP01: ${CP01_IP})"
 echo "CP01 MAC: ${CP01_MAC}"
-test -f "${PULL_SECRET_FILE}" && echo "Pull secret: OK" || echo "Pull secret: MISSING"
+test -f "${PULL_SECRET_FILE}" && echo "Pull secret: OK" || echo "Pull secret: check USB/secrets"
 ```
 
-Checklist:
-
-- [ ] `RENDEZVOUS_IP` equals `CP01_IP` (or whichever CP you chose)  
-- [ ] No two hosts share an IP  
-- [ ] Every `*_MAC` is a real interface, not the sample  
-- [ ] `NETWORK_INTERFACE` matches real NIC names (or you will fix per-node later in agent-config)  
-- [ ] Pull secret file exists at `PULL_SECRET_FILE`  
+- [ ] `OCP_VERSION=4.21.27`  
+- [ ] `RENDEZVOUS_IP` equals a compact-node IP  
+- [ ] Primary `*_MAC` values are real  
+- [ ] Worksheet has **all** NIC port MACs for mw01–mw03  
 
 ## FAILS IF
 
 | Mistake | Symptom later |
 |---|---|
-| Left sample MACs | Agent ISO boots; zero hosts discovered |
-| `RENDEZVOUS_IP` not a CP IP | Install hangs at bootstrap |
-| Wrong `OCP_VERSION` | Client download 404 from mirror.openshift.com |
-| Pull secret path wrong | Mirror script exits immediately |
+| Left sample MACs | Agent/OVE boots; zero hosts discovered |
+| `RENDEZVOUS_IP` not a node IP | Install hangs at bootstrap |
+| `OCP_VERSION` ≠ downloaded media | Confusion / wrong assumptions vs console file |
+| Only recorded 2 of 6 (or 8) port MACs | Later cable into “spare” breaks LACP mystery |
 
 ## Next
 
-→ [Lab 03 — Site Checklist](../03-checklist.md) · [Lab 06 — Mirroring](../06-mirroring-images.md)
+→ [Lab 03 — Site Checklist](../03-checklist.md) · [USB Transfer Kit](../../USB-TRANSFER-KIT.md)

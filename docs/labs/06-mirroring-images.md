@@ -1,8 +1,12 @@
 # 06 — Mirroring Images for a Disconnected Install
 
+> **Primary hands-on path skips this lab.** Day-1 media is the console OVE offline ISO
+> (`agent.ove.x86_64`, **4.21.27**) — [USB Transfer Kit](../USB-TRANSFER-KIT.md).
+> Use this lab only when you need operators/content **beyond** that bundle.
+
 ## Goal
 
-On a machine **with internet**, download clients and mirror OpenShift 4.22 + Virtualization
+On a machine **with internet**, download clients and mirror OpenShift 4.21.27 + Virtualization
 images to disk, then carry them into the dark site.
 
 ## WHERE

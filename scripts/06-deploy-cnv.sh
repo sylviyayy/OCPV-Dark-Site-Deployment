@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Deploy OpenShift Virtualization 4.22 from mirrored operator catalog
+# Deploy OpenShift Virtualization 4.21.27 from mirrored operator catalog
 #
-# Official: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/virtualization/installing
+# Official: https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/virtualization/installing
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

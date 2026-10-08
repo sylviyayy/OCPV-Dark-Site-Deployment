@@ -52,7 +52,7 @@ In a dark site with **no existing DNS or NTP**, OpenShift cannot install because
 1. **MVP (Phase 2):** Run `dnsmasq` + `chronyd` on the bastion. All nodes point to the bastion IP for DNS and NTP. Use static `/etc/hosts` entries on every host.
 2. **Production (Phase 5):** Deploy BIND9 and chrony VMs on OCP-V. Update node DNS/NTP to point to the VMs. Decommission bastion services.
 
-## Installer Choice (OpenShift 4.22)
+## Installer Choice (OpenShift 4.21.27)
 
 Red Hat recommends for disconnected environments:
 
@@ -69,7 +69,7 @@ Optional community wrapper: [aba](https://github.com/sjbylo/aba) (see [Red Hat D
 
 | Method | Pros | Cons |
 |---|---|---|
-| **Agent-based** (default) | Official 4.22 preference; disconnected-native | Per-node discovery ISO |
+| **Agent-based** (default) | Official 4.21.27 preference; disconnected-native | Per-node discovery ISO |
 | **IPI** | Automated VM provisioning | Needs vCenter/DHCP; less common in pure dark sites |
 | **UPI** | Maximum control | Manual node prep |
 

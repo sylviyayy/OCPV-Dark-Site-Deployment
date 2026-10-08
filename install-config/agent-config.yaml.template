@@ -146,4 +146,4 @@ hosts:
             next-hop-interface: ens192
 
 # Optional: bonds, VLANs, proxy — edit nmstate per host before install.
-# Docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/kubernetes_nmstate/
+# Docs: https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/kubernetes_nmstate/

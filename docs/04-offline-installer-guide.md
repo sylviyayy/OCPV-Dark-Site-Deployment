@@ -1,17 +1,17 @@
-# Offline Installer Guide (OpenShift 4.22 — Agent-Based, Disconnected)
+# Offline Installer Guide (OpenShift 4.21.27 — Agent-Based, Disconnected)
 
-Install OpenShift Container Platform **4.22** in a fully disconnected environment using
+Install OpenShift Container Platform **4.21.27** in a fully disconnected environment using
 the **Agent-based Installer** and **oc-mirror plugin v2**.
 
 ## Official documentation
 
 | Topic | Link |
 |---|---|
-| Disconnected environments overview | [OCP 4.22 Disconnected environments](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/index) |
-| oc-mirror plugin v2 | [About oc-mirror v2](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/about-installing-oc-mirror-v2) |
-| Agent-based disconnected mirroring | [Understanding disconnected mirroring (ABI)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/installing_an_on-premise_cluster_with_the_agent-based_installer/understanding-disconnected-installation-mirroring) |
-| Agent-based installation | [Installing with Agent-based Installer](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/installing_an_on-premise_cluster_with_the_agent-based_installer/index) |
-| OpenShift Virtualization | [Installing virtualization](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/virtualization/installing) |
+| Disconnected environments overview | [OCP 4.21.27 Disconnected environments](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/index) |
+| oc-mirror plugin v2 | [About oc-mirror v2](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/about-installing-oc-mirror-v2) |
+| Agent-based disconnected mirroring | [Understanding disconnected mirroring (ABI)](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/installing_an_on-premise_cluster_with_the_agent-based_installer/understanding-disconnected-installation-mirroring) |
+| Agent-based installation | [Installing with Agent-based Installer](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/installing_an_on-premise_cluster_with_the_agent-based_installer/index) |
+| OpenShift Virtualization | [Installing virtualization](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/virtualization/installing) |
 
 ## Why Agent-based Installer for dark sites?
 
@@ -37,7 +37,7 @@ Per Red Hat, the Agent-based Installer is the **preferred** method for disconnec
 ```bash
 cd /home/installer/OCPV-Dark-Site-Deployment
 cp .env.example .env   # if not done
-vi .env                # set OCP_VERSION=4.22.2, MAC addresses, rendezvous IP
+vim .env                # set OCP_VERSION=4.21.27, MAC addresses, rendezvous IP
 
 ./scripts/03-generate-install-config.sh
 ```
@@ -111,7 +111,7 @@ Verify:
 oc get imagedigestmirrorset,imagetagmirrorset,catalogsource -A
 ```
 
-> **Do not use ImageContentSourcePolicy** for new 4.22 installs — it is superseded by
+> **Do not use ImageContentSourcePolicy** for new 4.21.27 installs — it is superseded by
 > IDMS/ITMS per Red Hat disconnected environments documentation.
 
 ## Step 5 — Deploy OpenShift Virtualization
@@ -120,7 +120,7 @@ oc get imagedigestmirrorset,imagetagmirrorset,catalogsource -A
 ./scripts/06-deploy-cnv.sh
 ```
 
-Verify (expected CSV version aligns with OCP 4.22.z):
+Verify (expected CSV version aligns with OCP 4.21.27.z):
 
 ```bash
 oc get csv -n openshift-cnv
@@ -151,7 +151,7 @@ ISO builds, mount under the agent ISO `mirror/` path per Red Hat ABI disconnecte
 The mirrored catalog image must match your OCP minor version:
 
 ```
-registry.<domain>:<port>/redhat/redhat-operator-index:v4.22
+registry.<domain>:<port>/redhat/redhat-operator-index:v4.21
 ```
 
 List mirrored operators:
@@ -170,7 +170,7 @@ oc mirror list operators --catalog=cs-redhat-operator-index -n openshift-marketp
 | etcd clock skew | No NTP | MVP chronyd on bastion; all nodes sync |
 | Registry TLS error | Missing CA in install-config | Regenerate ISO with `additionalTrustBundle` |
 | CNV CSV stuck | Catalog not mirrored | Re-run oc-mirror with `kubevirt-hyperconverged` package |
-| Version mismatch | Mixed 4.21/4.22 images | Re-mirror with single z-stream in ImageSet |
+| Version mismatch | Mixed 4.21/4.21.27 images | Re-mirror with single z-stream in ImageSet |
 
 ## Next steps
 
