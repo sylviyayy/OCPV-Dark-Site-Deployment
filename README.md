@@ -67,7 +67,7 @@ Plus a **bastion**: Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host
 
 ### Official path in one glance
 
-1. **Connected:** Hybrid Cloud Console → OpenShift → **Resources** → Create cluster → enable **offline / air-gapped** → download **4.21.27** Virtualization media (`agent.ove.x86_64`, ~58 GB) onto an **exFAT** USB (**≥ 65 GB**; reformat off FAT32).  
+1. **Connected:** Hybrid Cloud Console → OpenShift → **Resources** → Create cluster → enable **offline / air-gapped** → download **4.21.27** Virtualization media (`agent.ove.x86_64`, ~58 GB) onto an **exFAT** USB (**USB should minimally be 64 GB**, reformatted off FAT32).  
 2. **Worksheet:** Fill [information gathering](docs/greenfield/01-information-gathering-worksheet.md) for this Lenovo rack (all NIC ports, VIPs, BMC).  
 3. **Dark site helpers:** Bastion for temporary DNS/NTP (RHEL USB Kickstart is **helpers only**, not RHCOS).  
 4. **Boot:** Map `agent.ove.x86_64` via BMC virtual CD; rendezvous node first, then `mw01`–`mw03`.  
