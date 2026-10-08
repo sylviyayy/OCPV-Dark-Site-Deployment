@@ -256,7 +256,7 @@ curl -sI http://10.10.0.10/rhel9/BaseOS/repodata/repomd.xml | head -1
 # The release image must be resolvable from the mirror. This is the same call
 # openshift-install makes to extract the RHCOS base ISO.
 # Take the exact repository path from the generated idms-oc-mirror.yaml.
-oc adm release info registry.ocp-v.local:8443/openshift/release-images:4.22.2-x86_64 | head -5
+oc adm release info registry.ocp-v.local:8443/openshift/release-images:4.21.27-x86_64 | head -5
 ```
 
 **FAILS IF:**
@@ -518,7 +518,7 @@ load-balancer pool before draining the old one.
    ```yaml
    # 99-master-chrony.bu
    variant: openshift
-   version: 4.22.0
+   version: 4.21.0
    metadata:
      name: 99-master-chrony
      labels:

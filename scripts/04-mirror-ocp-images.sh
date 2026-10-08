@@ -5,7 +5,7 @@
 # - mirror registry for Red Hat OpenShift (recommended, port 443) — official RH tool
 # - Fallback: podman registry:2 on port 5000 (lab only)
 #
-# Official: https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/
+# Official: https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

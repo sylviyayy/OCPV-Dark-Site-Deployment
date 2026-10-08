@@ -173,7 +173,7 @@ When adding new nodes or services:
 ssh root@10.10.0.50
 
 # Edit zone file
-vi /var/named/ocp-v.local.zone
+vim /var/named/ocp-v.local.zone
 # Add new A record
 
 # Reload BIND

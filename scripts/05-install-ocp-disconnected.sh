@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Disconnected OpenShift 4.22 installation using Agent-based Installer
+# Disconnected OpenShift 4.21.27 installation using Agent-based Installer
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

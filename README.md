@@ -15,12 +15,12 @@ Scripts under `scripts/` are helpers. Every lab still tells you **where** you ar
 
 Someone who wants to understand how a **greenfield, air-gapped** OpenShift Virtualization deployment fits together: cabling, switches, bastion, mirror registry, Agent-based install, and where DNS/NTP live before and after the cluster exists.
 
-You should be comfortable with a terminal, commands like `vi` or `vim`, and have either a Fedora/RHEL laptop or access to server BMCs. 
+You should be comfortable with a terminal, commands like `vim`, and have either a Fedora/RHEL laptop or access to server BMCs. 
 You do **not** need prior OpenShift experience.
 
 ## Cluster Details
 
-This tutorial guides you through bootstrapping an OpenShift **4.22** cluster on Lenovo hardware, using the **Agent-based Installer** and **oc-mirror v2**.
+This tutorial guides you through bootstrapping an OpenShift **4.21.27** cluster on Lenovo hardware, using the **Assisted Installer offline / OpenShift Virtualization** agent media (`agent.ove.x86_64`, technology-preview console workflow).
 
 **Compact Bare Metal Cluster with Network Topology:**
 <insert architecture diagram>
@@ -32,7 +32,7 @@ This tutorial guides you through bootstrapping an OpenShift **4.22** cluster on 
 
 <img width="816" height="520" alt="image" src="https://github.com/user-attachments/assets/46010051-4786-4a10-9039-21620c2fc69d" />
 
-A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/etcd/index#etcd-overview) to maintain [quorum](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html-single/etcd/index#etcd-performance).
+A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/etcd/index#etcd-overview) to maintain [quorum](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html-single/etcd/index#etcd-performance).
 
 ### Reference Hardware
 
@@ -49,29 +49,37 @@ A minimum of 3 nodes is needed by the OpenShift control plane component [etcd](h
 | `mw02` | SR665 V3 | Master + worker |
 | `mw03` | SR675 V3 | Master + worker (GPU / heavy VM workloads) |
 
-Plus a **bastion**: Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for mirroring, `openshift-install`, and temporary DNS/NTP.
+Plus a **bastion**: Fedora laptop, RHEL 10 KVM VM, or a small physical RHEL host on the install VLAN — used for temporary DNS/NTP and install helper tasks (not a cluster node).
 
 ### Software / Component Versions
 
 | Component | Version / Note |
 |---|---|
-| OpenShift Container Platform | **4.22** (`stable-4.22`, pin exact z-stream in `.env`) |
-| OpenShift Virtualization | `kubevirt-hyperconverged` channel `stable` (from mirrored catalog) |
-| Installer | Agent-based Installer (`openshift-install agent`) |
-| Image mirroring | oc-mirror plugin **v2** |
-| Mirror registry | mirror registry for Red Hat OpenShift (or lab registry) |
+| OpenShift Container Platform | **4.21.27** (pin in `.env`; must match the console download) |
+| OpenShift Virtualization | Bundled in the offline OVE agent media (`agent.ove.x86_64`) |
+| Installer | Assisted Installer **offline** OVE media — tech-preview console path |
+| Optional advanced mirroring | oc-mirror plugin **v2** + local registry (content beyond the OVE bundle) |
 | Bastion OS | **RHEL 9/10**, **Fedora**, or CentOS Stream equivalent for learning |
-| Cluster node OS | RHCOS (installed by the Agent ISO — you do not Kickstart RHCOS by hand) |
+| Cluster node OS | RHCOS (installed by the agent/OVE ISO — you do **not** Kickstart RHCOS by hand) |
 | Container runtime | **CRI-O** (OpenShift default; not containerd) |
 | Cluster network | **OVN-Kubernetes** |
 | etcd | Bundled with the OpenShift control plane (not installed manually) |
 
+### Official path in one glance
+
+1. **Connected:** Hybrid Cloud Console → OpenShift → **Resources** → Create cluster → enable **offline / air-gapped** → download **4.21.27** Virtualization media (`agent.ove.x86_64`, ~58 GB) onto an **exFAT** USB (**≥ 65 GB**; reformat off FAT32).  
+2. **Worksheet:** Fill [information gathering](docs/greenfield/01-information-gathering-worksheet.md) for this Lenovo rack (all NIC ports, VIPs, BMC).  
+3. **Dark site helpers:** Bastion for temporary DNS/NTP (RHEL USB Kickstart is **helpers only**, not RHCOS).  
+4. **Boot:** Map `agent.ove.x86_64` via BMC virtual CD; rendezvous node first, then `mw01`–`mw03`.  
+5. **After:** `oc` access, Virtualization from the OVE bundle, then permanent DNS/NTP VMs and bastion drain.
+
 ## Before You Go to the Dark Site
 
-The USB drive is your only supply line. The agent ISO is the only artifact on a 24-hour clock, so you build it on site.
+The USB drive is your only supply line. For this hands-on the critical payload is the
+**~58 GB** offline OVE agent image from the Hybrid Cloud Console (not a full oc-mirror archive).
 
-* [USB Transfer Kit](docs/USB-TRANSFER-KIT.md): which Hybrid Cloud Console downloads you need (and which you don't), why, and what else goes on the drive (RHEL DVD, and the mirror archive carrying RHCOS and the Virtualization operators).
-* [Bastion Lifecycle](docs/BASTION-LIFECYCLE.md): USB → bastion as temporary DNS/NTP → install → permanent DNS/NTP with the bastion as secondary → bastion disconnected. Also shows exactly where the 24-hour windows start and end.
+* [USB Transfer Kit](docs/USB-TRANSFER-KIT.md): exFAT / ≥65 GB stick, console click-path, what else (if anything) to carry.
+* [Bastion Lifecycle](docs/BASTION-LIFECYCLE.md): USB → bastion as temporary DNS/NTP → install → permanent DNS/NTP with the bastion as secondary → bastion disconnected.
 
 ## Labs
 
@@ -107,7 +115,7 @@ same L2/L3 install network. Adjust hostnames and IPs in the checklist for your s
 ```text
 WHERE:    which machine you type on
 WHY:      why this step exists
-DO:       exact commands (use vim, not vi)
+DO:       exact commands (use `vim`)
 VERIFY:   how you know it worked
 FAILS IF: what breaks if you skip or get it wrong
 ```

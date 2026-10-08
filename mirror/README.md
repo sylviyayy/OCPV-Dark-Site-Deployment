@@ -1,6 +1,6 @@
 # Mirror configuration (oc-mirror plugin v2)
 
-Templates and output for disconnected image mirroring on OpenShift **4.22**.
+Templates and output for disconnected image mirroring on OpenShift **4.21.27**.
 
 | File | Purpose |
 |---|---|
@@ -8,8 +8,8 @@ Templates and output for disconnected image mirroring on OpenShift **4.22**.
 
 ## Official documentation
 
-- [About oc-mirror plugin v2](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/about-installing-oc-mirror-v2)
-- [Creating a mirror registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/index) (Chapter 4)
+- [About oc-mirror plugin v2](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/about-installing-oc-mirror-v2)
+- [Creating a mirror registry](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/index) (Chapter 4)
 
 ## Workflow
 

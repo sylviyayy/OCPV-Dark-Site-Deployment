@@ -30,7 +30,7 @@ regardless of which row above applies.
 - In-place cluster adoption on foreign infrastructure
 - Reuse of existing VLANs, IP plans, or storage arrays
 
-For those, start from the [OpenShift 4.22 disconnected install docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/index)
+For those, start from the [OpenShift 4.21.27 disconnected install docs](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/index)
 and adapt the network and storage chapters.
 
 → Back to [GREENFIELD-README.md](../GREENFIELD-README.md)

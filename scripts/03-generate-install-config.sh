@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Generate install-config.yaml and agent-config.yaml for OCP 4.22 agent-based disconnected install
+# Generate install-config.yaml and agent-config.yaml for OCP 4.21.27 agent-based disconnected install
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

@@ -7,7 +7,7 @@ YAML files from:
 ${OC_MIRROR_WORKDIR}/cluster-resources/
 ```
 
-oc-mirror v2 generates (per [Red Hat documentation](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/disconnected_environments/about-installing-oc-mirror-v2)):
+oc-mirror v2 generates (per [Red Hat documentation](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/disconnected_environments/about-installing-oc-mirror-v2)):
 
 | Resource | Purpose |
 |---|---|
@@ -15,7 +15,7 @@ oc-mirror v2 generates (per [Red Hat documentation](https://docs.redhat.com/en/d
 | `ImageTagMirrorSet` (ITMS) | Maps images by tag |
 | `CatalogSource` | Mirrored `redhat-operator-index` for OperatorHub |
 
-> **OpenShift 4.22:** `ImageContentSourcePolicy` (ICSP) is deprecated for new installs.
+> **OpenShift 4.21.27:** `ImageContentSourcePolicy` (ICSP) is deprecated for new installs.
 > Use IDMS/ITMS from oc-mirror v2 output instead.
 
 ## Apply after cluster install
@@ -26,7 +26,7 @@ oc apply -f "${OC_MIRROR_WORKDIR}/cluster-resources/"
 
 ## Apply before agent ISO generation (disconnected install)
 
-Per the [Agent-based Installer disconnected mirroring guide](https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/installing_an_on-premise_cluster_with_the_agent-based_installer/understanding-disconnected-installation-mirroring):
+Per the [Agent-based Installer disconnected mirroring guide](https://docs.redhat.com/en/documentation/openshift_container_platform/4.21/html/installing_an_on-premise_cluster_with_the_agent-based_installer/understanding-disconnected-installation-mirroring):
 
 1. Merge `additionalTrustBundle` (mirror registry CA) into `install-config.yaml`
 2. Embed mirror mapping in `install-config.yaml` or mount `registries.conf` (TOML v2) into the agent ISO

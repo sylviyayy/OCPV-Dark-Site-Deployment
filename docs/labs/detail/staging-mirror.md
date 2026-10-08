@@ -37,7 +37,7 @@ The dark site cannot reach `quay.io` or `registry.redhat.io`.
 ### WHAT the script is doing (rationale)
 
 1. Downloads `oc`, `openshift-install`, and `oc-mirror` for your `OCP_VERSION` from Red Hat’s public mirror  
-2. Builds an ImageSetConfiguration for `stable-4.22` + `kubevirt-hyperconverged`  
+2. Builds an ImageSetConfiguration for `stable-4.21` + `kubevirt-hyperconverged`  
 3. With `--mirror-to-disk`, runs `oc mirror --v2` into `OC_MIRROR_WORKDIR`  
 
 For a richer CoE operator set later, you can point at `mirror/imageset-ocpv-coe.yaml` (still **no MTV** unless you add it).

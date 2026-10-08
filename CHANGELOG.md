@@ -8,7 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- `docs/USB-TRANSFER-KIT.md`: bill of materials for the USB drive. Covers which Red Hat Hybrid Cloud Console downloads are required, optional or not needed (with reasons), why RHCOS and the Virtualization operators come from the mirror archive rather than the Downloads page, the RHEL Binary DVD's three roles, drive layout (XFS, two drives plus a backup) and the pre-departure checklist
+- README “official path in one glance” for Assisted Installer offline OVE media (`agent.ove.x86_64`)
+- `docs/USB-TRANSFER-KIT.md`: USB BOM for Assisted offline OVE media (`agent.ove.x86_64` ~58 GB on exFAT ≥65 GB) plus optional oc-mirror/RHEL helper path
 - `docs/BASTION-LIFECYCLE.md`: end-to-end runbook for USB → bastion as temporary DNS/NTP → install → permanent DNS/NTP with the bastion as secondary (make-before-break) → bastion disconnect. Includes the two 24-hour windows (agent ISO shelf life, first certificate rotation), a go/no-go gate before T-0, the bastion evacuation checklist, a risk register and a defect register for this path
 - "Before You Go to the Dark Site" section in `README.md`, and 24-hour window callouts in Labs 06, 08 and 10 and in `docs/00-disconnected-install-task-flow.md`
 - `additionalNTPSources` (bastion) in `install-config/agent-config.yaml.template`, so nodes use the bastion's NTP during install
@@ -24,6 +25,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Reference to [eanylin/openshift-lab](https://github.com/eanylin/openshift-lab) for optional KVM practice only
 
 ### Changed
+- Pinned hands-on OpenShift version to **4.21.27** across docs, `.env.example`, scripts, and mirror templates (Red Hat doc links keep minor `4.21`)
+- Primary air-gap media path: Hybrid Cloud Console Assisted Installer offline / OVE download (`agent.ove.x86_64`, ~58 GB) on **exFAT** USB ≥65 GB; oc-mirror archive marked optional/advanced in `docs/USB-TRANSFER-KIT.md`
+- Rewrote `docs/greenfield/01-information-gathering-worksheet.md` for a lean team (function segments, not network/storage orgs), Lenovo SR665/SR675 port inventory (6 or 8 MACs), and per-field how/if-wrong/stage rationale
+- Lab 03, Lab 05, Lab 10, and `.env` field guide aligned to `mw01`–`mw03`, OVE boot, and fuller NIC rationale
+- Standardized editor guidance to **`vim`** only (removed `vi` alternatives)
 - Renamed all “jumpbox” wording to **bastion**; lab file `04-jumpbox.md` → `04-bastion.md`
 - Expanded Lab 07 MVP DNS/NTP verification: `nslookup` against bastion for API + apps URLs, firewall lab vs prod notes
 - Prefer RHEL USB / KVM ISO attach over PXE for bastion/registry; document PXE as optional only
@@ -35,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Default mirror registry port changed to **443** (mirror registry for Red Hat OpenShift)
 - Added `docs/00-disconnected-install-task-flow.md` with full enterprise task checklist
 - Added `mirror/imageset-config.yaml.template` (`mirror.openshift.io/v2alpha1`)
-- Updated CNV deployment to use mirrored `kubevirt-hyperconverged` from `redhat-operator-index:v4.22`
+- Updated CNV deployment to use mirrored `kubevirt-hyperconverged` from `redhat-operator-index:v4.21`
 - Changelog policy, release workflow, and PR template for consistent change tracking
 - `scripts/08-deploy-ntp-vm.sh` no longer applies DNS/NTP cutover MachineConfigs. Cutover is now the make-before-break procedure in `docs/BASTION-LIFECYCLE.md`, Phases 7–8
 - Lab 14, `docs/05`, `docs/06` and `docs/greenfield/05-bootstrap-services.md` keep the bastion running as secondary until the drain is verified, instead of stopping it right after the VMs deploy

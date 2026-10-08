@@ -1,8 +1,14 @@
 # 08 — Generating Install and Agent Configuration
 
+> **Primary hands-on path:** If you already have `agent.ove.x86_64` from the Hybrid Cloud
+> Console ([USB Transfer Kit](../USB-TRANSFER-KIT.md)), you configure the cluster in the
+> Assisted UI after Lab 10 boots — treat this lab as **optional / advanced** (classic
+> `openshift-install agent create image` + oc-mirror). Lab **09** after this is conceptual.
+
 ## Goal
 
-Create `install-config.yaml`, `agent-config.yaml`, and the Agent discovery ISO.
+Create `install-config.yaml`, `agent-config.yaml`, and the Agent discovery ISO
+(classic ABI path).
 
 ## WHERE
 
@@ -23,7 +29,7 @@ Hard Way generates kubeconfigs by hand. Here you generate **Agent** configs: clu
 identity, registry CA, per-node MAC/IP/DNS (nmstate), and `rendezvousIP`.
 
 For the 3-node Lenovo compact lab, ensure all three hosts are listed and roles match
-your compact topology (see Red Hat Agent-based compact cluster notes for 4.22).
+your compact topology (see Red Hat Agent-based compact cluster notes for 4.21.27).
 
 ## DO — back up and validate (no clock yet)
 

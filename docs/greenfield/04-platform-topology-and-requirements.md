@@ -29,7 +29,7 @@
 
 | Requirement | Detail |
 |---|---|
-| Version | 4.22.x, `stable-4.22` |
+| Version | 4.21.27, `stable-4.21` |
 | Installer | Agent-based |
 | `rendezvousIP` | One control-plane IP (bootstrap assist node) |
 | Pull secret | Cluster install only — not mirror-registry creds |
@@ -45,7 +45,7 @@ Software flow: [00-disconnected-install-task-flow.md](../00-disconnected-install
 | Requirement | Detail |
 |---|---|
 | Operator | `kubevirt-hyperconverged`, channel `stable` |
-| Catalog | Mirrored `redhat-operator-index:v4.22` |
+| Catalog | Mirrored `redhat-operator-index:v4.21` |
 | Workers | `/dev/kvm` available (BIOS virt on) |
 | Storage | CSI for VM disks — `lvms-operator` or partner SAN CSI for CoE |
 | Networking | Default OVN for pods; Multus NAD for infra VMs on flat L2 |
